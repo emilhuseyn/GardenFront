@@ -1,5 +1,5 @@
 ﻿'use client';
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Save, Scan, Users, CheckCircle, XCircle, Clock, CalendarDays } from 'lucide-react';
 import { format, addDays, subDays, isToday } from 'date-fns';
@@ -29,6 +29,7 @@ export function AttendanceGrid() {
   const [statusFilter, setStatusFilter] = useState<'' | 'present' | 'late' | 'absent' | 'unmarked'>('');
   const [sortBy, setSortBy] = useState('name_asc');
   const [bulkCheckInTime, setBulkCheckInTime] = useState(() => format(new Date(), 'HH:mm'));
+  const customDateInputRef = useRef<HTMLInputElement>(null);
   const [scheduleMap, setScheduleMap] = useState<Record<string, { startTime: string; endTime: string }>>({
     FullDay: { startTime: '09:00', endTime: '18:00' },
     HalfDay: { startTime: '09:00', endTime: '13:00' },
@@ -48,6 +49,17 @@ export function AttendanceGrid() {
     { value: 'absent', label: 'Gəlmədilər' },
     { value: 'unmarked', label: 'Qeyd edilməmiş' },
   ];
+
+  const TIME_OPTIONS = useMemo(
+    () =>
+      Array.from({ length: 96 }, (_, i) => {
+        const hour = String(Math.floor(i / 4)).padStart(2, '0');
+        const minute = String((i % 4) * 15).padStart(2, '0');
+        const value = `${hour}:${minute}`;
+        return { value, label: value };
+      }),
+    []
+  );
 
   useEffect(() => {
     groupsApi.getAll().then(setGroups).catch(() => {});
@@ -135,6 +147,17 @@ export function AttendanceGrid() {
   const handleCustomDateChange = (value: string) => {
     if (!value) return;
     setDate(new Date(`${value}T00:00:00`));
+  };
+
+  const openDatePicker = () => {
+    const input = customDateInputRef.current;
+    if (!input) return;
+    if (typeof input.showPicker === 'function') {
+      input.showPicker();
+      return;
+    }
+    input.focus();
+    input.click();
   };
 
   const handleChange = useCallback((id: string, field: 'status' | 'checkIn' | 'checkOut', value: string) => {
@@ -300,11 +323,19 @@ export function AttendanceGrid() {
             <CalendarDays size={14} className="text-gray-400" />
             <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Tarix</span>
             <input
+              ref={customDateInputRef}
               type="date"
               value={format(date, 'yyyy-MM-dd')}
               onChange={(e) => handleCustomDateChange(e.target.value)}
-              className="h-8 min-w-[145px] rounded-lg border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#1e2130] px-2 text-xs text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="sr-only"
             />
+            <button
+              type="button"
+              onClick={openDatePicker}
+              className="h-8 px-2.5 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors whitespace-nowrap"
+            >
+              {format(date, 'dd.MM.yyyy')}
+            </button>
             <button
               onClick={() => setDate((d) => subDays(d, 1))}
               className="h-8 px-2 rounded-lg text-xs font-medium text-gray-500 bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors whitespace-nowrap"
@@ -339,13 +370,19 @@ export function AttendanceGrid() {
               <>
                 <div className="flex items-center gap-1.5 rounded-lg border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#1e2130] px-2 py-1 h-9">
                   <span className="text-[11px] text-gray-500 whitespace-nowrap">Gəliş saatı</span>
-                  <input
-                    type="time"
+                  <Select
                     value={bulkCheckInTime}
                     onChange={(e) => setBulkCheckInTime(e.target.value)}
-                    step={60}
-                    className="h-7 rounded-md border border-white-border dark:border-gray-700/60 px-1.5 text-xs bg-white dark:bg-[#1e2130] text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    options={TIME_OPTIONS}
+                    className="h-7 min-w-[84px] !pl-2 !pr-6 !text-xs !border-white-border dark:!border-gray-700/60 !bg-white dark:!bg-[#1e2130]"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setBulkCheckInTime(format(new Date(), 'HH:mm'))}
+                    className="h-7 px-2 rounded-md text-[11px] font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors whitespace-nowrap"
+                  >
+                    İndi
+                  </button>
                 </div>
                 <Button size="sm" variant="secondary" className="shrink-0" onClick={handleMarkAllPresent}>
                   Hamısı gəldi
