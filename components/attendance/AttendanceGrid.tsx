@@ -1,7 +1,7 @@
 ﻿'use client';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Save, Scan, Users, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Save, Scan, Users, CheckCircle, XCircle, Clock, CalendarDays } from 'lucide-react';
 import { format, addDays, subDays, isToday } from 'date-fns';
 import { az } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -28,6 +28,7 @@ export function AttendanceGrid() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | 'present' | 'late' | 'absent' | 'unmarked'>('');
   const [sortBy, setSortBy] = useState('name_asc');
+  const [bulkCheckInTime, setBulkCheckInTime] = useState(() => format(new Date(), 'HH:mm'));
   const [scheduleMap, setScheduleMap] = useState<Record<string, { startTime: string; endTime: string }>>({
     FullDay: { startTime: '09:00', endTime: '18:00' },
     HalfDay: { startTime: '09:00', endTime: '13:00' },
@@ -167,21 +168,20 @@ export function AttendanceGrid() {
   }, []);
 
   const handleMarkAllPresent = useCallback(() => {
+    const appliedCheckIn = bulkCheckInTime || (isToday(date) ? format(new Date(), 'HH:mm') : '09:00');
     setRows((prev) =>
       prev.map((r) => {
-        const defaultCheckIn = isToday(date) ? format(new Date(), 'HH:mm') : (r.scheduleStartTime ?? '09:00');
-        if (r.status === 'present' && r.checkIn) return r;
         return {
           ...r,
           status: 'present',
-          checkIn: r.checkIn ?? defaultCheckIn,
+          checkIn: appliedCheckIn,
           checkOut: r.status === 'absent' ? undefined : r.checkOut,
           isEarlyLeave: false,
         };
       })
     );
-    toast.success('Seçilmiş qrupda hamı "Gəldi" kimi işarələndi və giriş saatı əlavə olundu');
-  }, [date]);
+    toast.success(`Seçilmiş qrupda hamı "Gəldi" kimi işarələndi (${appliedCheckIn})`);
+  }, [bulkCheckInTime, date]);
 
   const handleMarkAllAbsent = useCallback(() => {
     setRows((prev) =>
@@ -296,14 +296,21 @@ export function AttendanceGrid() {
             </button>
           </div>
 
-          <div className="flex items-center gap-2 rounded-xl border border-white-border dark:border-gray-700/60 bg-gray-50/70 dark:bg-gray-800/40 px-2 py-1.5">
-            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Tarix seç</span>
+          <div className="flex items-center gap-2 rounded-xl border border-white-border dark:border-gray-700/60 bg-gray-50/70 dark:bg-gray-800/40 px-2.5 py-1.5">
+            <CalendarDays size={14} className="text-gray-400" />
+            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Tarix</span>
             <input
               type="date"
               value={format(date, 'yyyy-MM-dd')}
               onChange={(e) => handleCustomDateChange(e.target.value)}
-              className="h-8 rounded-lg border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#1e2130] px-2 text-xs text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="h-8 min-w-[145px] rounded-lg border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#1e2130] px-2 text-xs text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
+            <button
+              onClick={() => setDate((d) => subDays(d, 1))}
+              className="h-8 px-2 rounded-lg text-xs font-medium text-gray-500 bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors whitespace-nowrap"
+            >
+              Dünən
+            </button>
             {!isToday(date) && (
               <button
                 onClick={() => setDate(new Date())}
@@ -312,6 +319,12 @@ export function AttendanceGrid() {
                 Bu gün
               </button>
             )}
+            <button
+              onClick={() => setDate((d) => addDays(d, 1))}
+              className="h-8 px-2 rounded-lg text-xs font-medium text-gray-500 bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors whitespace-nowrap"
+            >
+              Sabah
+            </button>
           </div>
 
           <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap items-center gap-2">
@@ -324,6 +337,15 @@ export function AttendanceGrid() {
             <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} options={SORT_OPTIONS} className="w-full sm:w-52" />
             {selectedGroupId !== null && rows.length > 0 && (
               <>
+                <div className="flex items-center gap-1.5 rounded-lg border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#1e2130] px-2 py-1 h-9">
+                  <span className="text-[11px] text-gray-500 whitespace-nowrap">Gəliş saatı</span>
+                  <input
+                    type="time"
+                    value={bulkCheckInTime}
+                    onChange={(e) => setBulkCheckInTime(e.target.value)}
+                    className="h-7 rounded-md border border-white-border dark:border-gray-700/60 px-1.5 text-xs bg-white dark:bg-[#1e2130] text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
                 <Button size="sm" variant="secondary" className="shrink-0" onClick={handleMarkAllPresent}>
                   Hamısı gəldi
                 </Button>
