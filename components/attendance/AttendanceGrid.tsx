@@ -148,17 +148,6 @@ export function AttendanceGrid() {
     setDate(new Date(`${value}T00:00:00`));
   };
 
-  const openDatePicker = () => {
-    const input = customDateInputRef.current;
-    if (!input) return;
-    if (typeof input.showPicker === 'function') {
-      input.showPicker();
-      return;
-    }
-    input.focus();
-    input.click();
-  };
-
   const handleBulkTimeChange = (value: string) => {
     if (!/^\d{2}:\d{2}$/.test(value)) return;
     setBulkCheckInTime(value);
@@ -308,173 +297,191 @@ export function AttendanceGrid() {
 
   return (
     <div>
-      <div className="bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-2xl p-4 mb-4 space-y-3">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white-border dark:border-gray-700/60 bg-gradient-to-r from-gray-50/90 to-white dark:from-gray-800/70 dark:to-gray-900/40 px-2.5 py-1.5">
-            <div className="flex items-center gap-2 pr-1 border-r border-white-border dark:border-gray-700/60">
-              <CalendarDays size={14} className="text-gray-400" />
-              <div className="leading-tight">
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">Tarix</p>
-                <p className="text-xs font-semibold text-gray-800 dark:text-gray-100">{format(date, 'd MMMM yyyy', { locale: az })}</p>
-              </div>
-              {isToday(date) && <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium text-green-700 bg-green-100 dark:bg-green-900/30 dark:text-green-300">Bu gün</span>}
-            </div>
-            <input
-              ref={customDateInputRef}
-              type="date"
-              value={format(date, 'yyyy-MM-dd')}
-              onChange={(e) => handleCustomDateChange(e.target.value)}
-              className="sr-only"
-            />
+      <div className="bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-2xl p-4 sm:p-5 mb-5 shadow-sm flex flex-col gap-5">
+        
+        {/* Top Header Row */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          
+          {/* Beautiful Date Picker */}
+          <div className="flex items-center gap-1 bg-gray-50/80 dark:bg-gray-800/40 rounded-xl p-1 border border-gray-200/60 dark:border-gray-700/60 shadow-sm">
             <button
-              type="button"
               onClick={() => setDate((d) => subDays(d, 1))}
-              className="h-8 w-8 rounded-lg text-gray-500 bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors flex items-center justify-center"
+              className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-700 hover:bg-white dark:hover:bg-gray-700 dark:hover:text-gray-200 rounded-lg transition-all"
               title="Əvvəlki gün"
             >
-              <ChevronLeft size={14} />
+              <ChevronLeft size={16} />
             </button>
-            <button
-              type="button"
-              onClick={openDatePicker}
-              className="h-8 px-2.5 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors whitespace-nowrap"
-            >
-              {format(date, 'dd.MM.yyyy')}
-            </button>
-            <button
-              onClick={() => setDate((d) => subDays(d, 1))}
-              className="h-8 px-2 rounded-lg text-xs font-medium text-gray-500 bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors whitespace-nowrap"
-            >
-              Dünən
-            </button>
-            {!isToday(date) && (
-              <button
-                onClick={() => setDate(new Date())}
-                className="h-8 px-2 rounded-lg text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors whitespace-nowrap"
-              >
-                Bu gün
+            
+            <div className="relative flex items-center group">
+              <input
+                ref={customDateInputRef}
+                type="date"
+                value={format(date, 'yyyy-MM-dd')}
+                onChange={(e) => handleCustomDateChange(e.target.value)}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              />
+              <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-gray-800 dark:text-gray-100 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-all shadow-sm">
+                <CalendarDays size={16} className="text-primary hidden sm:block" />
+                <span>{format(date, 'd MMMM yyyy', { locale: az })}</span>
               </button>
-            )}
+            </div>
+            
             <button
               onClick={() => setDate((d) => addDays(d, 1))}
-              className="h-8 px-2 rounded-lg text-xs font-medium text-gray-500 bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors whitespace-nowrap"
+              className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-700 hover:bg-white dark:hover:bg-gray-700 dark:hover:text-gray-200 rounded-lg transition-all"
+              title="növbəti gün"
             >
-              Sabah
+              <ChevronRight size={16} />
             </button>
+            
+            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+            
             <button
-              type="button"
-              onClick={() => setDate((d) => addDays(d, 1))}
-              className="h-8 w-8 rounded-lg text-gray-500 bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors flex items-center justify-center"
-              title="Növbəti gün"
+              onClick={() => setDate(new Date())}
+              className={cn(
+                "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap",
+                isToday(date)
+                  ? "bg-white dark:bg-gray-700 text-primary shadow-sm"
+                  : "text-gray-500 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200"
+              )}
             >
-              <ChevronRight size={14} />
+              Bu gün
             </button>
           </div>
 
-          <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap items-center gap-2">
+          {/* Primary Actions */}
+          <div className="flex items-center gap-2.5 sm:ml-auto w-full sm:w-auto">
+            <Button size="sm" variant="secondary" className="flex-1 sm:flex-none border-gray-200 dark:border-gray-700/60 bg-gray-50/50 hover:bg-gray-100 dark:bg-gray-800/40 dark:hover:bg-gray-700/50" onClick={() => setFacePanel(!facePanel)}>
+              <Scan size={15} /> FaceID
+            </Button>
+            <Button size="sm" className="flex-1 sm:flex-none" loading={saving} onClick={handleSave}>
+              <Save size={15} /> Yadda saxla
+            </Button>
+          </div>
+        </div>
+
+        {/* Bulk Actions - elegantly styled */}
+        {rows.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-3.5 bg-gradient-to-r from-blue-50/80 to-indigo-50/30 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-xl border border-blue-100 dark:border-blue-900/30 shadow-sm">
+            <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+              <span className="text-xs font-bold text-blue-900/70 dark:text-blue-300/70 uppercase tracking-wider shrink-0">
+                Toplu Əməliyyatlar
+              </span>
+              
+              <div className="flex items-center gap-2 bg-white dark:bg-[#1e2130] rounded-lg p-1 border border-blue-100/50 dark:border-blue-800/30 shadow-sm shrink-0">
+                <span className="text-xs text-gray-500 px-2 font-medium">Gəliş saatı:</span>
+                <div className="flex items-center bg-gray-50 dark:bg-gray-800/60 rounded px-2 py-1 gap-1.5 border border-gray-100 dark:border-gray-700/50">
+                  <TimeInput
+                    value={bulkCheckInTime}
+                    onChange={handleBulkTimeChange}
+                    className="!h-6 !w-[56px] !rounded !bg-transparent !border-none !px-0 !py-0 !text-sm !font-bold !text-gray-800 dark:!text-gray-100 focus:!ring-0 text-center"
+                  />
+                  <span className="text-[10px] font-bold text-gray-400 uppercase">AZT</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBulkCheckInTime(getBakuTimeHHmm())}
+                  className="px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded-md transition-colors"
+                >
+                  İndi
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2 sm:ml-auto w-full sm:w-auto">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="flex-1 sm:flex-none bg-white dark:bg-[#1e2130] border-gray-200 dark:border-gray-700/60 hover:bg-green-50 hover:text-green-600 hover:border-green-200 dark:hover:bg-green-900/30 dark:hover:text-green-400 py-1.5 h-auto text-xs sm:text-sm"
+                onClick={handleMarkAllPresent}
+              >
+                <CheckCircle size={15} className="mr-1.5 sm:mr-2 text-green-500" /> Hamısı gəldi
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="flex-1 sm:flex-none bg-white dark:bg-[#1e2130] border-gray-200 dark:border-gray-700/60 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 dark:hover:bg-rose-900/30 dark:hover:text-rose-400 py-1.5 h-auto text-xs sm:text-sm"
+                onClick={handleMarkAllAbsent}
+              >
+                <XCircle size={15} className="mr-1.5 sm:mr-2 text-rose-500" /> Hamısı gəlmədi
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Groups & Filters Container */}
+        <div className="flex flex-col gap-4">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <button
+              onClick={() => setSelected(null)}
+              className={cn(
+                'px-3.5 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap transition-all border',
+                selectedGroupId === null
+                  ? 'bg-primary text-white border-primary shadow-sm'
+                  : 'bg-white dark:bg-[#1e2130] text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700/60 hover:bg-gray-50 dark:hover:bg-gray-800'
+              )}
+            >
+              Bütün qruplar
+            </button>
+            {groups.map((g) => (
+              <button
+                key={g.id}
+                onClick={() => setSelected(g.id)}
+                className={cn(
+                  'px-3.5 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap transition-all border',
+                  selectedGroupId === g.id
+                    ? 'bg-primary text-white border-primary shadow-sm'
+                    : 'bg-white dark:bg-[#1e2130] text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700/60 hover:bg-gray-50 dark:hover:bg-gray-800'
+                )}
+              >
+                {g.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              placeholder="Uşağın adı ilə axtar..."
+              className="w-full sm:flex-1"
+            />
             <Select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as '' | 'present' | 'late' | 'absent' | 'unmarked')}
               options={STATUS_FILTER_OPTIONS}
               className="w-full sm:w-44"
             />
-            <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} options={SORT_OPTIONS} className="w-full sm:w-52" />
-            {rows.length > 0 && (
-              <>
-                <div className="flex items-center gap-1.5 rounded-lg border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#1e2130] px-2 py-1 h-9">
-                  <span className="text-[11px] text-gray-500 whitespace-nowrap">Gəliş saatı</span>
-                  <div className="flex items-center gap-1 rounded-md border border-white-border dark:border-gray-700/60 bg-gradient-to-r from-white to-gray-50 dark:from-[#1f2433] dark:to-[#262c3c] px-1.5 py-0.5">
-                    <TimeInput
-                      value={bulkCheckInTime}
-                      onChange={handleBulkTimeChange}
-                      className="!h-6 !w-[70px] !rounded !bg-transparent !border-0 !px-0 !py-0 !text-xs !font-semibold !text-gray-700 dark:!text-gray-200 focus:!ring-0"
-                    />
-                    <span className="hidden sm:inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300">
-                      AZT
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setBulkCheckInTime(getBakuTimeHHmm())}
-                    className="h-7 px-2 rounded-md text-[11px] font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors whitespace-nowrap"
-                  >
-                    İndi (AZT)
-                  </button>
-                </div>
-                <Button size="sm" variant="secondary" className="shrink-0" onClick={handleMarkAllPresent}>
-                  Hamısı gəldi
-                </Button>
-                <Button size="sm" variant="secondary" className="shrink-0" onClick={handleMarkAllAbsent}>
-                  Hamısı gəlmədi
-                </Button>
-              </>
-            )}
-            <Button size="sm" variant="secondary" className="shrink-0" onClick={() => setFacePanel(!facePanel)}>
-              <Scan size={14} /> FaceID
-            </Button>
-            <Button size="sm" className="shrink-0" loading={saving} onClick={handleSave}>
-              <Save size={14} /> Yadda saxla
-            </Button>
+            <Select 
+              value={sortBy} 
+              onChange={(e) => setSortBy(e.target.value)} 
+              options={SORT_OPTIONS} 
+              className="w-full sm:w-48" 
+            />
           </div>
         </div>
 
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
-          <button
-            onClick={() => setSelected(null)}
-            className={cn(
-              'px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-all',
-              selectedGroupId === null
-                ? 'bg-green-400 text-white shadow-sm'
-                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-            )}
-          >
-            Bütün qruplar
-          </button>
-          {groups.map((g) => (
-            <button
-              key={g.id}
-              onClick={() => setSelected(g.id)}
-              className={cn(
-                'px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-all',
-                selectedGroupId === g.id
-                  ? 'bg-green-400 text-white shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-              )}
-            >
-              {g.name}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3">
-          <SearchBar
-            value={search}
-            onChange={setSearch}
-            placeholder="Uşağın adı ilə axtar..."
-            className="w-full sm:w-80"
-          />
-        </div>
-
-        <div className="flex flex-wrap gap-3 pt-3 border-t border-white-border dark:border-gray-700/60">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 dark:bg-gray-800/60 rounded-lg">
-            <Users size={13} className="text-gray-400" />
-            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{totalCount} uşaq</span>
+        {/* Status Highlights */}
+        <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-gray-100 dark:border-gray-800/80">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-800/40 rounded-lg border border-gray-100 dark:border-gray-700/40">
+            <Users size={14} className="text-gray-500" />
+            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{totalCount} uşaq</span>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 rounded-lg">
-            <CheckCircle size={13} className="text-green-500" />
-            <span className="text-xs font-medium text-green-700 dark:text-green-400">{presentCount} gəldi</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50/80 dark:bg-green-900/10 rounded-lg border border-green-100/50 dark:border-green-900/30">
+            <CheckCircle size={14} className="text-green-500" />
+            <span className="text-xs font-semibold text-green-700 dark:text-green-400">{presentCount} gəldi</span>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-            <Clock size={13} className="text-amber-500" />
-            <span className="text-xs font-medium text-amber-700 dark:text-amber-400">{lateCount} gecikmə</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50/80 dark:bg-amber-900/10 rounded-lg border border-amber-100/50 dark:border-amber-900/30">
+            <Clock size={14} className="text-amber-500" />
+            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">{lateCount} gecikmə</span>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 dark:bg-rose-900/20 rounded-lg">
-            <XCircle size={13} className="text-rose-500" />
-            <span className="text-xs font-medium text-rose-700 dark:text-rose-400">{absentCount} gəlmədi</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50/80 dark:bg-rose-900/10 rounded-lg border border-rose-100/50 dark:border-rose-900/30">
+            <XCircle size={14} className="text-rose-500" />
+            <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">{absentCount} gəlmədi</span>
           </div>
           {totalCount > 0 && (
-            <div className="sm:ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <span className="text-xs font-medium text-accent-blue">
+            <div className="sm:ml-auto flex items-center gap-2 px-3 py-1.5 bg-blue-50/80 dark:bg-blue-900/10 rounded-lg border border-blue-100/50 dark:border-blue-900/30">
+              <span className="text-xs font-bold text-accent-blue dark:text-blue-400">
                 {Math.round(((presentCount + lateCount) / totalCount) * 100)}% davamiyyət
               </span>
             </div>
