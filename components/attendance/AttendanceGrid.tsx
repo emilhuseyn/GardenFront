@@ -426,6 +426,7 @@ export function AttendanceGrid() {
               onChange={setSearch}
               placeholder="Uşağın adı ilə axtar..."
               className="w-full sm:flex-1"
+              inputClassName="pl-20"
             />
             <Select
               value={statusFilter}

@@ -8,9 +8,10 @@ interface SearchBarProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  inputClassName?: string;
 }
 
-export function SearchBar({ value, onChange, placeholder = 'Axtar...', className }: SearchBarProps) {
+export function SearchBar({ value, onChange, placeholder = 'Axtar...', className, inputClassName }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
@@ -22,7 +23,10 @@ export function SearchBar({ value, onChange, placeholder = 'Axtar...', className
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-11 w-full pl-14 pr-10 text-base font-semibold bg-white dark:bg-[#252836] text-gray-900 dark:text-gray-100 border border-white-border dark:border-gray-600 rounded-xl placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400 transition-colors shadow-sm"
+        className={cn(
+          'h-11 w-full pl-14 pr-10 text-base font-semibold bg-white dark:bg-[#252836] text-gray-900 dark:text-gray-100 border border-white-border dark:border-gray-600 rounded-xl placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400 transition-colors shadow-sm',
+          inputClassName
+        )}
         aria-label={placeholder}
       />
       {value && (
