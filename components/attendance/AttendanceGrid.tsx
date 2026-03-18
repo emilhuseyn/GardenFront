@@ -1,14 +1,14 @@
 ﻿'use client';
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Save, Scan, Users, CheckCircle, XCircle, Clock, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Save, Scan, Users, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { format, addDays, subDays, isToday } from 'date-fns';
-import { az } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { SearchBar } from '@/components/ui/SearchBar';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { TimeInput } from '@/components/attendance/TimeInput';
 import { AttendanceRow, type AttendanceRowData, type AttendanceStatus } from '@/components/attendance/AttendanceRow';
 import { cn } from '@/lib/utils/constants';
@@ -39,7 +39,6 @@ export function AttendanceGrid() {
   const [statusFilter, setStatusFilter] = useState<'' | 'present' | 'late' | 'absent' | 'unmarked'>('');
   const [sortBy, setSortBy] = useState('name_asc');
   const [bulkCheckInTime, setBulkCheckInTime] = useState(() => getBakuTimeHHmm());
-  const customDateInputRef = useRef<HTMLInputElement>(null);
   const [scheduleMap, setScheduleMap] = useState<Record<string, { startTime: string; endTime: string }>>({
     FullDay: { startTime: '09:00', endTime: '18:00' },
     HalfDay: { startTime: '09:00', endTime: '13:00' },
@@ -141,22 +140,6 @@ export function AttendanceGrid() {
   const parseTime = (t: string) => {
     const [h, m] = t.split(':').map(Number);
     return h * 60 + m;
-  };
-
-  const handleCustomDateChange = (value: string) => {
-    if (!value) return;
-    setDate(new Date(`${value}T00:00:00`));
-  };
-
-  const openDatePicker = () => {
-    const input = customDateInputRef.current;
-    if (!input) return;
-    if (typeof input.showPicker === 'function') {
-      input.showPicker();
-      return;
-    }
-    input.focus();
-    input.click();
   };
 
   const handleBulkTimeChange = (value: string) => {
@@ -322,23 +305,7 @@ export function AttendanceGrid() {
               <ChevronLeft size={16} />
             </button>
             
-            <div className="relative flex items-center group">
-              <input
-                ref={customDateInputRef}
-                type="date"
-                value={format(date, 'yyyy-MM-dd')}
-                onChange={(e) => handleCustomDateChange(e.target.value)}
-                className="sr-only"
-              />
-              <button 
-                type="button"
-                onClick={openDatePicker}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-gray-800 dark:text-gray-100 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-all shadow-sm"
-              >
-                <CalendarDays size={16} className="text-green-500 hidden sm:block" />
-                <span>{format(date, 'd MMMM yyyy', { locale: az })}</span>
-              </button>
-            </div>
+            <DatePicker date={date} onDateChange={setDate} />
             
             <button
               onClick={() => setDate((d) => addDays(d, 1))}
