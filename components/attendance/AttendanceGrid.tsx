@@ -161,6 +161,22 @@ export function AttendanceGrid() {
     toast.success('Seçilmiş qrupda hamı "Gəldi" kimi işarələndi');
   }, []);
 
+  const handleMarkAllAbsent = useCallback(() => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.status === 'absent' && !r.checkIn && !r.checkOut && !r.isEarlyLeave) return r;
+        return {
+          ...r,
+          status: 'absent',
+          checkIn: undefined,
+          checkOut: undefined,
+          isEarlyLeave: false,
+        };
+      })
+    );
+    toast.success('Seçilmiş qrupda hamı "Gəlmədi" kimi işarələndi');
+  }, []);
+
   const processedRows = useMemo(() => {
     let filtered = [...rows];
 
@@ -304,9 +320,14 @@ export function AttendanceGrid() {
               className="sm:w-52"
             />
             {selectedGroupId !== null && rows.length > 0 && (
-              <Button size="sm" variant="secondary" onClick={handleMarkAllPresent}>
-                Hamısı gəldi
-              </Button>
+              <>
+                <Button size="sm" variant="secondary" onClick={handleMarkAllPresent}>
+                  Hamısı gəldi
+                </Button>
+                <Button size="sm" variant="secondary" onClick={handleMarkAllAbsent}>
+                  Hamısı gəlmədi
+                </Button>
+              </>
             )}
             <Button size="sm" variant="secondary" onClick={() => setFacePanel(!facePanel)}>
               <Scan size={14} /> FaceID
