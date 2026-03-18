@@ -420,25 +420,24 @@ export function AttendanceGrid() {
             ))}
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
             <SearchBar
               value={search}
               onChange={setSearch}
               placeholder="Uşağın adı ilə axtar..."
-              className="w-full sm:flex-1"
-              inputClassName="pl-20"
+              className="w-full md:flex-1 md:min-w-[340px]"
             />
             <Select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as '' | 'present' | 'late' | 'absent' | 'unmarked')}
               options={STATUS_FILTER_OPTIONS}
-              className="w-full sm:w-44"
+              className="w-full md:w-44"
             />
             <Select 
               value={sortBy} 
               onChange={(e) => setSortBy(e.target.value)} 
               options={SORT_OPTIONS} 
-              className="w-full sm:w-48" 
+              className="w-full md:w-48" 
             />
           </div>
         </div>
