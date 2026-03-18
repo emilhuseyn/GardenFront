@@ -147,6 +147,20 @@ export function AttendanceGrid() {
     );
   }, []);
 
+  const handleMarkAllPresent = useCallback(() => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.status === 'present') return r;
+        return {
+          ...r,
+          status: 'present',
+          isEarlyLeave: false,
+        };
+      })
+    );
+    toast.success('Seçilmiş qrupda hamı "Gəldi" kimi işarələndi');
+  }, []);
+
   const processedRows = useMemo(() => {
     let filtered = [...rows];
 
@@ -289,6 +303,11 @@ export function AttendanceGrid() {
               options={SORT_OPTIONS}
               className="sm:w-52"
             />
+            {selectedGroupId !== null && rows.length > 0 && (
+              <Button size="sm" variant="secondary" onClick={handleMarkAllPresent}>
+                Hamısı gəldi
+              </Button>
+            )}
             <Button size="sm" variant="secondary" onClick={() => setFacePanel(!facePanel)}>
               <Scan size={14} /> FaceID
             </Button>
