@@ -336,7 +336,7 @@ export function AttendanceGrid() {
                 onClick={openDatePicker}
                 className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-gray-800 dark:text-gray-100 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-all shadow-sm"
               >
-                <CalendarDays size={16} className="text-primary hidden sm:block" />
+                <CalendarDays size={16} className="text-green-500 hidden sm:block" />
                 <span>{format(date, 'd MMMM yyyy', { locale: az })}</span>
               </button>
             </div>
@@ -356,7 +356,7 @@ export function AttendanceGrid() {
               className={cn(
                 "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap",
                 isToday(date)
-                  ? "bg-white dark:bg-gray-700 text-primary shadow-sm"
+                  ? "bg-white dark:bg-gray-700 text-green-600 dark:text-green-400 shadow-sm"
                   : "text-gray-500 hover:bg-white dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200"
               )}
             >
@@ -432,7 +432,7 @@ export function AttendanceGrid() {
               className={cn(
                 'px-3.5 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap transition-all border',
                 selectedGroupId === null
-                  ? 'bg-primary text-white border-primary shadow-sm'
+                  ? 'bg-gray-800 text-white border-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:border-gray-100 shadow-sm'
                   : 'bg-white dark:bg-[#1e2130] text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700/60 hover:bg-gray-50 dark:hover:bg-gray-800'
               )}
             >
@@ -445,7 +445,7 @@ export function AttendanceGrid() {
                 className={cn(
                   'px-3.5 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap transition-all border',
                   selectedGroupId === g.id
-                    ? 'bg-primary text-white border-primary shadow-sm'
+                    ? 'bg-gray-800 text-white border-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:border-gray-100 shadow-sm'
                     : 'bg-white dark:bg-[#1e2130] text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700/60 hover:bg-gray-50 dark:hover:bg-gray-800'
                 )}
               >
