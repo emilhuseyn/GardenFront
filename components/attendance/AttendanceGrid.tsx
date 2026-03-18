@@ -39,6 +39,7 @@ export function AttendanceGrid() {
   const [sortBy, setSortBy] = useState('name_asc');
   const [bulkCheckInTime, setBulkCheckInTime] = useState(() => getBakuTimeHHmm());
   const customDateInputRef = useRef<HTMLInputElement>(null);
+  const bulkTimeInputRef = useRef<HTMLInputElement>(null);
   const [scheduleMap, setScheduleMap] = useState<Record<string, { startTime: string; endTime: string }>>({
     FullDay: { startTime: '09:00', endTime: '18:00' },
     HalfDay: { startTime: '09:00', endTime: '13:00' },
@@ -58,19 +59,6 @@ export function AttendanceGrid() {
     { value: 'absent', label: 'Gəlmədilər' },
     { value: 'unmarked', label: 'Qeyd edilməmiş' },
   ];
-
-  const HOUR_OPTIONS = useMemo(
-    () => Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')),
-    []
-  );
-  const MINUTE_OPTIONS = useMemo(
-    () => Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0')),
-    []
-  );
-  const [bulkHour, bulkMinute] = useMemo(() => {
-    const [hh = '09', mm = '00'] = bulkCheckInTime.split(':');
-    return [hh.padStart(2, '0'), mm.padStart(2, '0')];
-  }, [bulkCheckInTime]);
 
   useEffect(() => {
     groupsApi.getAll().then(setGroups).catch(() => {});
@@ -169,6 +157,22 @@ export function AttendanceGrid() {
     }
     input.focus();
     input.click();
+  };
+
+  const openBulkTimePicker = () => {
+    const input = bulkTimeInputRef.current;
+    if (!input) return;
+    if (typeof input.showPicker === 'function') {
+      input.showPicker();
+      return;
+    }
+    input.focus();
+    input.click();
+  };
+
+  const handleBulkTimeChange = (value: string) => {
+    if (!/^\d{2}:\d{2}$/.test(value)) return;
+    setBulkCheckInTime(value);
   };
 
   const handleChange = useCallback((id: string, field: 'status' | 'checkIn' | 'checkOut', value: string) => {
@@ -382,25 +386,23 @@ export function AttendanceGrid() {
                 <div className="flex items-center gap-1.5 rounded-lg border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#1e2130] px-2 py-1 h-9">
                   <span className="text-[11px] text-gray-500 whitespace-nowrap">Gəliş saatı</span>
                   <div className="flex items-center gap-1 rounded-md border border-white-border dark:border-gray-700/60 bg-gradient-to-r from-white to-gray-50 dark:from-[#1f2433] dark:to-[#262c3c] px-1.5 py-0.5">
-                    <select
-                      value={bulkHour}
-                      onChange={(e) => setBulkCheckInTime(`${e.target.value}:${bulkMinute}`)}
-                      className="h-6 w-[48px] rounded bg-transparent text-xs font-semibold text-gray-700 dark:text-gray-200 focus:outline-none"
+                    <input
+                      ref={bulkTimeInputRef}
+                      type="time"
+                      value={bulkCheckInTime}
+                      onChange={(e) => handleBulkTimeChange(e.target.value)}
+                      step={60}
+                      lang="az"
+                      className="h-6 w-[94px] rounded bg-transparent text-xs font-semibold text-gray-700 dark:text-gray-200 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={openBulkTimePicker}
+                      className="h-6 w-6 rounded flex items-center justify-center text-gray-500 hover:text-primary hover:bg-primary/10 transition-colors"
+                      title="Saat seç"
                     >
-                      {HOUR_OPTIONS.map((h) => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                    <span className="text-xs font-semibold text-gray-400">:</span>
-                    <select
-                      value={bulkMinute}
-                      onChange={(e) => setBulkCheckInTime(`${bulkHour}:${e.target.value}`)}
-                      className="h-6 w-[48px] rounded bg-transparent text-xs font-semibold text-gray-700 dark:text-gray-200 focus:outline-none"
-                    >
-                      {MINUTE_OPTIONS.map((m) => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
+                      <Clock size={12} />
+                    </button>
                     <span className="hidden sm:inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300">
                       AZT
                     </span>
