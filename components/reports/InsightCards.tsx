@@ -288,7 +288,7 @@ export function InsightCards() {
             <Brain size={16} />
           </div>
           <div>
-            <CardTitle>Insight Cards</CardTitle>
+            <CardTitle>İnsayt Kartları</CardTitle>
             <p className="text-xs text-gray-500">AI tərzli qısa şərhlər</p>
           </div>
         </div>
@@ -314,7 +314,7 @@ export function InsightCards() {
                   <TrendingDown size={13} className="text-accent-blue rotate-180" />
                 )}
                 <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wide">
-                  {item.tone === 'warning' ? 'Risk Insight' : item.tone === 'positive' ? 'Positive Insight' : 'Trend Insight'}
+                  {item.tone === 'warning' ? 'Risk İnsaytı' : item.tone === 'positive' ? 'Müsbət İnsayt' : 'Trend İnsaytı'}
                 </span>
               </div>
               <p className="text-sm leading-5 text-gray-700">{item.text}</p>

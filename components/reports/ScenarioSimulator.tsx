@@ -135,11 +135,11 @@ export function ScenarioSimulator({ groups }: ScenarioSimulatorProps) {
             <BrainCircuit size={16} />
           </div>
           <div>
-            <CardTitle>Scenario Simulator</CardTitle>
+            <CardTitle>Ssenari Simulyatoru</CardTitle>
             <p className="text-xs text-gray-500">Nə olsa nə olar? Menecment üçün qərar simulyatoru</p>
           </div>
         </div>
-        <Badge variant="violet" size="sm">What-if Engine</Badge>
+        <Badge variant="violet" size="sm">Nə Olsa Mühərriki</Badge>
       </CardHeader>
 
       {loading ? (
