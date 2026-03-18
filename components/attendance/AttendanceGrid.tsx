@@ -160,7 +160,6 @@ export function AttendanceGrid() {
   };
 
   const handleBulkTimeChange = (value: string) => {
-    if (!/^\d{2}:\d{2}$/.test(value)) return;
     setBulkCheckInTime(value);
   };
 
@@ -391,7 +390,7 @@ export function AttendanceGrid() {
                     onChange={handleBulkTimeChange}
                     className="!h-6 !w-[56px] !rounded !bg-transparent !border-none !px-0 !py-0 !text-sm !font-bold !text-gray-800 dark:!text-gray-100 focus:!ring-0 text-center"
                   />
-                  <span className="text-[10px] font-bold text-gray-400 uppercase">AZT</span>
+                 
                 </div>
                 <button
                   type="button"
