@@ -148,6 +148,17 @@ export function AttendanceGrid() {
     setDate(new Date(`${value}T00:00:00`));
   };
 
+  const openDatePicker = () => {
+    const input = customDateInputRef.current;
+    if (!input) return;
+    if (typeof input.showPicker === 'function') {
+      input.showPicker();
+      return;
+    }
+    input.focus();
+    input.click();
+  };
+
   const handleBulkTimeChange = (value: string) => {
     if (!/^\d{2}:\d{2}$/.test(value)) return;
     setBulkCheckInTime(value);
@@ -318,9 +329,13 @@ export function AttendanceGrid() {
                 type="date"
                 value={format(date, 'yyyy-MM-dd')}
                 onChange={(e) => handleCustomDateChange(e.target.value)}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                className="sr-only"
               />
-              <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-gray-800 dark:text-gray-100 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-all shadow-sm">
+              <button 
+                type="button"
+                onClick={openDatePicker}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-gray-800 dark:text-gray-100 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-all shadow-sm"
+              >
                 <CalendarDays size={16} className="text-primary hidden sm:block" />
                 <span>{format(date, 'd MMMM yyyy', { locale: az })}</span>
               </button>
