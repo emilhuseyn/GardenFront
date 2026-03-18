@@ -180,7 +180,7 @@ export function AttendanceGrid() {
         };
       })
     );
-    toast.success(`Seçilmiş qrupda hamı "Gəldi" kimi işarələndi (${appliedCheckIn})`);
+    toast.success(`Siyahıda hamı "Gəldi" kimi işarələndi (${appliedCheckIn})`);
   }, [bulkCheckInTime, date]);
 
   const handleMarkAllAbsent = useCallback(() => {
@@ -196,7 +196,7 @@ export function AttendanceGrid() {
         };
       })
     );
-    toast.success('Seçilmiş qrupda hamı "Gəlmədi" kimi işarələndi');
+    toast.success('Siyahıda hamı "Gəlmədi" kimi işarələndi');
   }, []);
 
   const processedRows = useMemo(() => {
@@ -335,7 +335,7 @@ export function AttendanceGrid() {
               className="w-full sm:w-44"
             />
             <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} options={SORT_OPTIONS} className="w-full sm:w-52" />
-            {selectedGroupId !== null && rows.length > 0 && (
+            {rows.length > 0 && (
               <>
                 <div className="flex items-center gap-1.5 rounded-lg border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#1e2130] px-2 py-1 h-9">
                   <span className="text-[11px] text-gray-500 whitespace-nowrap">Gəliş saatı</span>
@@ -343,6 +343,7 @@ export function AttendanceGrid() {
                     type="time"
                     value={bulkCheckInTime}
                     onChange={(e) => setBulkCheckInTime(e.target.value)}
+                    step={60}
                     className="h-7 rounded-md border border-white-border dark:border-gray-700/60 px-1.5 text-xs bg-white dark:bg-[#1e2130] text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                 </div>
