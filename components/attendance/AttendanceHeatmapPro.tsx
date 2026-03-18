@@ -234,11 +234,11 @@ export function AttendanceHeatmapPro({ groups, month, year, selectedGroupId = nu
             <Brain size={16} />
           </div>
           <div>
-            <CardTitle>Attendance Heatmap Pro</CardTitle>
-            <p className="text-xs text-gray-500">Qruplar üzrə həftəlik davranış pattern analizi</p>
+            <CardTitle>Davamiyyət İstilik Xəritəsi Pro</CardTitle>
+            <p className="text-xs text-gray-500">Qruplar üzrə həftəlik davranış nümunə analizi</p>
           </div>
         </div>
-        <Badge variant="violet" size="sm">Pattern Engine</Badge>
+        <Badge variant="violet" size="sm">Nümunə mühərriki</Badge>
       </CardHeader>
 
       {loading ? (
@@ -248,7 +248,7 @@ export function AttendanceHeatmapPro({ groups, month, year, selectedGroupId = nu
           ))}
         </div>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-gray-400 py-6 text-center">Heatmap üçün məlumat tapılmadı.</p>
+        <p className="text-sm text-gray-400 py-6 text-center">İstilik xəritəsi üçün məlumat tapılmadı.</p>
       ) : (
         <div className="space-y-4">
           <div className="overflow-x-auto">
@@ -275,10 +275,10 @@ export function AttendanceHeatmapPro({ groups, month, year, selectedGroupId = nu
                           'rounded-lg border px-1 py-2 text-center transition-all hover:scale-[1.02]',
                           cellTone(cell.issueRate)
                         )}
-                        title={`Risk: ${Math.round(cell.issueRate)}% | Gecikmə: ${Math.round(cell.lateRate)}% | Gəlməmə: ${Math.round(cell.absentRate)}%`}
+                        title={`Risk səviyyəsi: ${Math.round(cell.issueRate)}% | Gecikmə: ${Math.round(cell.lateRate)}% | Gəlməmə: ${Math.round(cell.absentRate)}%`}
                       >
                         <div className="text-xs font-bold">{Math.round(cell.issueRate)}%</div>
-                        <div className="text-[10px] opacity-80">L{Math.round(cell.lateRate)} / A{Math.round(cell.absentRate)}</div>
+                        <div className="text-[10px] opacity-80">Gec {Math.round(cell.lateRate)} / Gəlm {Math.round(cell.absentRate)}</div>
                       </div>
                     ))}
                   </div>
@@ -315,7 +315,7 @@ export function AttendanceHeatmapPro({ groups, month, year, selectedGroupId = nu
                 <p key={item} className="text-xs text-gray-700">• {item}</p>
               ))}
               {insights.length === 0 && (
-                <p className="text-xs text-gray-500">Bu period üçün pattern çıxarmaq üçün yetərli məlumat yoxdur.</p>
+                <p className="text-xs text-gray-500">Bu period üçün nümunə çıxarmaq üçün yetərli məlumat yoxdur.</p>
               )}
             </div>
           </div>
