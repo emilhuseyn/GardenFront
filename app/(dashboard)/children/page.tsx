@@ -1,0 +1,275 @@
+'use client';
+import { useState, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
+import { Plus, LayoutGrid, List } from 'lucide-react';
+import Link from 'next/link';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { SearchBar } from '@/components/ui/SearchBar';
+import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
+import { Badge } from '@/components/ui/Badge';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ChildCard } from '@/components/children/ChildCard';
+import { ChildTable } from '@/components/children/ChildTable';
+import { cn } from '@/lib/utils/constants';
+import { Users } from 'lucide-react';
+import { childrenApi } from '@/lib/api/children';
+import { divisionsApi } from '@/lib/api/groups';
+import { useDebounce } from '@/lib/hooks/useDebounce';
+import { getAge } from '@/lib/utils/format';
+import { toast } from 'sonner';
+import type { Child, Division } from '@/types';
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'Bütün statuslar' },
+  { value: 'Active', label: 'Aktiv' },
+  { value: 'Inactive', label: 'Qeyri-aktiv' },
+];
+
+const SCHEDULE_OPTIONS = [
+  { value: '', label: 'Bütün qrafiklər' },
+  { value: 'FullDay', label: 'Tam günlük' },
+  { value: 'HalfDay', label: 'Yarım günlük' },
+];
+
+const SORT_OPTIONS = [
+  { value: 'name_asc', label: 'Ad (A-Z)' },
+  { value: 'name_desc', label: 'Ad (Z-A)' },
+  { value: 'age_desc', label: 'Yaş (böyükdən kiçiyə)' },
+  { value: 'age_asc', label: 'Yaş (kiçikdən böyüyə)' },
+  { value: 'fee_desc', label: 'Aylıq ödəniş (çoxdan aza)' },
+  { value: 'fee_asc', label: 'Aylıq ödəniş (azdan çoxa)' },
+  { value: 'status', label: 'Status (aktivlər əvvəl)' },
+];
+
+export default function ChildrenPage() {
+  const [view, setView]             = useState<'grid' | 'table'>('grid');
+  const [search, setSearch]         = useState('');
+  const [divFilter, setDivFilter]   = useState('');
+  const [statusFilter, setStatus]   = useState('');
+  const [schedFilter, setSched]     = useState('');
+  const [sortBy, setSortBy]         = useState('name_asc');
+  const [children, setChildren]     = useState<Child[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [divisions, setDivisions]   = useState<Division[]>([]);
+
+  const debouncedSearch = useDebounce(search, 300);
+
+  const handleToggleStatus = async (id: number, currentStatus: string) => {
+    try {
+      if (currentStatus === 'Active') {
+        await childrenApi.deactivate(id);
+        toast.success('Uşaq deaktiv edildi');
+      } else {
+        await childrenApi.activate(id);
+        toast.success('Uşaq aktiv edildi');
+      }
+      setChildren((prev) =>
+        prev.map((c) =>
+          c.id === id
+            ? { ...c, status: currentStatus === 'Active' ? 'Inactive' : 'Active' }
+            : c
+        )
+      );
+    } catch {
+      toast.error('Xəta baş verdi');
+    }
+  };
+
+  useEffect(() => {
+    divisionsApi.getAll().then(setDivisions).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    const run = async () => {
+      try {
+        if (debouncedSearch.trim()) {
+          const results = await childrenApi.search(debouncedSearch.trim());
+          setChildren(results);
+        } else {
+          const result = await childrenApi.getAll({
+            divisionId:   divFilter ? Number(divFilter) : undefined,
+            status:       (statusFilter as 'Active' | 'Inactive' | '') || undefined,
+            scheduleType: schedFilter !== '' ? (schedFilter as 'FullDay' | 'HalfDay') : undefined,
+            pageSize:     200,
+          });
+          setChildren(result.items);
+        }
+      } catch {
+        setChildren([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
+  }, [debouncedSearch, divFilter, statusFilter, schedFilter]);
+
+  const divisionOptions = [
+    { value: '', label: 'Bütün bölmələr' },
+    ...divisions.map((d) => ({ value: String(d.id), label: d.name })),
+  ];
+
+  const processedChildren = useMemo(() => {
+    const selectedDivisionName = divFilter
+      ? divisions.find((d) => String(d.id) === divFilter)?.name
+      : undefined;
+
+    const filtered = children.filter((child) => {
+      if (selectedDivisionName && child.divisionName !== selectedDivisionName) return false;
+      if (statusFilter && child.status !== statusFilter) return false;
+      if (schedFilter === 'FullDay' && child.scheduleType !== 'FullDay') return false;
+      if (schedFilter === 'HalfDay' && child.scheduleType !== 'HalfDay') return false;
+      return true;
+    });
+
+    const sorted = [...filtered];
+    sorted.sort((a, b) => {
+      const nameA = `${a.firstName} ${a.lastName}`.trim();
+      const nameB = `${b.firstName} ${b.lastName}`.trim();
+
+      switch (sortBy) {
+        case 'name_desc':
+          return nameB.localeCompare(nameA, 'az');
+        case 'age_desc':
+          return getAge(b.dateOfBirth) - getAge(a.dateOfBirth);
+        case 'age_asc':
+          return getAge(a.dateOfBirth) - getAge(b.dateOfBirth);
+        case 'fee_desc':
+          return b.monthlyFee - a.monthlyFee;
+        case 'fee_asc':
+          return a.monthlyFee - b.monthlyFee;
+        case 'status': {
+          if (a.status === b.status) return nameA.localeCompare(nameB, 'az');
+          return a.status === 'Active' ? -1 : 1;
+        }
+        case 'name_asc':
+        default:
+          return nameA.localeCompare(nameB, 'az');
+      }
+    });
+
+    return sorted;
+  }, [children, divisions, divFilter, schedFilter, sortBy, statusFilter]);
+
+  const activeCount   = processedChildren.filter((c) => c.status === 'Active').length;
+  const inactiveCount = processedChildren.filter((c) => c.status !== 'Active').length;
+  const totalShown    = processedChildren.length;
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Uşaqlar"
+        description="Qeydiyyatda olan bütün uşaqların siyahısı"
+        actions={
+          <Link href="/children/new">
+            <Button>
+              <Plus size={16} /> Uşaq əlavə et
+            </Button>
+          </Link>
+        }
+        badge={
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant="green"  size="sm">{activeCount} aktiv</Badge>
+            {inactiveCount > 0 && <Badge variant="gray" size="sm">{inactiveCount} qeyri-aktiv</Badge>}
+            <Badge variant="blue"   size="sm">{totalShown} ümumi</Badge>
+          </div>
+        }
+      />
+
+      {/* Filters */}
+      <div className="bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-2xl p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Ad, soyad və ya telefon axtar..."
+            className="sm:max-w-xs"
+          />
+          <Select value={divFilter} onChange={(e) => setDivFilter(e.target.value)} options={divisionOptions} className="sm:w-44" />
+          <Select value={statusFilter} onChange={(e) => setStatus(e.target.value)} options={STATUS_OPTIONS} className="sm:w-40" />
+          <Select value={schedFilter}  onChange={(e) => setSched(e.target.value)}  options={SCHEDULE_OPTIONS} className="sm:w-44" />
+          <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} options={SORT_OPTIONS} className="sm:w-60" />
+          <div className="flex items-center gap-1 ml-auto bg-gray-50 dark:bg-gray-800/60 rounded-lg p-1">
+            <button
+              onClick={() => setView('grid')}
+              className={cn('p-2 rounded-md transition-all', view === 'grid' ? 'bg-white dark:bg-gray-700 shadow-sm text-green-600' : 'text-gray-400 dark:text-gray-500')}
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button
+              onClick={() => setView('table')}
+              className={cn('p-2 rounded-md transition-all', view === 'table' ? 'bg-white dark:bg-gray-700 shadow-sm text-green-600' : 'text-gray-400 dark:text-gray-500')}
+            >
+              <List size={16} />
+            </button>
+          </div>
+        </div>
+        {(divFilter || statusFilter || schedFilter || sortBy !== 'name_asc') && (
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white-border dark:border-gray-700/60">
+            <span className="text-xs text-gray-400">Aktiv filter:</span>
+            {divFilter && (
+              <button onClick={() => setDivFilter('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-green-50 text-green-700 rounded-full hover:bg-green-100">
+                {divisions.find((d) => String(d.id) === divFilter)?.name ?? divFilter} ×
+              </button>
+            )}
+            {statusFilter && (
+              <button onClick={() => setStatus('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-blue-50 text-blue-700 rounded-full hover:bg-blue-100">
+                {statusFilter === 'Active' ? 'Aktiv' : 'Qeyri-aktiv'} ×
+              </button>
+            )}
+            {schedFilter && (
+              <button onClick={() => setSched('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-amber-50 text-amber-700 rounded-full hover:bg-amber-100">
+                {schedFilter === 'FullDay' ? 'Tam günlük' : 'Yarım günlük'} ×
+              </button>
+            )}
+            {sortBy !== 'name_asc' && (
+              <button onClick={() => setSortBy('name_asc')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-violet-50 text-violet-700 rounded-full hover:bg-violet-100">
+                Sıralama: {SORT_OPTIONS.find((opt) => opt.value === sortBy)?.label ?? 'Ad (A-Z)'} ×
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Results */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="bg-white dark:bg-[#1e2130] rounded-2xl border dark:border-gray-700/60 p-4">
+              <Skeleton className="h-12 w-12 rounded-full mb-3" />
+              <Skeleton className="h-4 w-32 mb-2" />
+              <Skeleton className="h-3 w-24 mb-3" />
+              <Skeleton className="h-8 w-full rounded-lg" />
+            </div>
+          ))}
+        </div>
+      ) : processedChildren.length === 0 ? (
+        <EmptyState
+          icon={<Users size={28} />}
+          title="Uşaq tapılmadı"
+          description="Axtarış kriteriyalarınıza uyğun uşaq yoxdur."
+          action={{ label: 'Filterləri sıfırla', onClick: () => { setSearch(''); setDivFilter(''); setStatus(''); setSched(''); setSortBy('name_asc'); } }}
+        />
+      ) : view === 'grid' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {processedChildren.map((child, i) => (
+            <motion.div
+              key={child.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.03, duration: 0.25 }}
+            >
+              <Link href={`/children/${child.id}`}>
+                <ChildCard child={child} index={i} />
+              </Link>
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <ChildTable rows={processedChildren} onToggleStatus={handleToggleStatus} />
+      )}
+    </div>
+  );
+}
