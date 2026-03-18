@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { SearchBar } from '@/components/ui/SearchBar';
+import { TimeInput } from '@/components/attendance/TimeInput';
 import { AttendanceRow, type AttendanceRowData, type AttendanceStatus } from '@/components/attendance/AttendanceRow';
 import { cn } from '@/lib/utils/constants';
 import { groupsApi } from '@/lib/api/groups';
@@ -39,7 +40,6 @@ export function AttendanceGrid() {
   const [sortBy, setSortBy] = useState('name_asc');
   const [bulkCheckInTime, setBulkCheckInTime] = useState(() => getBakuTimeHHmm());
   const customDateInputRef = useRef<HTMLInputElement>(null);
-  const bulkTimeInputRef = useRef<HTMLInputElement>(null);
   const [scheduleMap, setScheduleMap] = useState<Record<string, { startTime: string; endTime: string }>>({
     FullDay: { startTime: '09:00', endTime: '18:00' },
     HalfDay: { startTime: '09:00', endTime: '13:00' },
@@ -150,17 +150,6 @@ export function AttendanceGrid() {
 
   const openDatePicker = () => {
     const input = customDateInputRef.current;
-    if (!input) return;
-    if (typeof input.showPicker === 'function') {
-      input.showPicker();
-      return;
-    }
-    input.focus();
-    input.click();
-  };
-
-  const openBulkTimePicker = () => {
-    const input = bulkTimeInputRef.current;
     if (!input) return;
     if (typeof input.showPicker === 'function') {
       input.showPicker();
@@ -386,23 +375,11 @@ export function AttendanceGrid() {
                 <div className="flex items-center gap-1.5 rounded-lg border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#1e2130] px-2 py-1 h-9">
                   <span className="text-[11px] text-gray-500 whitespace-nowrap">Gəliş saatı</span>
                   <div className="flex items-center gap-1 rounded-md border border-white-border dark:border-gray-700/60 bg-gradient-to-r from-white to-gray-50 dark:from-[#1f2433] dark:to-[#262c3c] px-1.5 py-0.5">
-                    <input
-                      ref={bulkTimeInputRef}
-                      type="time"
+                    <TimeInput
                       value={bulkCheckInTime}
-                      onChange={(e) => handleBulkTimeChange(e.target.value)}
-                      step={60}
-                      lang="az"
-                      className="h-6 w-[94px] rounded bg-transparent text-xs font-semibold text-gray-700 dark:text-gray-200 focus:outline-none"
+                      onChange={handleBulkTimeChange}
+                      className="!h-6 !w-[70px] !rounded !bg-transparent !border-0 !px-0 !py-0 !text-xs !font-semibold !text-gray-700 dark:!text-gray-200 focus:!ring-0"
                     />
-                    <button
-                      type="button"
-                      onClick={openBulkTimePicker}
-                      className="h-6 w-6 rounded flex items-center justify-center text-gray-500 hover:text-primary hover:bg-primary/10 transition-colors"
-                      title="Saat seç"
-                    >
-                      <Clock size={12} />
-                    </button>
                     <span className="hidden sm:inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300">
                       AZT
                     </span>
