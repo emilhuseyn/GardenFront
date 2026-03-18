@@ -59,16 +59,18 @@ export function AttendanceGrid() {
     { value: 'unmarked', label: 'Qeyd edilməmiş' },
   ];
 
-  const TIME_OPTIONS = useMemo(
-    () =>
-      Array.from({ length: 96 }, (_, i) => {
-        const hour = String(Math.floor(i / 4)).padStart(2, '0');
-        const minute = String((i % 4) * 15).padStart(2, '0');
-        const value = `${hour}:${minute}`;
-        return { value, label: value };
-      }),
+  const HOUR_OPTIONS = useMemo(
+    () => Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')),
     []
   );
+  const MINUTE_OPTIONS = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0')),
+    []
+  );
+  const [bulkHour, bulkMinute] = useMemo(() => {
+    const [hh = '09', mm = '00'] = bulkCheckInTime.split(':');
+    return [hh.padStart(2, '0'), mm.padStart(2, '0')];
+  }, [bulkCheckInTime]);
 
   useEffect(() => {
     groupsApi.getAll().then(setGroups).catch(() => {});
@@ -379,12 +381,30 @@ export function AttendanceGrid() {
               <>
                 <div className="flex items-center gap-1.5 rounded-lg border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#1e2130] px-2 py-1 h-9">
                   <span className="text-[11px] text-gray-500 whitespace-nowrap">Gəliş saatı</span>
-                  <Select
-                    value={bulkCheckInTime}
-                    onChange={(e) => setBulkCheckInTime(e.target.value)}
-                    options={TIME_OPTIONS}
-                    className="h-7 min-w-[84px] !pl-2 !pr-6 !text-xs !border-white-border dark:!border-gray-700/60 !bg-white dark:!bg-[#1e2130]"
-                  />
+                  <div className="flex items-center gap-1 rounded-md border border-white-border dark:border-gray-700/60 bg-gradient-to-r from-white to-gray-50 dark:from-[#1f2433] dark:to-[#262c3c] px-1.5 py-0.5">
+                    <select
+                      value={bulkHour}
+                      onChange={(e) => setBulkCheckInTime(`${e.target.value}:${bulkMinute}`)}
+                      className="h-6 w-[48px] rounded bg-transparent text-xs font-semibold text-gray-700 dark:text-gray-200 focus:outline-none"
+                    >
+                      {HOUR_OPTIONS.map((h) => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                    <span className="text-xs font-semibold text-gray-400">:</span>
+                    <select
+                      value={bulkMinute}
+                      onChange={(e) => setBulkCheckInTime(`${bulkHour}:${e.target.value}`)}
+                      className="h-6 w-[48px] rounded bg-transparent text-xs font-semibold text-gray-700 dark:text-gray-200 focus:outline-none"
+                    >
+                      {MINUTE_OPTIONS.map((m) => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                    <span className="hidden sm:inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300">
+                      AZT
+                    </span>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setBulkCheckInTime(getBakuTimeHHmm())}
