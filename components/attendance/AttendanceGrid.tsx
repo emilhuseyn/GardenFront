@@ -310,22 +310,15 @@ export function AttendanceGrid() {
     <div>
       <div className="bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-2xl p-4 mb-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <div className="flex items-center gap-2">
-            <button onClick={() => setDate((d) => subDays(d, 1))} className="p-1.5 rounded-lg hover:bg-gray-50 transition-colors">
-              <ChevronLeft size={16} className="text-gray-400" />
-            </button>
-            <div className="text-center min-w-40 sm:min-w-0">
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{format(date, 'd MMMM yyyy', { locale: az })}</p>
-              {isToday(date) && <p className="text-xs text-green-600 font-medium">Bu gün</p>}
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white-border dark:border-gray-700/60 bg-gradient-to-r from-gray-50/90 to-white dark:from-gray-800/70 dark:to-gray-900/40 px-2.5 py-1.5">
+            <div className="flex items-center gap-2 pr-1 border-r border-white-border dark:border-gray-700/60">
+              <CalendarDays size={14} className="text-gray-400" />
+              <div className="leading-tight">
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">Tarix</p>
+                <p className="text-xs font-semibold text-gray-800 dark:text-gray-100">{format(date, 'd MMMM yyyy', { locale: az })}</p>
+              </div>
+              {isToday(date) && <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium text-green-700 bg-green-100 dark:bg-green-900/30 dark:text-green-300">Bu gün</span>}
             </div>
-            <button onClick={() => setDate((d) => addDays(d, 1))} className="p-1.5 rounded-lg hover:bg-gray-50 transition-colors">
-              <ChevronRight size={16} className="text-gray-400" />
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 rounded-xl border border-white-border dark:border-gray-700/60 bg-gray-50/70 dark:bg-gray-800/40 px-2.5 py-1.5">
-            <CalendarDays size={14} className="text-gray-400" />
-            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Tarix</span>
             <input
               ref={customDateInputRef}
               type="date"
@@ -333,6 +326,14 @@ export function AttendanceGrid() {
               onChange={(e) => handleCustomDateChange(e.target.value)}
               className="sr-only"
             />
+            <button
+              type="button"
+              onClick={() => setDate((d) => subDays(d, 1))}
+              className="h-8 w-8 rounded-lg text-gray-500 bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors flex items-center justify-center"
+              title="Əvvəlki gün"
+            >
+              <ChevronLeft size={14} />
+            </button>
             <button
               type="button"
               onClick={openDatePicker}
@@ -359,6 +360,14 @@ export function AttendanceGrid() {
               className="h-8 px-2 rounded-lg text-xs font-medium text-gray-500 bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors whitespace-nowrap"
             >
               Sabah
+            </button>
+            <button
+              type="button"
+              onClick={() => setDate((d) => addDays(d, 1))}
+              className="h-8 w-8 rounded-lg text-gray-500 bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors flex items-center justify-center"
+              title="Növbəti gün"
+            >
+              <ChevronRight size={14} />
             </button>
           </div>
 
