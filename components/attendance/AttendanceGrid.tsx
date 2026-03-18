@@ -17,6 +17,15 @@ import { attendanceApi } from '@/lib/api/attendance';
 import { schedulesApi } from '@/lib/api/schedules';
 import type { Group, ScheduleConfig } from '@/types';
 
+function getBakuTimeHHmm() {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Baku',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date());
+}
+
 export function AttendanceGrid() {
   const [date, setDate] = useState(new Date());
   const [groups, setGroups] = useState<Group[]>([]);
@@ -28,7 +37,7 @@ export function AttendanceGrid() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | 'present' | 'late' | 'absent' | 'unmarked'>('');
   const [sortBy, setSortBy] = useState('name_asc');
-  const [bulkCheckInTime, setBulkCheckInTime] = useState(() => format(new Date(), 'HH:mm'));
+  const [bulkCheckInTime, setBulkCheckInTime] = useState(() => getBakuTimeHHmm());
   const customDateInputRef = useRef<HTMLInputElement>(null);
   const [scheduleMap, setScheduleMap] = useState<Record<string, { startTime: string; endTime: string }>>({
     FullDay: { startTime: '09:00', endTime: '18:00' },
@@ -191,7 +200,7 @@ export function AttendanceGrid() {
   }, []);
 
   const handleMarkAllPresent = useCallback(() => {
-    const appliedCheckIn = bulkCheckInTime || (isToday(date) ? format(new Date(), 'HH:mm') : '09:00');
+    const appliedCheckIn = bulkCheckInTime || (isToday(date) ? getBakuTimeHHmm() : '09:00');
     setRows((prev) =>
       prev.map((r) => {
         return {
@@ -378,10 +387,10 @@ export function AttendanceGrid() {
                   />
                   <button
                     type="button"
-                    onClick={() => setBulkCheckInTime(format(new Date(), 'HH:mm'))}
+                    onClick={() => setBulkCheckInTime(getBakuTimeHHmm())}
                     className="h-7 px-2 rounded-md text-[11px] font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors whitespace-nowrap"
                   >
-                    İndi
+                    İndi (AZT)
                   </button>
                 </div>
                 <Button size="sm" variant="secondary" className="shrink-0" onClick={handleMarkAllPresent}>
