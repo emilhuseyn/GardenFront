@@ -131,6 +131,11 @@ export function AttendanceGrid() {
     return h * 60 + m;
   };
 
+  const handleCustomDateChange = (value: string) => {
+    if (!value) return;
+    setDate(new Date(`${value}T00:00:00`));
+  };
+
   const handleChange = useCallback((id: string, field: 'status' | 'checkIn' | 'checkOut', value: string) => {
     setRows((prev) =>
       prev.map((r) => {
@@ -289,6 +294,24 @@ export function AttendanceGrid() {
             <button onClick={() => setDate((d) => addDays(d, 1))} className="p-1.5 rounded-lg hover:bg-gray-50 transition-colors">
               <ChevronRight size={16} className="text-gray-400" />
             </button>
+          </div>
+
+          <div className="flex items-center gap-2 rounded-xl border border-white-border dark:border-gray-700/60 bg-gray-50/70 dark:bg-gray-800/40 px-2 py-1.5">
+            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Tarix seç</span>
+            <input
+              type="date"
+              value={format(date, 'yyyy-MM-dd')}
+              onChange={(e) => handleCustomDateChange(e.target.value)}
+              className="h-8 rounded-lg border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#1e2130] px-2 text-xs text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            {!isToday(date) && (
+              <button
+                onClick={() => setDate(new Date())}
+                className="h-8 px-2 rounded-lg text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors whitespace-nowrap"
+              >
+                Bu gün
+              </button>
+            )}
           </div>
 
           <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap items-center gap-2">
