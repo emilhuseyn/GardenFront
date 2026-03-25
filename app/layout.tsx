@@ -6,7 +6,6 @@ import { buildThemeInitScript } from "@/lib/utils/themes";
 export const metadata: Metadata = {
   title: "KinderGarden - Uşaq Bağçası İdarəetmə Sistemi",
   description: "Bağçanızı ağıllı idarə edin",
-  icons: { icon: "/KinderGardenLogo.png" },
 };
 
 export default function RootLayout({
