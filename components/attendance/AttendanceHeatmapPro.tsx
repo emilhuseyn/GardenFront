@@ -234,7 +234,7 @@ export function AttendanceHeatmapPro({ groups, month, year, selectedGroupId = nu
             <Brain size={16} />
           </div>
           <div>
-            <CardTitle>Davamiyyət İstilik Xəritəsi Pro</CardTitle>
+            <CardTitle>Davamiyyət İstilik Xəritəsi</CardTitle>
             <p className="text-xs text-gray-500">Qruplar üzrə həftəlik davranış nümunə analizi</p>
           </div>
         </div>

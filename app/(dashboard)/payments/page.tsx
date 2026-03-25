@@ -276,67 +276,6 @@ export default function PaymentsPage() {
           </div>
         )}
 
-      {tab === 'Borclular' && (
-        <div className="space-y-3">
-          <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-            <SearchBar
-              value={debtorSearch}
-              onChange={setDebtorSearch}
-              placeholder="Ad, qrup axtar..."
-              className="sm:w-64"
-            />
-            <div className="flex items-center gap-2">
-              <Select
-                value={debtorSort}
-                onChange={(e) => setDebtorSort(e.target.value as typeof debtorSort)}
-                options={[
-                  { value: 'debt-desc',   label: 'Ən çox borc' },
-                  { value: 'debt-asc',    label: 'Ən az borc' },
-                  { value: 'months-desc', label: 'Ən çox aylıq borc' },
-                  { value: 'months-asc',  label: 'Ən az aylıq borc' },
-                  { value: 'name-asc',    label: 'Ada görə (A-Z)' },
-                ]}
-                className="w-52"
-              />
-              <Button variant="secondary" size="sm" onClick={exportDebtorsCSV} disabled={debtors.length === 0}>
-                <Download size={14} /> Excel yüklə
-              </Button>
-            </div>
-          </div>
-          {loadingDebtors ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-xl p-4">
-                <Skeleton className="h-4 w-48 mb-2" />
-                <Skeleton className="h-3 w-32" />
-              </div>
-            ))
-          ) : debtors.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">Borclu yoxdur 🎉</p>
-          ) : (() => {
-            const q = debtorSearch.toLowerCase();
-            const filtered = debtors.filter((d) =>
-              !q ||
-              d.childFullName.toLowerCase().includes(q) ||
-              d.groupName.toLowerCase().includes(q)
-            );
-            const sorted = [...filtered].sort((a, b) => {
-              switch (debtorSort) {
-                case 'debt-desc':   return b.totalDebt - a.totalDebt;
-                case 'debt-asc':    return a.totalDebt - b.totalDebt;
-                case 'months-desc': return b.unpaidMonths.length - a.unpaidMonths.length;
-                case 'months-asc':  return a.unpaidMonths.length - b.unpaidMonths.length;
-                case 'name-asc':    return a.childFullName.localeCompare(b.childFullName, 'az');
-                default:            return 0;
-              }
-            });
-            return sorted.length === 0
-              ? <p className="text-sm text-gray-400 text-center py-8">Nəticə tapılmadı</p>
-              : sorted.map((d, i) => (
-                  <DebtorRow key={d.childId} debtor={d} index={i} onRecord={(childId) => handleRecord(childId)} />
-                ));
-          })()}
-        </div>
-      )}
         {tab === 'Borclular' && (
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row gap-2">

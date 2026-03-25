@@ -7,7 +7,7 @@ export const authApi = {
       '/api/auths/login',
       { email, password }
     );
-    return unwrap(res);
+    return unwrap<LoginResponse>(res);
   },
 
   register: async (data: { firstName: string; lastName: string; email: string; password: string; role: string }) => {
@@ -29,7 +29,7 @@ export const authApi = {
       lastName,
       name:        `${firstName} ${lastName}`.trim(),
       email:       raw.email as string,
-      role:        raw.role as string,
+      role:        raw.role as import('@/types').UserRole,
       isActive:    raw.isActive as boolean,
       phoneNumber: (raw.phoneNumber ?? '') as string,
     };

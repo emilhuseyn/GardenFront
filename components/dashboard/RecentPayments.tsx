@@ -9,14 +9,16 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { formatCurrencyShort } from '@/lib/utils/format';
 import { paymentsApi } from '@/lib/api/payments';
 import { format } from 'date-fns';
-import type { Payment } from '@/types';
+import type { Payment, PaymentStatus } from '@/types';
 
-const statusVariant: Record<number, 'paid' | 'partial' | 'unpaid'> = {
+const statusVariant: Record<PaymentStatus, 'paid' | 'partial' | 'unpaid'> = {
   0: 'paid', 1: 'partial', 2: 'unpaid',
+  'Paid': 'paid', 'PartiallyPaid': 'partial', 'Debt': 'unpaid',
 };
 
-const statusLabel: Record<number, string> = {
+const statusLabel: Record<PaymentStatus, string> = {
   0: 'Ödənilib', 1: 'Qismən', 2: 'Borclu',
+  'Paid': 'Ödənilib', 'PartiallyPaid': 'Qismən', 'Debt': 'Borclu',
 };
 
 export function RecentPayments() {
