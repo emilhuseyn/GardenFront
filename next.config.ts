@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const backendOrigin = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5034').replace(/\/$/, '');
+const backendOrigin = (process.env.NEXT_PUBLIC_API_URL || 'http://188.227.223.169:9090').replace(/\/$/, '');
 
 const nextConfig: NextConfig = {
   async rewrites() {
