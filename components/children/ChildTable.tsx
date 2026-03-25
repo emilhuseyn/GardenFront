@@ -50,14 +50,14 @@ export function ChildTable({ rows: childList, onToggleStatus }: ChildTableProps)
             variant="ghost" 
             size="sm" 
             className="text-green-600 hover:text-green-700 font-medium"
-            onClick={() => {
+            onClick={async () => {
               const ids = Array.from(selected);
-              ids.forEach(id => {
+              for (const id of ids) {
                 const child = childList.find(c => c.id === id);
                 if (child && child.status !== 'Active') {
-                  onToggleStatus?.(id, child.status);
+                  if(onToggleStatus) await onToggleStatus(id, child.status);
                 }
-              });
+              }
               setSelected(new Set());
             }}
           >
@@ -67,14 +67,14 @@ export function ChildTable({ rows: childList, onToggleStatus }: ChildTableProps)
             variant="ghost" 
             size="sm" 
             className="text-rose-500 hover:text-rose-600 font-medium"
-            onClick={() => {
+            onClick={async () => {
               const ids = Array.from(selected);
-              ids.forEach(id => {
+              for (const id of ids) {
                 const child = childList.find(c => c.id === id);
                 if (child && child.status === 'Active') {
-                  onToggleStatus?.(id, child.status);
+                  if(onToggleStatus) await onToggleStatus(id, child.status);
                 }
-              });
+              }
               setSelected(new Set());
             }}
           >
