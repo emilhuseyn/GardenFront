@@ -72,8 +72,9 @@ export default function ChildrenPage() {
             : c
         )
       );
-    } catch {
-      toast.error('Xəta baş verdi');
+    } catch (error: any) {
+      toast.error(error.message || 'Xəta baş verdi, adminlə əlaqə saxlayın');
+      console.error("Toggle error:", error);
     }
   };
 
