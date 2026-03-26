@@ -1,7 +1,7 @@
 ﻿'use client';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Save, Scan, Users, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Save, Users, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { format, addDays, subDays, isToday } from 'date-fns';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
@@ -34,7 +34,6 @@ export function AttendanceGrid() {
   const [rows, setRows] = useState<AttendanceRowData[]>([]);
   const [saving, setSaving] = useState(false);
   const [loadingRows, setLoadingRows] = useState(true);
-  const [facePanel, setFacePanel] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | 'present' | 'late' | 'absent' | 'unmarked'>('');
   const [sortBy, setSortBy] = useState('name_asc');
@@ -332,9 +331,6 @@ export function AttendanceGrid() {
 
           {/* Primary Actions */}
           <div className="flex items-center gap-2.5 sm:ml-auto w-full sm:w-auto">
-            <Button size="sm" variant="secondary" className="flex-1 sm:flex-none border-gray-200 dark:border-gray-700/60 bg-gray-50/50 hover:bg-gray-100 dark:bg-gray-800/40 dark:hover:bg-gray-700/50" onClick={() => setFacePanel(!facePanel)}>
-              <Scan size={15} /> FaceID
-            </Button>
             <Button size="sm" className="flex-1 sm:flex-none" loading={saving} onClick={handleSave}>
               <Save size={15} /> Yadda saxla
             </Button>
@@ -508,30 +504,6 @@ export function AttendanceGrid() {
           )}
           {!loadingRows && rows.length === 0 && <div className="text-center py-12 text-sm text-gray-400">Bu qrupda uşaq yoxdur</div>}
         </div>
-
-        {facePanel && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="bg-white border border-white-border rounded-2xl p-4 shrink-0 w-full xl:w-70 h-fit"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-800">FaceID Paneli</h3>
-              <button onClick={() => setFacePanel(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">x</button>
-            </div>
-            <div className="aspect-video bg-gray-900 rounded-xl flex items-center justify-center mb-3">
-              <div className="text-center">
-                <Scan size={32} className="text-green-400 mx-auto mb-2" />
-                <p className="text-xs text-gray-400">Kamera hazırdır</p>
-              </div>
-            </div>
-            <Button className="w-full" size="sm">
-              Skan et
-            </Button>
-            <p className="text-xs text-center text-gray-400 mt-2">Uşağın üzünü kameraya yönləndiyin</p>
-          </motion.div>
-        )}
       </div>
     </div>
   );
