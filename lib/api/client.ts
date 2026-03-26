@@ -11,8 +11,8 @@ function isSilentErrorRequest(error: AxiosError): boolean {
 }
 
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE || '',
-  timeout: 10000,
+  baseURL: process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5000/api', // hələlik localhost üçün
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
     'Accept-Language': 'az',
@@ -56,9 +56,13 @@ apiClient.interceptors.response.use(
 
     if (!error.response) {
       if (!silent) {
-        toast.error('Bağlantı xətası. İnternet bağlantınızı yoxlayın.');
+        const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout');
+        toast.error(isTimeout
+          ? 'Sorğu çox uzun sürdü. Yenidən cəhd edin.'
+          : 'Bağlantı xətası. İnternet bağlantınızı yoxlayın.'
+        );
       }
-      return Promise.reject(new Error('Bağlantı xətası'));
+      return Promise.reject(new Error(error.code === 'ECONNABORTED' ? 'Timeout xətası' : 'Bağlantı xətası'));
     }
 
     const status = error.response.status;
