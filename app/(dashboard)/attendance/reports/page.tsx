@@ -174,9 +174,9 @@ export default function AttendanceReportsPage() {
   const dailyRows = [...(dailyReport?.entries ?? [])]
     .filter((e) => {
       if (dailySearch && !(e.childFullName ?? '').toLowerCase().includes(dailySearch.toLowerCase())) return false;
-      if (dailyStatusFilter === 'present' && (!e.isPresent || e.isLate)) return false;
-      if (dailyStatusFilter === 'late' && !(e.isPresent && e.isLate)) return false;
-      if (dailyStatusFilter === 'absent' && e.isPresent) return false;
+      if (dailyStatusFilter === 'present' && (e.status !== 1 || e.isLate)) return false;
+      if (dailyStatusFilter === 'late' && !(e.status === 1 && e.isLate)) return false;
+      if (dailyStatusFilter === 'absent' && e.status === 1) return false;
       return true;
     })
     .sort((a, b) => {
