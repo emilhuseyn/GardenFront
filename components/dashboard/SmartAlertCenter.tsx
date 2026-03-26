@@ -30,7 +30,7 @@ function toPercent(p: number): number {
 
 function calcRate(entries: AttendanceEntry[]): number | null {
   if (entries.length === 0) return null;
-  const present = entries.filter((e) => e.isPresent).length;
+  const present = entries.filter((e) => e.status === 1).length;
   return present / entries.length;
 }
 
@@ -93,7 +93,7 @@ export function SmartAlertCenter() {
         const attendanceResults = await Promise.all(
           sampleChildren.map(async (child) => {
             try {
-              const history = await attendanceApi.getChildHistory(child.id, prevFromStr, todayStr, { silentError: true });
+                const history = await attendanceApi.getChildHistory(child.id, prevFromStr, todayStr, { silentError: true });
               return { childId: child.id, history };
             } catch {
               return { childId: child.id, history: [] as AttendanceEntry[] };

@@ -61,7 +61,7 @@ function MiniSparkline({ values }: { values: number[] }) {
 
 function calcRate(entries: AttendanceEntry[]): number | null {
   if (entries.length === 0) return null;
-  const present = entries.filter((e) => e.isPresent).length;
+  const present = entries.filter((e) => e.status === 1).length;
   return present / entries.length;
 }
 

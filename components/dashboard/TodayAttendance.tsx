@@ -61,14 +61,14 @@ export function TodayAttendance() {
                 transition={{ delay: i * 0.05 }}
                 className={cn(
                   'table-row-hover',
-                  !entry.isPresent && 'opacity-60',
-                  entry.isPresent && 'bg-green-50/30 dark:bg-green-900/10',
+                  entry.status !== 1 && 'opacity-60',
+                  entry.status === 1 && 'bg-green-50/30 dark:bg-green-900/10',
                 )}
               >
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-2.5">
                     <Avatar name={entry.childFullName ?? '?'} size="xs" />
-                    <span className={cn('font-medium text-gray-800 dark:text-gray-100', !entry.isPresent && 'line-through text-gray-400')}>
+                    <span className={cn('font-medium text-gray-800 dark:text-gray-100', entry.status !== 1 && 'line-through text-gray-400')}>
                       {entry.childFullName}
                     </span>
                   </div>
@@ -77,8 +77,8 @@ export function TodayAttendance() {
                   {entry.arrivalTime || '-'}
                 </td>
                 <td className="px-5 py-3 text-right">
-                  <Badge variant={entry.isPresent ? 'present' : 'absent'} size="pill" dot>
-                    {entry.isPresent ? statusLabels.present : statusLabels.absent}
+                  <Badge variant={entry.status === 1 ? 'present' : 'absent'} size="pill" dot>
+                    {entry.status === 1 ? statusLabels.present : statusLabels.absent}
                   </Badge>
                 </td>
               </motion.tr>

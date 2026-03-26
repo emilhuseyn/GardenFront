@@ -374,8 +374,8 @@ export default function AttendanceReportsPage() {
                       <tr key={e.childId} className={`border-b border-white-border ${i % 2 === 0 ? '' : 'bg-gray-50/30'}`}>
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">{e.childFullName}</td>
                         <td className="px-4 py-3 text-center">
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${e.isPresent ? (e.isLate ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700') : 'bg-rose-100 text-rose-700'}`}>
-                            {e.isPresent ? (e.isLate ? 'Gecikdi' : 'Gəldi') : 'Gəlmədi'}
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${e.status === 1 ? (e.isLate ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700') : 'bg-rose-100 text-rose-700'}`}>
+                            {e.status === 1 ? (e.isLate ? 'Gecikdi' : 'Gəldi') : 'Gəlmədi'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center text-sm text-gray-500 hidden sm:table-cell">{e.arrivalTime ?? '-'}</td>

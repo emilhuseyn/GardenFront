@@ -211,7 +211,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
     const wd = new Date(e.date).getDay();
     return wd !== 0 && wd !== 6;
   }).length;
-  const workDays       = heatmap.filter((d) => d.status !== 'weekend' && d.status !== 'inactive' && d.status !== 'not_counted').length;
+  const workDays       = heatmap.filter((d) => d.status !== 'inactive' && d.status !== 'not_counted').length;
 
   const recent30Start = format(subDays(new Date(), 30), 'yyyy-MM-dd');
   const recent30Attendance = attendance.filter((entry) => entry.date >= recent30Start && entry.status !== 4);
