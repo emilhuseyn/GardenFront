@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
 import { ChildCard } from '@/components/children/ChildCard';
 import { ChildTable } from '@/components/children/ChildTable';
 import { cn } from '@/lib/utils/constants';
@@ -44,7 +45,7 @@ const SORT_OPTIONS = [
 ];
 
 export default function ChildrenPage() {
-  const [view, setView]             = useState<'grid' | 'table'>('grid');
+  const [view, setViewInternal]     = useState<'grid' | 'table'>('grid');
   const [search, setSearch]         = useState('');
   const [divFilter, setDivFilter]   = useState('');
   const [statusFilter, setStatus]   = useState('');
@@ -53,8 +54,56 @@ export default function ChildrenPage() {
   const [children, setChildren]     = useState<Child[]>([]);
   const [loading, setLoading]       = useState(true);
   const [divisions, setDivisions]   = useState<Division[]>([]);
+  const [deleteTargets, setDeleteTargets] = useState<Child[]>([]);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const debouncedSearch = useDebounce(search, 300);
+
+  const setView = (v: 'grid' | 'table') => {
+    setViewInternal(v);
+    localStorage.setItem('kg_children_view', v);
+  };
+
+  useEffect(() => {
+    const saved = localStorage.getItem('kg_children_view');
+    if (saved === 'grid' || saved === 'table') {
+      setViewInternal(saved);
+    }
+  }, []);
+
+  const handleDeleteRequest = (id: number) => {
+    const child = children.find((c) => c.id === id);
+    if (child) setDeleteTargets([child]);
+  };
+
+  const handleDeleteBulkRequest = (ids: number[]) => {
+    const targets = children.filter((c) => ids.includes(c.id));
+    if (targets.length) setDeleteTargets(targets);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargets.length) return;
+    setDeleteLoading(true);
+    try {
+      for (const target of deleteTargets) {
+        await childrenApi.delete(target.id);
+      }
+      toast.success(deleteTargets.length > 1 ? `${deleteTargets.length} uşaq silindi` : 'Uşaq silindi');
+      const deletedIds = new Set(deleteTargets.map((c) => c.id));
+      setChildren((prev) => {
+        const updated = prev.filter((c) => !deletedIds.has(c.id));
+        Object.keys(sessionStorage)
+          .filter((k) => k.startsWith('children_cache_'))
+          .forEach((k) => sessionStorage.removeItem(k));
+        return updated;
+      });
+      setDeleteTargets([]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Silinmə xətası');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const handleToggleStatus = async (id: number, currentStatus: string) => {
     try {
@@ -65,16 +114,20 @@ export default function ChildrenPage() {
         await childrenApi.activate(id);
         toast.success('Uşaq aktiv edildi');
       }
-      setChildren((prev) =>
-        prev.map((c) =>
+      setChildren((prev) => {
+        const updated = prev.map((c) =>
           c.id === id
-            ? { ...c, status: currentStatus === 'Active' ? 'Inactive' : 'Active' }
+            ? { ...c, status: (currentStatus === 'Active' ? 'Inactive' : 'Active') as import('@/types').ChildStatus }
             : c
-        )
-      );
-    } catch (error: any) {
-      toast.error(error.message || 'Xəta baş verdi, adminlə əlaqə saxlayın');
-      console.error("Toggle error:", error);
+        );
+        // Invalidate all children caches so next load is fresh
+        Object.keys(sessionStorage)
+          .filter((k) => k.startsWith('children_cache_'))
+          .forEach((k) => sessionStorage.removeItem(k));
+        return updated;
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Xəta baş verdi, adminlə əlaqə saxlayın');
     }
   };
 
@@ -83,12 +136,23 @@ export default function ChildrenPage() {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
+    const cacheKey = `children_cache_${debouncedSearch.trim()}_${divFilter}_${statusFilter}_${schedFilter}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        setChildren(JSON.parse(cached));
+        setLoading(false);
+      } catch { /* ignore invalid cache */ }
+    } else {
+      setLoading(true);
+    }
+
     const run = async () => {
       try {
         if (debouncedSearch.trim()) {
           const results = await childrenApi.search(debouncedSearch.trim());
           setChildren(results);
+          sessionStorage.setItem(cacheKey, JSON.stringify(results));
         } else {
           const result = await childrenApi.getAll({
             divisionId:   divFilter ? Number(divFilter) : undefined,
@@ -97,9 +161,10 @@ export default function ChildrenPage() {
             pageSize:     200,
           });
           setChildren(result.items);
+          sessionStorage.setItem(cacheKey, JSON.stringify(result.items));
         }
       } catch {
-        setChildren([]);
+        if (!cached) setChildren([]);
       } finally {
         setLoading(false);
       }
@@ -263,14 +328,31 @@ export default function ChildrenPage() {
               transition={{ delay: i * 0.03, duration: 0.25 }}
             >
               <Link href={`/children/${child.id}`}>
-                <ChildCard child={child} index={i} />
+                <ChildCard
+                  child={child}
+                  index={i}
+                  onToggleStatus={handleToggleStatus}
+                  onDelete={handleDeleteRequest}
+                />
               </Link>
             </motion.div>
           ))}
         </div>
       ) : (
-        <ChildTable rows={processedChildren} onToggleStatus={handleToggleStatus} />
+        <ChildTable rows={processedChildren} onToggleStatus={handleToggleStatus} onDelete={handleDeleteRequest} onDeleteBulk={handleDeleteBulkRequest} />
       )}
+
+      <ConfirmDeleteModal
+        open={deleteTargets.length > 0}
+        onClose={() => setDeleteTargets([])}
+        onConfirm={handleDeleteConfirm}
+        childName={
+          deleteTargets.length === 1
+            ? `${deleteTargets[0].firstName} ${deleteTargets[0].lastName}`
+            : `${deleteTargets.length} uşaq`
+        }
+        loading={deleteLoading}
+      />
     </div>
   );
 }
