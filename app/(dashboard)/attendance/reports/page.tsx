@@ -128,7 +128,7 @@ export default function AttendanceReportsPage() {
     const headers = ['Ad Soyad', 'Status', 'Gəliş', 'Çıxış'];
     const rows = dailyRows.map((e) => [
       e.childFullName ?? '',
-      e.isPresent ? (e.isLate ? 'Gecikdi' : 'Gəldi') : 'Gəlmədi',
+      e.status === 1 || e.status === 'Present' ? (e.isLate ? 'Gecikdi' : 'Gəldi') : 'Gəlmədi',
       e.arrivalTime ?? '',
       e.departureTime ?? '',
     ]);
