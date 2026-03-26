@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useState } from 'react';
-import { MoreHorizontal, Eye, Pencil, UserX, UserCheck } from 'lucide-react';
+import { MoreHorizontal, Eye, Pencil, UserX, UserCheck, Trash2 } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -12,10 +12,12 @@ import type { Child } from '@/types';
 
 interface ChildTableProps {
   rows: Child[];
-  onToggleStatus?: (id: number, current: string) => void;
+  onToggleStatus?: (id: number, current: string) => Promise<void> | void;
+  onDelete?: (id: number) => void;
+  onDeleteBulk?: (ids: number[]) => void;
 }
 
-export function ChildTable({ rows: childList, onToggleStatus }: ChildTableProps) {
+export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDeleteBulk }: ChildTableProps) {
   const [openMenu, setOpenMenu] = useState<number | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
@@ -43,45 +45,62 @@ export function ChildTable({ rows: childList, onToggleStatus }: ChildTableProps)
     <div className="bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-xl overflow-hidden"
       style={{ boxShadow: '0 1px 3px 0 rgb(0 0 0/0.06)' }}>
       {/* Bulk action bar */}
-      {selected.size > 0 && (
-        <div className="bg-green-50 z-20 sticky top-0 border-b border-green-200 px-5 py-2.5 flex items-center gap-4">
-          <span className="text-sm text-green-700 font-medium">{selected.size} uşaq seçildi</span>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-green-600 hover:text-green-700 font-medium"
-            onClick={async () => {
-              const ids = Array.from(selected);
-              for (const id of ids) {
-                const child = childList.find(c => c.id === id);
-                if (child && child.status !== 'Active') {
-                  if(onToggleStatus) await onToggleStatus(id, child.status);
-                }
-              }
-              setSelected(new Set());
-            }}
-          >
-            Aktiv et
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-rose-500 hover:text-rose-600 font-medium"
-            onClick={async () => {
-              const ids = Array.from(selected);
-              for (const id of ids) {
-                const child = childList.find(c => c.id === id);
-                if (child && child.status === 'Active') {
-                  if(onToggleStatus) await onToggleStatus(id, child.status);
-                }
-              }
-              setSelected(new Set());
-            }}
-          >
-            Deaktiv et
-          </Button>
-        </div>
-      )}
+      {selected.size > 0 && (() => {
+        const selectedChildren = childList.filter(c => selected.has(c.id));
+        const hasInactive = selectedChildren.some(c => c.status !== 'Active');
+        const hasActive   = selectedChildren.some(c => c.status === 'Active');
+        const allInactive = selectedChildren.every(c => c.status !== 'Active');
+        return (
+          <div className="bg-green-50 z-20 sticky top-0 border-b border-green-200 px-5 py-2.5 flex items-center gap-4">
+            <span className="text-sm text-green-700 font-medium">{selected.size} uşaq seçildi</span>
+            {hasInactive && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-green-600 hover:text-green-700 font-medium"
+                onClick={async () => {
+                  const targets = selectedChildren.filter(c => c.status !== 'Active');
+                  for (const child of targets) {
+                    await onToggleStatus?.(child.id, child.status);
+                  }
+                  setSelected(new Set());
+                }}
+              >
+                Aktiv et
+              </Button>
+            )}
+            {hasActive && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-rose-500 hover:text-rose-600 font-medium"
+                onClick={async () => {
+                  const targets = selectedChildren.filter(c => c.status === 'Active');
+                  for (const child of targets) {
+                    await onToggleStatus?.(child.id, child.status);
+                  }
+                  setSelected(new Set());
+                }}
+              >
+                Deaktiv et
+              </Button>
+            )}
+            {allInactive && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-rose-500 hover:text-rose-600 font-medium"
+                onClick={() => {
+                  onDeleteBulk?.(selectedChildren.map(c => c.id));
+                  setSelected(new Set());
+                }}
+              >
+                <Trash2 size={14} /> Sil
+              </Button>
+            )}
+          </div>
+        );
+      })()}
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -180,18 +199,29 @@ export function ChildTable({ rows: childList, onToggleStatus }: ChildTableProps)
                       >
                         <Pencil size={13} /> Redaktə et
                       </Link>
-                      <button
-                        className={cn(
-                          'w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors',
-                          child.status === 'Active'
-                            ? 'text-rose-500 hover:bg-rose-50'
-                            : 'text-green-600 hover:bg-green-50'
-                        )}
-                        onClick={() => { onToggleStatus?.(child.id, child.status); setOpenMenu(null); }}
-                      >
-                        {child.status === 'Active' ? <UserX size={13} /> : <UserCheck size={13} />}
-                        {child.status === 'Active' ? 'Deaktiv et' : 'Aktiv et'}
-                      </button>
+                      {child.status === 'Active' ? (
+                        <button
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-rose-500 hover:bg-rose-50 transition-colors"
+                          onClick={() => { onToggleStatus?.(child.id, child.status); setOpenMenu(null); }}
+                        >
+                          <UserX size={13} /> Deaktiv et
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-green-600 hover:bg-green-50 transition-colors"
+                            onClick={() => { onToggleStatus?.(child.id, child.status); setOpenMenu(null); }}
+                          >
+                            <UserCheck size={13} /> Aktiv et
+                          </button>
+                          <button
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-rose-500 hover:bg-rose-50 transition-colors"
+                            onClick={() => { onDelete?.(child.id); setOpenMenu(null); }}
+                          >
+                            <Trash2 size={13} /> Sil
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                 </td>

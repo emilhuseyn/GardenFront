@@ -5,8 +5,9 @@ import {
   User, Calendar, DollarSign, FileText,
   Phone, Mail, Clock, BookOpen, Edit, Sparkles,
   ArrowRightLeft, CheckCircle2, AlertTriangle, NotebookPen,
+  UserCheck, UserX, Trash2, ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, isToday as isTodayDate, subDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isToday as isTodayDate, subDays, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -17,6 +18,9 @@ import { cn } from '@/lib/utils/constants';
 import { childrenApi } from '@/lib/api/children';
 import { paymentsApi } from '@/lib/api/payments';
 import { attendanceApi } from '@/lib/api/attendance';
+import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
+import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 import type { Child, Payment, AttendanceEntry } from '@/types';
 
 const TABS = [
@@ -28,10 +32,10 @@ const TABS = [
 ];
 
 const statusColor: Record<string, string> = {
-  present: 'bg-green-100 text-green-700 ring-1 ring-green-200',
-  absent: 'bg-rose-100 text-rose-700 ring-1 ring-rose-200',
-  weekend: 'bg-gray-100 text-gray-400 ring-1 ring-gray-200',
-  inactive: 'bg-gray-50 text-gray-300 ring-1 ring-gray-100',
+  present:     'bg-green-100 text-green-700 ring-1 ring-green-200',
+  absent:      'bg-rose-100 text-rose-700 ring-1 ring-rose-200',
+  inactive:    'bg-gray-50 text-gray-300 ring-1 ring-gray-100',
+  not_counted: 'bg-violet-100 text-violet-400 ring-1 ring-violet-200',
 };
 
 type TimelineEventType = 'registration' | 'group' | 'payment' | 'attendance' | 'note';
@@ -85,13 +89,54 @@ interface ChildDetailProps {
 }
 
 export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab]       = useState('timeline');
   const [child, setChild]               = useState<Child | null>(null);
   const [payments, setPayments]         = useState<Payment[]>([]);
   const [attendance, setAttendance]     = useState<AttendanceEntry[]>([]);
   const [loading, setLoading]           = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
+  const [monthAttendance, setMonthAttendance] = useState<AttendanceEntry[]>([]);
+  const [monthAttLoading, setMonthAttLoading] = useState(false);
 
   const numId = Number(childId);
+
+  const handleToggleStatus = async () => {
+    if (!child) return;
+    setActionLoading(true);
+    try {
+      if (child.status === 'Active') {
+        await childrenApi.deactivate(numId);
+        setChild((c) => c ? { ...c, status: 'Inactive' } : c);
+        toast.success('Uşaq deaktiv edildi');
+      } else {
+        await childrenApi.activate(numId);
+        setChild((c) => c ? { ...c, status: 'Active' } : c);
+        toast.success('Uşaq aktiv edildi');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Xəta baş verdi');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!child) return;
+    setActionLoading(true);
+    try {
+      await childrenApi.delete(numId);
+      toast.success('Uşaq silindi');
+      router.push('/children');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Silinmə xətası');
+    } finally {
+      setActionLoading(false);
+      setDeleteModalOpen(false);
+    }
+  };
 
   useEffect(() => {
     if (!numId) return;
@@ -105,46 +150,72 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
       paymentsApi.getChildHistory(numId),
       attendanceApi.getChildHistory(numId, from, to),
     ]).then(([childRes, paymentsRes, attendanceRes]) => {
-      if (childRes.status === 'fulfilled')     setChild(childRes.value);
-      if (paymentsRes.status === 'fulfilled')  setPayments(paymentsRes.value);
+      if (childRes.status === 'fulfilled')      setChild(childRes.value);
+      if (paymentsRes.status === 'fulfilled')   setPayments(paymentsRes.value);
       if (attendanceRes.status === 'fulfilled') setAttendance(attendanceRes.value);
     }).finally(() => setLoading(false));
   }, [numId]);
 
-  // Build heatmap for current month
+  // Load attendance for the selected calendar month
+  useEffect(() => {
+    if (!numId) return;
+    // If current month, reuse already-loaded attendance data
+    if (isSameMonth(calendarMonth, new Date())) {
+      const monthStr = format(calendarMonth, 'yyyy-MM');
+      setMonthAttendance(attendance.filter((e) => e.date.startsWith(monthStr)));
+      return;
+    }
+    setMonthAttLoading(true);
+    const from = format(startOfMonth(calendarMonth), 'yyyy-MM-dd');
+    const to   = format(endOfMonth(calendarMonth), 'yyyy-MM-dd');
+    attendanceApi.getChildHistory(numId, from, to)
+      .then(setMonthAttendance)
+      .catch(() => setMonthAttendance([]))
+      .finally(() => setMonthAttLoading(false));
+  }, [numId, calendarMonth, attendance]);
+
+  // Build heatmap for selected calendar month
   const heatmap = (() => {
     const today = new Date();
     const todayStr = format(today, 'yyyy-MM-dd');
-    const start = startOfMonth(today);
-    const end   = endOfMonth(today);
+    const start = startOfMonth(calendarMonth);
+    const end   = endOfMonth(calendarMonth);
     const registrationDate = child?.registrationDate?.slice(0, 10);
-    const entryMap = new Map(attendance.map((e) => [e.date, e]));
-    const days: { date: string; dayNumber: number; status: 'present' | 'absent' | 'weekend' | 'inactive'; isToday: boolean }[] = [];
+    const entryMap = new Map(monthAttendance.map((e) => [e.date, e]));
+    const days: { date: string; dayNumber: number; status: 'present' | 'absent' | 'inactive' | 'not_counted'; isToday: boolean }[] = [];
     let d = new Date(start);
     while (d <= end) {
       const dateStr = format(d, 'yyyy-MM-dd');
       const wd = d.getDay();
       if (dateStr > todayStr || (registrationDate && dateStr < registrationDate)) {
-        // Before child registration or in the future should not count as absence.
         days.push({ date: dateStr, dayNumber: d.getDate(), status: 'inactive', isToday: isTodayDate(d) });
       } else if (wd === 0 || wd === 6) {
-        days.push({ date: dateStr, dayNumber: d.getDate(), status: 'weekend', isToday: isTodayDate(d) });
+        days.push({ date: dateStr, dayNumber: d.getDate(), status: 'not_counted', isToday: isTodayDate(d) });
       } else {
         const entry = entryMap.get(dateStr);
-        days.push({ date: dateStr, dayNumber: d.getDate(), status: entry ? (entry.isPresent ? 'present' : 'absent') : 'absent', isToday: isTodayDate(d) });
+        const status = entry
+          ? (entry.status === 4 ? 'not_counted' : entry.status === 1 ? 'present' : 'absent')
+          : 'absent';
+        days.push({ date: dateStr, dayNumber: d.getDate(), status, isToday: isTodayDate(d) });
       }
       d = new Date(d.getTime() + 86400000);
     }
     return days;
   })();
 
-  const presentDays = heatmap.filter((d) => d.status === 'present').length;
-  const absentDays  = heatmap.filter((d) => d.status === 'absent').length;
-  const workDays    = heatmap.filter((d) => d.status !== 'weekend' && d.status !== 'inactive').length;
+  const presentDays    = heatmap.filter((d) => d.status === 'present').length;
+  const absentDays     = heatmap.filter((d) => d.status === 'absent').length;
+  // Only weekday not_counted (bayram/xüsusi gün) — exclude weekends already in not_counted
+  const notCountedDays = monthAttendance.filter((e) => {
+    if (e.status !== 4) return false;
+    const wd = new Date(e.date).getDay();
+    return wd !== 0 && wd !== 6;
+  }).length;
+  const workDays       = heatmap.filter((d) => d.status !== 'weekend' && d.status !== 'inactive' && d.status !== 'not_counted').length;
 
   const recent30Start = format(subDays(new Date(), 30), 'yyyy-MM-dd');
-  const recent30Attendance = attendance.filter((entry) => entry.date >= recent30Start);
-  const recent30Present = recent30Attendance.filter((entry) => entry.isPresent).length;
+  const recent30Attendance = attendance.filter((entry) => entry.date >= recent30Start && entry.status !== 4);
+  const recent30Present = recent30Attendance.filter((entry) => entry.status === 1).length;
   const recent30Rate = recent30Attendance.length > 0
     ? Math.round((recent30Present / recent30Attendance.length) * 100)
     : 0;
@@ -196,14 +267,20 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
 
   for (const a of attendance) {
     const hasNote = Boolean(a.notes?.trim());
-    if (!a.isPresent || a.isLate || hasNote) {
-      const attendanceTitle = !a.isPresent
+    const isPresent    = a.status === 1;
+    const isNotCounted = a.status === 4;
+    if (!isPresent || a.isLate || hasNote) {
+      const attendanceTitle = isNotCounted
+        ? 'Davamiyyət: Sayılmır'
+        : !isPresent
         ? 'Davamiyyət: Gəlmədi'
         : a.isLate
           ? 'Davamiyyət: Gecikmə'
           : 'Davamiyyət qeyd edildi';
 
-      const attendanceDescription = !a.isPresent
+      const attendanceDescription = isNotCounted
+        ? 'Bu gün statistikaya daxil edilmir (bayram və ya xüsusi gün).'
+        : !isPresent
         ? 'Uşaq həmin gün dərsə gəlməyib.'
         : a.isLate
           ? `Gəliş vaxtı: ${a.arrivalTime || '-'}${a.departureTime ? ` • Çıxış: ${a.departureTime}` : ''}`
@@ -215,7 +292,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
         type: 'attendance',
         title: attendanceTitle,
         description: attendanceDescription,
-        tone: !a.isPresent ? 'warning' : 'success',
+        tone: isNotCounted ? 'neutral' : !isPresent ? 'warning' : 'success',
       });
 
       if (hasNote) {
@@ -260,6 +337,13 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
 
   return (
     <div>
+      <ConfirmDeleteModal
+        open={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        childName={`${child.firstName} ${child.lastName}`}
+        loading={actionLoading}
+      />
       <div className="relative rounded-2xl overflow-hidden mb-6 p-6 bg-gradient-to-br from-green-400/10 to-accent-blue/5 border border-white-border">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <Avatar name={`${child.firstName} ${child.lastName}`} size="2xl" ring />
@@ -278,9 +362,44 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
               </Badge>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={onEdit}>
-            <Edit size={14} /> Düzəliş et
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {child.status === 'Inactive' && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={actionLoading}
+                  onClick={handleToggleStatus}
+                  className="text-green-600 border-green-300 hover:bg-green-50"
+                >
+                  <UserCheck size={14} /> Aktiv et
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={actionLoading}
+                  onClick={() => setDeleteModalOpen(true)}
+                  className="text-rose-500 border-rose-300 hover:bg-rose-50"
+                >
+                  <Trash2 size={14} /> Sil
+                </Button>
+              </>
+            )}
+            {child.status === 'Active' && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={actionLoading}
+                onClick={handleToggleStatus}
+                className="text-amber-600 border-amber-300 hover:bg-amber-50"
+              >
+                <UserX size={14} /> Deaktiv et
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={onEdit}>
+              <Edit size={14} /> Düzəliş et
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -395,7 +514,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
 
         {activeTab === 'attendance' && (
           <div>
-            <div className="grid grid-cols-3 gap-3 mb-5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
               <div className="bg-green-50 rounded-xl p-3 text-center">
                 <p className="text-2xl font-bold text-green-600 font-display">{presentDays}</p>
                 <p className="text-xs text-gray-500 mt-0.5">Gəldi</p>
@@ -410,43 +529,82 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">Davamiyyət</p>
               </div>
+              <div className="bg-violet-50 rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-violet-500 font-display">{notCountedDays}</p>
+                <p className="text-xs text-gray-500 mt-0.5">Sayılmır</p>
+              </div>
             </div>
             <div className="bg-white border border-white-border rounded-2xl p-4 sm:p-5 shadow-sm">
+              {/* Month navigator */}
               <div className="flex items-center justify-between mb-4">
-                <h4 className="text-sm font-semibold text-gray-700">
-                  {format(new Date(), 'MMMM yyyy')}
-                </h4>
-                <span className="text-xs text-gray-400">Aylıq görünüş</span>
-              </div>
-              <div className="grid grid-cols-7 gap-2 mb-2">
-                {['B.e','C.a','C','Ca','Cu','S','B'].map((d) => (
-                  <div key={d} className="text-center text-[11px] font-medium text-gray-400 uppercase tracking-wide">{d}</div>
-                ))}
-              </div>
-              <div className="grid grid-cols-7 gap-2">
-                {Array.from({ length: (new Date(new Date().getFullYear(), new Date().getMonth(), 1).getDay() + 6) % 7 }).map((_, i) => (
-                  <div key={`pad-${i}`} className="aspect-square rounded-xl bg-transparent" />
-                ))}
-                {heatmap.map((d, i) => (
-                  <div
-                    key={i}
-                    title={d.date}
-                    className={cn(
-                      'aspect-square rounded-xl flex items-center justify-center text-sm font-semibold transition-transform hover:scale-[1.03]',
-                      statusColor[d.status],
-                      d.isToday && 'ring-2 ring-accent-blue shadow-sm'
-                    )}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCalendarMonth((m) => subMonths(m, 1))}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
                   >
-                    <span>{d.dayNumber}</span>
-                  </div>
-                ))}
+                    <ChevronLeft size={15} />
+                  </button>
+                  <h4 className="text-sm font-semibold text-gray-700 min-w-[110px] text-center">
+                    {format(calendarMonth, 'MMMM yyyy')}
+                  </h4>
+                  <button
+                    onClick={() => setCalendarMonth((m) => addMonths(m, 1))}
+                    disabled={isSameMonth(calendarMonth, new Date())}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+                {!isSameMonth(calendarMonth, new Date()) && (
+                  <button
+                    onClick={() => setCalendarMonth(startOfMonth(new Date()))}
+                    className="text-xs text-green-600 hover:text-green-700 font-medium"
+                  >
+                    Bu ay
+                  </button>
+                )}
               </div>
+
+              {monthAttLoading ? (
+                <div className="grid grid-cols-7 gap-2">
+                  {Array.from({ length: 35 }).map((_, i) => (
+                    <div key={i} className="aspect-square rounded-xl bg-gray-100 animate-pulse" />
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-7 gap-2 mb-2">
+                    {['B.e','C.a','C','Ca','Cu','S','B'].map((d) => (
+                      <div key={d} className="text-center text-[11px] font-medium text-gray-400 uppercase tracking-wide">{d}</div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-2">
+                    {Array.from({ length: (startOfMonth(calendarMonth).getDay() + 6) % 7 }).map((_, i) => (
+                      <div key={`pad-${i}`} className="aspect-square rounded-xl bg-transparent" />
+                    ))}
+                    {heatmap.map((d, i) => (
+                      <div
+                        key={i}
+                        title={`${d.date}${d.status === 'not_counted' ? ' · Sayılmır' : ''}`}
+                        className={cn(
+                          'aspect-square rounded-xl flex items-center justify-center text-sm font-semibold transition-transform hover:scale-[1.03]',
+                          statusColor[d.status],
+                          d.isToday && 'ring-2 ring-accent-blue shadow-sm'
+                        )}
+                      >
+                        <span>{d.dayNumber}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
               <div className="flex flex-wrap items-center gap-4 mt-4 pt-3 border-t border-white-border">
                 {[
-                  { color: 'bg-green-400',  label: 'Gəldi'   },
-                  { color: 'bg-accent-rose', label: 'Gəlmədi' },
-                  { color: 'bg-gray-100',   label: 'Bağlı'   },
-                  { color: 'bg-gray-50',    label: 'Hesablanmır' },
+                  { color: 'bg-green-100 ring-1 ring-green-200',   label: 'Gəldi'                       },
+                  { color: 'bg-rose-100 ring-1 ring-rose-200',     label: 'Gəlmədi'                     },
+                  { color: 'bg-violet-100 ring-1 ring-violet-200', label: 'Sayılmır (Ş/B, bayram)'      },
+                  { color: 'bg-gray-50 ring-1 ring-gray-100',      label: 'Gələcək / Qeydiyyatdan əvvəl'},
                 ].map((l) => (
                   <div key={l.label} className="flex items-center gap-1.5">
                     <div className={cn('w-3 h-3 rounded-sm', l.color)} />

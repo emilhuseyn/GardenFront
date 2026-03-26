@@ -98,12 +98,17 @@ export interface ChildFormData {
 }
 
 // ─── Attendance ───────────────────────────────────────────────────────────────
+// AttendanceStatus: 1=Present, 2=Absent, 3=Excused, 4=NotCounted
+export type AttendanceStatusEnum = 1 | 2 | 3 | 4;
+
 export interface AttendanceEntry {
+  id?: number;
   childId: number;
   childFullName?: string;
   date: string;
-  isPresent: boolean;
+  status: AttendanceStatusEnum;
   isLate?: boolean;
+  isEarlyLeave?: boolean;
   arrivalTime?: string;
   departureTime?: string;
   notes?: string;
@@ -137,7 +142,7 @@ export interface MonthlyAttendance {
 export interface MarkAttendanceEntry {
   childId: number;
   date: string;
-  isPresent: boolean;
+  status: AttendanceStatusEnum;
   isLate?: boolean;
   arrivalTime?: string;
   departureTime?: string;

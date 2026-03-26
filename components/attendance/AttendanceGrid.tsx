@@ -101,7 +101,9 @@ export function AttendanceGrid() {
 
           let status: AttendanceStatus = null;
           if (entry) {
-            if (!entry.isPresent) {
+            if (entry.status === 4) {
+              status = 'not_counted';
+            } else if (entry.status === 2 || entry.status === 3) {
               status = 'absent';
             } else if (entry.arrivalTime && sched) {
               status = parseTimeMins(entry.arrivalTime) > parseTimeMins(sched.startTime) + 15 ? 'late' : 'present';
@@ -195,16 +197,20 @@ export function AttendanceGrid() {
     setRows((prev) =>
       prev.map((r) => {
         if (r.status === 'absent' && !r.checkIn && !r.checkOut && !r.isEarlyLeave) return r;
-        return {
-          ...r,
-          status: 'absent',
-          checkIn: undefined,
-          checkOut: undefined,
-          isEarlyLeave: false,
-        };
+        return { ...r, status: 'absent', checkIn: undefined, checkOut: undefined, isEarlyLeave: false };
       })
     );
     toast.success('Siyahıda hamı "Gəlmədi" kimi işarələndi');
+  }, []);
+
+  const handleMarkAllNotCounted = useCallback(() => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.status === 'not_counted' && !r.checkIn && !r.checkOut) return r;
+        return { ...r, status: 'not_counted', checkIn: undefined, checkOut: undefined, isEarlyLeave: false };
+      })
+    );
+    toast.success('Siyahıda hamı "Sayılmır" kimi işarələndi');
   }, []);
 
   const processedRows = useMemo(() => {
@@ -263,12 +269,18 @@ export function AttendanceGrid() {
     try {
       const toTimeOnly = (t?: string) => (t ? (t.length === 5 ? `${t}:00` : t) : undefined);
 
+      const toStatus = (s: AttendanceStatus): 1 | 2 | 4 => {
+        if (s === 'present' || s === 'late') return 1;
+        if (s === 'not_counted') return 4;
+        return 2; // absent
+      };
+
       const entries = rows
         .filter((r) => r.status !== null)
         .map((r) => ({
           childId: Number(r.id),
           date: dateStr,
-          isPresent: r.status === 'present' || r.status === 'late',
+          status: toStatus(r.status),
           isLate: r.status === 'late',
           arrivalTime: toTimeOnly(r.checkIn),
           departureTime: toTimeOnly(r.checkOut),
@@ -282,10 +294,11 @@ export function AttendanceGrid() {
     }
   };
 
-  const presentCount = rows.filter((r) => r.status === 'present').length;
-  const lateCount = rows.filter((r) => r.status === 'late').length;
-  const absentCount = rows.filter((r) => r.status === 'absent').length;
-  const totalCount = rows.length;
+  const presentCount    = rows.filter((r) => r.status === 'present').length;
+  const lateCount       = rows.filter((r) => r.status === 'late').length;
+  const absentCount     = rows.filter((r) => r.status === 'absent').length;
+  const notCountedCount = rows.filter((r) => r.status === 'not_counted').length;
+  const totalCount      = rows.length - notCountedCount;
 
   return (
     <div>
@@ -382,6 +395,14 @@ export function AttendanceGrid() {
               >
                 <XCircle size={15} className="mr-1.5 sm:mr-2 text-rose-500" /> Hamısı gəlmədi
               </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="flex-1 sm:flex-none bg-white dark:bg-[#1e2130] border-gray-200 dark:border-gray-700/60 hover:bg-gray-100 hover:text-gray-700 hover:border-gray-300 dark:hover:bg-gray-700/40 dark:hover:text-gray-300 py-1.5 h-auto text-xs sm:text-sm"
+                onClick={handleMarkAllNotCounted}
+              >
+                <XCircle size={15} className="mr-1.5 sm:mr-2 text-gray-400" /> Hamısı sayılmır
+              </Button>
             </div>
           </div>
         )}
@@ -456,6 +477,11 @@ export function AttendanceGrid() {
             <XCircle size={14} className="text-rose-500" />
             <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">{absentCount} gəlmədi</span>
           </div>
+          {notCountedCount > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100/80 dark:bg-gray-800/40 rounded-lg border border-gray-200/50 dark:border-gray-700/40">
+              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">{notCountedCount} sayılmır</span>
+            </div>
+          )}
           {totalCount > 0 && (
             <div className="sm:ml-auto flex items-center gap-2 px-3 py-1.5 bg-blue-50/80 dark:bg-blue-900/10 rounded-lg border border-blue-100/50 dark:border-blue-900/30">
               <span className="text-xs font-bold text-accent-blue dark:text-blue-400">

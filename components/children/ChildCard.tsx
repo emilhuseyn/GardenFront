@@ -1,7 +1,8 @@
 'use client';
 import Link from 'next/link';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Phone, Clock, MoreVertical } from 'lucide-react';
+import { Phone, Clock, MoreVertical, UserX, UserCheck, Trash2 } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -13,6 +14,8 @@ import type { Child } from '@/types';
 interface ChildCardProps {
   child: Child;
   index?: number;
+  onToggleStatus?: (id: number, current: string) => void;
+  onDelete?: (id: number) => void;
 }
 
 const paymentVariant = {
@@ -27,11 +30,21 @@ const paymentLabel = {
   unpaid: 'Borclu ✗',
 };
 
-export function ChildCard({ child, index = 0 }: ChildCardProps) {
+export function ChildCard({ child, index = 0, onToggleStatus, onDelete }: ChildCardProps) {
   const fullName = `${child.firstName} ${child.lastName}`;
-  // Mock payment status
   const payStatus = (['paid', 'partial', 'unpaid'] as const)[index % 3];
   const isEnglish = child.divisionName?.toLowerCase().includes('ingilis') || child.divisionName?.toLowerCase().includes('english');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [menuOpen]);
 
   return (
     <motion.div
@@ -60,9 +73,41 @@ export function ChildCard({ child, index = 0 }: ChildCardProps) {
             </h3>
             <p className="text-xs text-gray-400 mt-0.5">{getAge(child.dateOfBirth)} yaş</p>
           </div>
-          <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-400">
-            <MoreVertical size={14} />
-          </button>
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={(e) => { e.preventDefault(); setMenuOpen((v) => !v); }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-400"
+            >
+              <MoreVertical size={14} />
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-7 z-20 bg-white dark:bg-[#252836] border border-white-border dark:border-gray-700 rounded-xl shadow-lg py-1 min-w-[140px]">
+                {child.status === 'Active' ? (
+                  <button
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                    onClick={(e) => { e.preventDefault(); onToggleStatus?.(child.id, child.status); setMenuOpen(false); }}
+                  >
+                    <UserX size={13} /> Deaktiv et
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                      onClick={(e) => { e.preventDefault(); onToggleStatus?.(child.id, child.status); setMenuOpen(false); }}
+                    >
+                      <UserCheck size={13} /> Aktiv et
+                    </button>
+                    <button
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                      onClick={(e) => { e.preventDefault(); onDelete?.(child.id); setMenuOpen(false); }}
+                    >
+                      <Trash2 size={13} /> Sil
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Badges row */}

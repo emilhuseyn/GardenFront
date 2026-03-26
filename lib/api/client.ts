@@ -11,7 +11,7 @@ function isSilentErrorRequest(error: AxiosError): boolean {
 }
 
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5034/api', // Backend portunuza uyğunlaşdırıldı
+  baseURL: process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:5034/', // Backend portunuza uyğunlaşdırıldı
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',

@@ -69,22 +69,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [_hasHydrated, isAuthenticated, router]);
 
-  // Always refresh user profile from /me on mount to ensure fresh data
+  // Refresh user profile in background only once per session (not on every navigation)
   useEffect(() => {
-    if (_hasHydrated && isAuthenticated) {
-      authApi.me().then((me) => {
-        updateUser({
-          id:          me.id,
-          firstName:   me.firstName,
-          lastName:    me.lastName,
-          email:       me.email,
-          role:        me.role as import('@/types').UserRole,
-          isActive:    me.isActive,
-          name:        me.name,
-          phoneNumber: me.phoneNumber,
-        });
-      }).catch(() => {});
-    }
+    if (!_hasHydrated || !isAuthenticated) return;
+    const SESSION_KEY = 'kg_me_fetched';
+    if (sessionStorage.getItem(SESSION_KEY)) return;
+    sessionStorage.setItem(SESSION_KEY, '1');
+    authApi.me().then((me) => {
+      updateUser({
+        id:          me.id,
+        firstName:   me.firstName,
+        lastName:    me.lastName,
+        email:       me.email,
+        role:        me.role as import('@/types').UserRole,
+        isActive:    me.isActive,
+        name:        me.name,
+        phoneNumber: me.phoneNumber,
+      });
+    }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [_hasHydrated, isAuthenticated]);
 
