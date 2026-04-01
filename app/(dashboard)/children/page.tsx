@@ -158,7 +158,7 @@ export default function ChildrenPage() {
             divisionId:   divFilter ? Number(divFilter) : undefined,
             status:       (statusFilter as 'Active' | 'Inactive' | '') || undefined,
             scheduleType: schedFilter !== '' ? (schedFilter as 'FullDay' | 'HalfDay') : undefined,
-            pageSize:     200,
+            pageSize:     0,   // 0 → server bütün nəticələri qaytarır
           });
           setChildren(result.items);
           sessionStorage.setItem(cacheKey, JSON.stringify(result.items));
