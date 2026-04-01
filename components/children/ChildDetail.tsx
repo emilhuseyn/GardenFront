@@ -507,6 +507,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
             <InfoCard icon={Mail}       label="E-poçt"            value={child.parentEmail || '-'} />
             <InfoCard icon={User}       label="Valideyn adı"      value={child.parentFullName} />
             <InfoCard icon={DollarSign} label="Aylıq ödəniş"      value={formatCurrency(child.monthlyFee)} />
+            <InfoCard icon={Calendar}   label="Ödəniş günü"       value={`${child.paymentDay}-i`} />
             <InfoCard icon={BookOpen}   label="Bölmə"             value={child.divisionName} />
             <InfoCard icon={Clock}      label="Müəllim"           value={child.teacherName || '-'} />
           </div>

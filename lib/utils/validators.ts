@@ -9,6 +9,7 @@ export const childSchema = z.object({
   groupId: z.number().min(1, 'Qrup seçin'),
   scheduleType: z.union([z.literal(0), z.literal(1)]),
   monthlyFee: z.number().min(1, 'Ödəniş məbləği mütləqdir').max(10000, 'Ən çox 10000 ₼ ola bilər'),
+  paymentDay: z.number().min(1, 'Ödəniş günü seçin').max(28, 'Maksimum 28 ola bilər'),
   parentFullName: z.string().min(3, 'Ən azı 3 hərf olmalıdır'),
   parentPhone: z.string().regex(phoneRegex, 'Düzgün telefon nömrəsi daxil edin (+994XXXXXXXXX)'),
   parentEmail: z.string().email('Düzgün e-poçt daxil edin').optional().or(z.literal('')),

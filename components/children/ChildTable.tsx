@@ -121,6 +121,7 @@ export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDelete
               <th className="text-left font-medium text-gray-500 px-4 py-3 whitespace-nowrap hidden lg:table-cell">Qrup</th>
               <th className="text-left font-medium text-gray-500 px-4 py-3 whitespace-nowrap hidden xl:table-cell">Qrafik</th>
               <th className="text-left font-medium text-gray-500 px-4 py-3 whitespace-nowrap hidden xl:table-cell">Aylıq</th>
+              <th className="text-left font-medium text-gray-500 px-4 py-3 whitespace-nowrap hidden lg:table-cell">Ödəniş Günü</th>
               <th className="text-left font-medium text-gray-500 px-4 py-3 whitespace-nowrap">Status</th>
               <th className="w-12 px-4 py-3" />
             </tr>
@@ -169,6 +170,9 @@ export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDelete
                 </td>
                 <td className="px-4 py-3.5 font-mono-nums text-gray-700 dark:text-gray-300 hidden xl:table-cell">
                   ₼{child.monthlyFee}
+                </td>
+                <td className="px-4 py-3.5 font-mono-nums text-gray-700 dark:text-gray-300 hidden lg:table-cell">
+                  {child.paymentDay}-i
                 </td>
                 <td className="px-4 py-3.5">
                   <Badge variant={child.status === 'Active' ? 'active' : 'inactive'} size="pill" dot>

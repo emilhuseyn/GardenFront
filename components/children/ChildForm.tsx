@@ -56,6 +56,7 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
     defaultValues: {
       scheduleType: 0,
       monthlyFee: 300,
+      paymentDay: 1,
       ...(defaultGroupId !== undefined ? { groupId: defaultGroupId } : {}),
     },
   });
@@ -74,7 +75,7 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
     const fields: (keyof ChildFormValues)[][] = [
       ['firstName', 'lastName', 'dateOfBirth'],
       ['groupId', 'scheduleType'],
-      ['parentFullName', 'parentPhone', 'monthlyFee'],
+      ['parentFullName', 'parentPhone', 'monthlyFee', 'paymentDay'],
     ];
     const valid = await trigger(fields[step - 1]);
     if (valid) setStep((s) => Math.min(s + 1, 3));
@@ -293,6 +294,13 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
                   <p className="mt-1 text-xs text-accent-rose">⚠ {errors.monthlyFee.message}</p>
                 )}
               </div>
+
+              <Select
+                {...register('paymentDay', { valueAsNumber: true })}
+                label="Ödəniş günü *"
+                options={Array.from({ length: 28 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }))}
+                error={errors.paymentDay?.message}
+              />
             </motion.div>
           )}
         </AnimatePresence>

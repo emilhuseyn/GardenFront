@@ -77,6 +77,7 @@ export default function EditChildPage() {
         groupId:        matchedGroup?.id ?? 0,
         scheduleType:   c.scheduleType === 'FullDay' ? 0 : 1,
         monthlyFee:     c.monthlyFee,
+        paymentDay:     c.paymentDay ?? 1,
         parentFullName: c.parentFullName,
         parentPhone:    c.parentPhone,
         parentEmail:    c.parentEmail ?? '',
@@ -223,6 +224,12 @@ export default function EditChildPage() {
                 type="number"
                 min={1}
                 error={errors.monthlyFee?.message}
+              />
+              <Select
+                {...register('paymentDay', { valueAsNumber: true })}
+                label="Ödəniş günü *"
+                options={Array.from({ length: 28 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }))}
+                error={errors.paymentDay?.message}
               />
             </div>
           </Card>
