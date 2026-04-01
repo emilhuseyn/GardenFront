@@ -5,7 +5,7 @@ import {
   User, Calendar, DollarSign, FileText,
   Phone, Mail, Clock, BookOpen, Edit, Sparkles,
   ArrowRightLeft, CheckCircle2, AlertTriangle, NotebookPen,
-  UserCheck, UserX, Trash2, ChevronLeft, ChevronRight,
+  UserCheck, UserX, Trash2, ChevronLeft, ChevronRight, Download,
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, isToday as isTodayDate, subDays, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { Avatar } from '@/components/ui/Avatar';
@@ -100,6 +100,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
   const [monthAttendance, setMonthAttendance] = useState<AttendanceEntry[]>([]);
   const [monthAttLoading, setMonthAttLoading] = useState(false);
+  const [downloadingAgreement, setDownloadingAgreement] = useState(false);
 
   const numId = Number(childId);
 
@@ -135,6 +136,26 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
     } finally {
       setActionLoading(false);
       setDeleteModalOpen(false);
+    }
+  };
+
+  const handleDownloadAgreement = async () => {
+    if (!child) return;
+    setDownloadingAgreement(true);
+    try {
+      const { blob, fileName } = await childrenApi.downloadAgreement(numId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      toast.error('Razılaşmanı yükləmək mümkün olmadı');
+    } finally {
+      setDownloadingAgreement(false);
     }
   };
 
@@ -396,6 +417,15 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                 <UserX size={14} /> Deaktiv et
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              loading={downloadingAgreement}
+              onClick={handleDownloadAgreement}
+              className="text-blue-600 border-blue-300 hover:bg-blue-50"
+            >
+              {!downloadingAgreement && <Download size={14} />} Razılaşmanı yüklə
+            </Button>
             <Button variant="outline" size="sm" onClick={onEdit}>
               <Edit size={14} /> Düzəliş et
             </Button>
