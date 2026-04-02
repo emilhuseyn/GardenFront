@@ -387,24 +387,26 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
         loading={actionLoading}
       />
       <div className="relative rounded-2xl overflow-hidden mb-6 p-6 bg-gradient-to-br from-green-400/10 to-accent-blue/5 border border-white-border">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <Avatar name={`${child.firstName} ${child.lastName}`} size="2xl" ring />
-          <div className="flex-1">
-            <div className="flex flex-wrap items-center gap-2 mb-1">
-              <h2 className="text-xl font-bold text-gray-900 font-display">
-                {child.firstName} {child.lastName}
-              </h2>
-              <ChildStatusBadge isActive={child.status === 'Active'} />
-            </div>
-            <div className="flex flex-wrap gap-2 mt-2">
-              <Badge variant="blue" size="sm">{child.divisionName}</Badge>
-              <Badge variant="violet" size="sm">{child.groupName}</Badge>
-              <Badge variant="teal" size="sm">
-                {child.scheduleType === 'FullDay' ? 'Tam günlük' : 'Yarım günlük'}
-              </Badge>
+        <div className="flex flex-col lg:flex-row lg:items-center gap-6 justify-between">
+          <div className="flex items-center gap-5">
+            <Avatar name={`${child.firstName} ${child.lastName}`} size="2xl" ring />
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <h2 className="text-2xl font-bold text-gray-900 font-display">
+                  {child.firstName} {child.lastName}
+                </h2>
+                <ChildStatusBadge isActive={child.status === 'Active'} />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="blue" size="sm" className="px-2.5 py-1 text-xs">{child.divisionName}</Badge>
+                <Badge variant="violet" size="sm" className="px-2.5 py-1 text-xs">{child.groupName}</Badge>
+                <Badge variant="teal" size="sm" className="px-2.5 py-1 text-xs">
+                  {child.scheduleType === 'FullDay' ? 'Tam günlük' : 'Yarım günlük'}
+                </Badge>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap lg:justify-end">
             {child.status === 'Inactive' && (
               <>
                 <Button
