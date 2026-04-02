@@ -6,11 +6,12 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from '@/components/ui/Modal';
 import { paymentSchema, type PaymentFormValues } from '@/lib/utils/validators';
 import { paymentsApi } from '@/lib/api/payments';
 import { childrenApi } from '@/lib/api/children';
 import { formatCurrency } from '@/lib/utils/format';
-import { DollarSign } from 'lucide-react';
+import { DollarSign, Trash2 } from 'lucide-react';
 import type { Payment } from '@/types';
 
 const MONTH_OPTIONS = [
@@ -38,6 +39,8 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const [selectedChildId, setSelectedChildId] = useState('');
   const [history, setHistory] = useState<Payment[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const { register, handleSubmit, setValue, control, formState: { errors, isSubmitting } } = useForm<PaymentFormValues>({
     mode: 'onChange',
@@ -126,7 +129,44 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
     }
   };
 
+  const handleDeletePayment = async () => {
+    if (!currentPayment) return;
+
+    setDeleteLoading(true);
+    try {
+      await paymentsApi.delete(currentPayment.id);
+      toast.success('Ödəniş silindi');
+      setHistory((prev) => prev.filter((p) => p.id !== currentPayment.id));
+      setDeleteOpen(false);
+      onSuccess?.();
+    } catch (error) {
+      const rawMessage = error instanceof Error ? error.message : '';
+      const normalized = rawMessage.toLowerCase();
+
+      if (
+        normalized.includes('404') ||
+        normalized.includes('not found') ||
+        normalized.includes('tapılmadı')
+      ) {
+        toast.error('Ödəniş tapılmadı');
+      } else if (
+        normalized.includes('401') ||
+        normalized.includes('403') ||
+        normalized.includes('unauthorized') ||
+        normalized.includes('forbidden') ||
+        normalized.includes('səlahiyyət')
+      ) {
+        toast.error('Səlahiyyət yoxdur');
+      } else {
+        toast.error(rawMessage || 'Ödəniş silinmədi');
+      }
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   return (
+    <>
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       {!showChildSelector && childName && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
@@ -218,6 +258,14 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
         {errors.amount && <p className="mt-1 text-xs text-accent-rose">⚠ {errors.amount.message}</p>}
       </div>
       <Input {...register('notes')} label="Qeyd (opsional)" placeholder="Əlave məlumat..." />
+      {currentPayment && currentPayment.paidAmount > 0 && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
+          <p className="text-xs text-rose-700 mb-2">Bu ay üçün mövcud ödəniş qeydini silmək mümkündür.</p>
+          <Button type="button" variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
+            <Trash2 size={13} /> Bu ayın ödənişini sil
+          </Button>
+        </div>
+      )}
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>
           Ləğv et
@@ -227,5 +275,31 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
         </Button>
       </div>
     </form>
+
+    <Modal open={deleteOpen} onOpenChange={(open) => { if (!deleteLoading) setDeleteOpen(open); }}>
+      <ModalContent size="sm">
+        <ModalHeader>
+          <ModalTitle>Ödənişi sil</ModalTitle>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            Seçilən ay üçün qeyd olunmuş ödəniş silinəcək. Bu əməliyyat geri alına bilməz.
+          </p>
+        </ModalHeader>
+        {currentPayment && (
+          <div className="rounded-lg border border-rose-100 bg-rose-50/70 px-3 py-2 text-sm text-gray-700 dark:border-rose-800/40 dark:bg-rose-900/20 dark:text-gray-200">
+            <p><span className="font-medium">Ödənilib:</span> {formatCurrency(currentPayment.paidAmount)}</p>
+            <p><span className="font-medium">Qalıq:</span> {formatCurrency(currentPayment.remainingDebt)}</p>
+          </div>
+        )}
+        <ModalFooter>
+          <Button type="button" variant="secondary" size="sm" disabled={deleteLoading} onClick={() => setDeleteOpen(false)}>
+            Ləğv et
+          </Button>
+          <Button type="button" variant="danger" size="sm" loading={deleteLoading} onClick={handleDeletePayment}>
+            <Trash2 size={14} /> Sil
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+    </>
   );
 }
