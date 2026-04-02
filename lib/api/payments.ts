@@ -1,6 +1,23 @@
 import apiClient, { unwrap } from './client';
 import type { Payment, PaymentFormData, DebtorInfo, MonthlyPaymentReport, DailyPaymentReport, DiscountType } from '@/types';
 
+function extractFileName(contentDisposition: string | null): string | null {
+  if (!contentDisposition) return null;
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].trim().replace(/"/g, ''));
+    } catch {
+      return utf8Match[1].trim().replace(/"/g, '');
+    }
+  }
+
+  const basicMatch = contentDisposition.match(/filename=([^;]+)/i);
+  if (!basicMatch?.[1]) return null;
+  return basicMatch[1].trim().replace(/^"|"$/g, '');
+}
+
 export const paymentsApi = {
   getDebtors: async (options?: { silentError?: boolean }) => {
     const res = await apiClient.get('/api/paymentses/debtors', {
@@ -52,5 +69,18 @@ export const paymentsApi = {
   delete: async (id: number) => {
     const res = await apiClient.delete(`/api/paymentses/${id}`);
     return unwrap(res);
+  },
+
+  downloadReceipt: async (id: number): Promise<{ blob: Blob; fileName: string }> => {
+    const res = await apiClient.get(`/api/paymentses/${id}/receipt`, {
+      responseType: 'blob',
+      headers: {
+        Accept: 'application/pdf,*/*',
+      },
+    });
+
+    const contentDisposition = (res.headers['content-disposition'] as string | undefined) ?? null;
+    const fileName = extractFileName(contentDisposition) || `receipt_${id}.pdf`;
+    return { blob: res.data as Blob, fileName };
   },
 };

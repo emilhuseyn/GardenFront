@@ -130,8 +130,33 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
 
   const onSubmit = async (data: PaymentFormValues) => {
     try {
-      await paymentsApi.record(data);
-      toast.success('Ödəniş uğurla qeyd edildi');
+      const recorded = await paymentsApi.record(data);
+
+      try {
+        const receipt = await paymentsApi.downloadReceipt(recorded.id);
+        const receiptUrl = URL.createObjectURL(receipt.blob);
+
+        toast.success('Ödəniş uğurla qeyd edildi', {
+          action: {
+            label: 'Çeki göstər',
+            onClick: () => {
+              const opened = window.open(receiptUrl, '_blank', 'noopener,noreferrer');
+              if (!opened) {
+                const a = document.createElement('a');
+                a.href = receiptUrl;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.click();
+              }
+            },
+          },
+        });
+
+        window.setTimeout(() => URL.revokeObjectURL(receiptUrl), 300000);
+      } catch {
+        toast.success('Ödəniş qeyd edildi, amma çek yüklənmədi');
+      }
+
       onSuccess?.();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Xəta baş verdi';
