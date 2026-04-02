@@ -48,4 +48,9 @@ export const paymentsApi = {
     const res = await apiClient.patch(`/api/paymentses/${id}/discount`, { discountType, discountValue });
     return unwrap<Payment>(res);
   },
+
+  delete: async (id: number) => {
+    const res = await apiClient.delete(`/api/paymentses/${id}`);
+    return unwrap(res);
+  },
 };

@@ -13,13 +13,13 @@ import { PaymentForm } from '@/components/payments/PaymentForm';
 import { SmartPaymentForecast } from '@/components/payments/SmartPaymentForecast';
 import { BarChart } from '@/components/charts/BarChart';
 import { Badge } from '@/components/ui/Badge';
-import { Download, Plus, Search, X } from 'lucide-react';
+import { Download, Plus, Search, Trash2, X } from 'lucide-react';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { formatCurrency, formatMonthYear } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/constants';
 import { paymentsApi } from '@/lib/api/payments';
 import { groupsApi } from '@/lib/api/groups';
-import type { DebtorInfo, MonthlyPaymentReport, DailyPaymentReport } from '@/types';
+import type { DebtorInfo, MonthlyPaymentReport, DailyPaymentReport, Payment } from '@/types';
 
 const TABS = ['Ödənişlər', 'Borclular', 'Günlük', 'Hesabat'] as const;
 type Tab = typeof TABS[number];
@@ -54,6 +54,8 @@ export default function PaymentsPage() {
   const [debtorGroupFilter, setDebtorGroupFilter] = useState('all');
   const [debtorDivisionFilter, setDebtorDivisionFilter] = useState('all');
   const [dailySort, setDailySort] = useState<'name' | 'amount-desc' | 'amount-asc'>('name');
+  const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     groupsApi.getAll().then((gs) => {
@@ -99,6 +101,58 @@ export default function PaymentsPage() {
   const handleRecord = (id: number, month?: number, name?: string) => {
     setChild({ id, month: month ?? (now.getMonth() + 1), name });
     setOpen(true);
+  };
+
+  const refreshPaymentOverview = () => {
+    paymentsApi
+      .getDebtors({ silentError: true })
+      .then(setDebtors)
+      .catch(() => {});
+
+    const currentMonth = now.getMonth() + 1;
+    const year = now.getFullYear();
+    const months = Array.from({ length: Math.min(currentMonth, 6) }, (_, i) => currentMonth - i).reverse();
+
+    Promise.all(months.map((m) => paymentsApi.getMonthlyReport(m, year).catch(() => null)))
+      .then((reports) => {
+        const data = months.map((m, i) => ({
+          month: AZ_MONTHS[m - 1],
+          value: reports[i]?.totalCollected ?? 0,
+        }));
+        setMonthlyReports(data);
+        setCurrentMonthReport(reports.at(-1) ?? null);
+      })
+      .catch(() => {});
+  };
+
+  const handleDeletePaymentConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+
+    try {
+      const target = deleteTarget;
+      await paymentsApi.delete(target.id);
+      toast.success('Ödəniş silindi');
+
+      setDailyReport((prev) => {
+        if (!prev) return prev;
+        const nextPayments = prev.payments.filter((p) => p.id !== target.id);
+        return {
+          ...prev,
+          payments: nextPayments,
+          paymentCount: nextPayments.length,
+          totalCollected: Math.max(0, prev.totalCollected - target.paidAmount),
+        };
+      });
+
+      setDeleteTarget(null);
+      setTableRefreshKey((k) => k + 1);
+      refreshPaymentOverview();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Ödəniş silinmədi');
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const exportDebtorsCSV = () => {
@@ -459,6 +513,7 @@ export default function PaymentsPage() {
                           <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Ay</th>
                           <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Məbləğ</th>
                           <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Qalıq borc</th>
+                          <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Əməliyyat</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -472,6 +527,15 @@ export default function PaymentsPage() {
                             <td className="px-4 py-3 text-center text-sm text-gray-500 dark:text-gray-400">{AZ_MONTHS[p.month - 1]} {p.year}</td>
                             <td className="px-4 py-3 text-right text-sm font-medium text-green-600">{formatCurrency(p.paidAmount)}</td>
                             <td className="px-4 py-3 text-right text-sm text-gray-400 dark:text-gray-500 hidden sm:table-cell">{formatCurrency(p.remainingDebt)}</td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                onClick={() => setDeleteTarget(p)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-100 transition-colors"
+                                title="Ödənişi sil"
+                              >
+                                <Trash2 size={12} /> Sil
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -523,6 +587,39 @@ export default function PaymentsPage() {
           </div>
         </div>
       )}
+
+      <Modal
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !deleteLoading) setDeleteTarget(null);
+        }}
+      >
+        <ModalContent size="sm">
+          <ModalHeader>
+            <ModalTitle>Ödənişi sil</ModalTitle>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              Bu əməliyyat geri alına bilməz. Seçilmiş ödəniş silinəcək və hesabat göstəriciləri yenilənəcək.
+            </p>
+          </ModalHeader>
+
+          {deleteTarget && (
+            <div className="rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-2 text-sm text-gray-700 dark:border-rose-800/40 dark:bg-rose-900/20 dark:text-gray-200">
+              <p><span className="font-medium">Uşaq:</span> {deleteTarget.childFullName}</p>
+              <p><span className="font-medium">Dövr:</span> {formatMonthYear(deleteTarget.month, deleteTarget.year)}</p>
+              <p><span className="font-medium">Məbləğ:</span> {formatCurrency(deleteTarget.paidAmount)}</p>
+            </div>
+          )}
+
+          <ModalFooter>
+            <Button variant="secondary" size="sm" disabled={deleteLoading} onClick={() => setDeleteTarget(null)}>
+              Ləğv et
+            </Button>
+            <Button variant="danger" size="sm" loading={deleteLoading} onClick={handleDeletePaymentConfirm}>
+              <Trash2 size={14} /> Sil
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       {/* Payment drawer */}
       <Drawer open={drawerOpen} onOpenChange={setOpen}>
