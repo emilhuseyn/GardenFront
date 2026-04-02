@@ -114,6 +114,16 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const remainingBefore = currentPayment?.remainingDebt ?? 0;
   const monthTotal = currentPayment?.finalAmount ?? currentPayment?.originalAmount ?? 0;
 
+  useEffect(() => {
+    // Prefill amount with the selected month's remaining debt to avoid accidental overpayment.
+    if (!currentPayment || currentPayment.remainingDebt <= 0) return;
+    setValue('amount', currentPayment.remainingDebt, {
+      shouldValidate: true,
+      shouldDirty: false,
+      shouldTouch: false,
+    });
+  }, [currentPayment, setValue]);
+
   const plannedAmount = typeof watchedAmount === 'number' && Number.isFinite(watchedAmount) ? watchedAmount : 0;
   const remainingAfter = currentPayment ? Math.max(0, remainingBefore - plannedAmount) : null;
   const overpayAmount = currentPayment ? Math.max(0, plannedAmount - remainingBefore) : 0;
