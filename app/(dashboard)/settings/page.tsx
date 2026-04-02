@@ -19,7 +19,7 @@ import { useThemeStore, type FontSize, type RadiusPreset } from '@/lib/stores/th
 import { applyTheme, applyFontSize, applyRadius, THEME_OPTIONS, type ThemeKey } from '@/lib/utils/themes';
 import { usersApi } from '@/lib/api/users';
 import { authApi } from '@/lib/api/auth';
-import { notificationsApi, type WhatsAppStatus } from '@/lib/api/notifications';
+import { notificationsApi, type WhatsAppStatus, type DueAndOverdueAlertsResult } from '@/lib/api/notifications';
 import apiClient from '@/lib/api/client';
 import type { UserResponse, UserRole } from '@/types';
 
@@ -215,6 +215,8 @@ export default function SettingsPage() {
   const [waQR, setWaQR]               = useState<string | null>(null);
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [waSending, setWaSending]     = useState(false);
+  const [alertResult, setAlertResult] = useState<DueAndOverdueAlertsResult | null>(null);
+  const [alertErrorsOpen, setAlertErrorsOpen] = useState(false);
   const [qrCountdown, setQrCountdown] = useState(20);
   const [waDisconnecting, setWaDisconnecting] = useState(false);
   const [seedingExcel, setSeedingExcel] = useState(false);
@@ -294,12 +296,34 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSendOverdue = async () => {    setWaSending(true);
+  const handleSendDueAndOverdue = async () => {
+    setWaSending(true);
     try {
-      await notificationsApi.sendOverdueAlerts();
-      toast.success('Bildirişlər uğurla göndərildi');
+      const result = await notificationsApi.sendDueAndOverdueAlerts();
+      setAlertResult(result);
+
+      if (result.sent > 0 && result.failed === 0) {
+        toast.success(`${result.sent} mesaj uğurla göndərildi`);
+      } else if (result.sent > 0 && result.failed > 0) {
+        toast.warning(`Qismən tamamlandı: ${result.sent} göndərildi, ${result.failed} uğursuz oldu`);
+      } else if (result.failed > 0) {
+        toast.warning(`${result.failed} mesaj göndərilmədi`);
+      } else {
+        toast.success('Mesaj prosesi tamamlandı');
+      }
+
+      if (result.failed > 0 && result.errors.length > 0) {
+        setAlertErrorsOpen(true);
+      }
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Xəta baş verdi');
+      const message = err instanceof Error ? err.message : 'Xəta baş verdi';
+      const normalized = message.toLowerCase();
+
+      if (normalized.includes('400') || normalized.includes('whatsapp')) {
+        toast.error('WhatsApp qoşulu deyil. Əvvəlcə Qoşul düyməsi ilə aktiv edin.');
+      } else {
+        toast.error(message);
+      }
     } finally {
       setWaSending(false);
     }
@@ -310,7 +334,7 @@ export default function SettingsPage() {
     try {
       await apiClient.post('/api/admins/seed-excel');
       toast.success('Bütün məlumatlar sistemə uğurla yükləndi');
-    } catch (err: unknown) {
+    } catch {
       toast.error('Məlumatların yüklənməsi zamanı xəta baş verdi');
     } finally {
       setSeedingExcel(false);
@@ -806,18 +830,23 @@ export default function SettingsPage() {
               {/* Send overdue alerts */}
               <div className="rounded-xl border border-white-border dark:border-gray-700/60 p-4 space-y-3">
                 <div>
-                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">Borclu bildirişi</p>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">Xatırlatma və gecikmə bildirişi</p>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    Ödənişi gecikmiş bütün valideynlərə WhatsApp mesajı göndər
+                    Sabah ödəniş günü olanlara xatırlatma, 5+ gün gecikən borclulara gecikmə mesajı göndər
                   </p>
                 </div>
                 <Button
                   disabled={!waStatus?.connected}
                   loading={waSending}
-                  onClick={handleSendOverdue}
+                  onClick={handleSendDueAndOverdue}
                 >
-                  <Send size={14} /> Bütün borclulara mesaj göndər
+                  <Send size={14} /> Xatırlatma mesajlarını göndər
                 </Button>
+                {alertResult && (
+                  <p className="text-xs text-gray-500">
+                    Son nəticə: {alertResult.sent} uğurlu, {alertResult.failed} uğursuz
+                  </p>
+                )}
                 {!waStatus?.connected && (
                   <p className="text-xs text-amber-500">
                     ⚠️ Mesaj göndərmək üçün əvvəlcə WhatsApp qoşulması tələb olunur
@@ -961,6 +990,28 @@ export default function SettingsPage() {
             </div>
             <p className="text-xs text-gray-300">Yenilənməsinə: {qrCountdown}s qalır</p>
           </div>
+        </ModalContent>
+      </Modal>
+
+      <Modal open={alertErrorsOpen} onOpenChange={(open) => setAlertErrorsOpen(open)}>
+        <ModalContent size="md">
+          <ModalHeader>
+            <ModalTitle>Uğursuz göndərişlər</ModalTitle>
+          </ModalHeader>
+          <div className="space-y-2 max-h-[300px] overflow-auto">
+            {alertResult?.errors.length ? (
+              alertResult.errors.map((err, i) => (
+                <div key={`${err}-${i}`} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  {err}
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-gray-500">Xəta detalları tapılmadı</p>
+            )}
+          </div>
+          <ModalFooter>
+            <Button type="button" onClick={() => setAlertErrorsOpen(false)}>Bağla</Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
     </div>
