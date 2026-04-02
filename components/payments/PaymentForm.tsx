@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
@@ -9,7 +9,9 @@ import { Select } from '@/components/ui/Select';
 import { paymentSchema, type PaymentFormValues } from '@/lib/utils/validators';
 import { paymentsApi } from '@/lib/api/payments';
 import { childrenApi } from '@/lib/api/children';
+import { formatCurrency } from '@/lib/utils/format';
 import { DollarSign } from 'lucide-react';
+import type { Payment } from '@/types';
 
 const MONTH_OPTIONS = [
   { value: '1', label: 'Yanvar' },  { value: '2', label: 'Fevral' },
@@ -32,10 +34,12 @@ interface PaymentFormProps {
 export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, onSuccess, onCancel }: PaymentFormProps) {
   const showChildSelector = !childId || childId === 0;
   const [childOptions, setChildOptions] = useState<{ value: string; label: string }[]>([]);
-  const [childrenLoading, setChildrenLoading] = useState(false);
+  const [childrenLoading, setChildrenLoading] = useState(showChildSelector);
   const [selectedChildId, setSelectedChildId] = useState('');
+  const [history, setHistory] = useState<Payment[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
-  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<PaymentFormValues>({
+  const { register, handleSubmit, setValue, control, formState: { errors, isSubmitting } } = useForm<PaymentFormValues>({
     mode: 'onChange',
     resolver: zodResolver(paymentSchema),
     defaultValues: {
@@ -54,7 +58,6 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
 
   useEffect(() => {
     if (!showChildSelector) return;
-    setChildrenLoading(true);
     childrenApi.getAll({ status: 'Active', pageSize: 200 })
       .then((res) => {
         setChildOptions(
@@ -67,6 +70,50 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
       .catch(() => {})
       .finally(() => setChildrenLoading(false));
   }, [showChildSelector]);
+
+  const watchedChildId = useWatch({ control, name: 'childId' });
+  const watchedMonth = useWatch({ control, name: 'month' });
+  const watchedYear = useWatch({ control, name: 'year' });
+  const watchedAmount = useWatch({ control, name: 'amount' });
+
+  const effectiveChildId =
+    typeof watchedChildId === 'number' && watchedChildId > 0
+      ? watchedChildId
+      : childId && childId > 0
+        ? childId
+        : 0;
+
+  useEffect(() => {
+    if (!effectiveChildId) return;
+
+    let active = true;
+
+    const loadHistory = async () => {
+      setHistoryLoading(true);
+      try {
+        const data = await paymentsApi.getChildHistory(effectiveChildId);
+        if (active) setHistory(data);
+      } catch {
+        if (active) setHistory([]);
+      } finally {
+        if (active) setHistoryLoading(false);
+      }
+    };
+
+    void loadHistory();
+    return () => {
+      active = false;
+    };
+  }, [effectiveChildId]);
+
+  const currentPayment = history.find((p) => p.month === watchedMonth && p.year === watchedYear);
+  const paidBefore = currentPayment?.paidAmount ?? 0;
+  const remainingBefore = currentPayment?.remainingDebt ?? 0;
+  const monthTotal = currentPayment?.finalAmount ?? currentPayment?.originalAmount ?? 0;
+
+  const plannedAmount = typeof watchedAmount === 'number' && Number.isFinite(watchedAmount) ? watchedAmount : 0;
+  const remainingAfter = currentPayment ? Math.max(0, remainingBefore - plannedAmount) : null;
+  const overpayAmount = currentPayment ? Math.max(0, plannedAmount - remainingBefore) : 0;
 
   const onSubmit = async (data: PaymentFormValues) => {
     try {
@@ -116,6 +163,45 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
           error={errors.year?.message}
         />
       </div>
+
+      <div className="rounded-xl border border-white-border dark:border-gray-700/60 bg-gray-50/60 dark:bg-[#252836] p-3 space-y-3">
+        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Seçilən ay üzrə vəziyyət</p>
+
+        {!effectiveChildId ? (
+          <p className="text-xs text-gray-400">Məlumatı görmək üçün əvvəlcə uşaq seçin.</p>
+        ) : historyLoading ? (
+          <p className="text-xs text-gray-400">Yüklənir...</p>
+        ) : !currentPayment ? (
+          <p className="text-xs text-amber-600 dark:text-amber-400">Bu ay üçün ödəniş qeydi tapılmadı.</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="rounded-lg bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 p-2">
+                <p className="text-gray-400">Aylıq məbləğ</p>
+                <p className="font-semibold text-gray-700 dark:text-gray-200 mt-1">{formatCurrency(monthTotal)}</p>
+              </div>
+              <div className="rounded-lg bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 p-2">
+                <p className="text-gray-400">İndiyə qədər ödənilib</p>
+                <p className="font-semibold text-green-600 mt-1">{formatCurrency(paidBefore)}</p>
+              </div>
+              <div className="rounded-lg bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 p-2">
+                <p className="text-gray-400">Qalıq borc</p>
+                <p className="font-semibold text-accent-rose mt-1">{formatCurrency(remainingBefore)}</p>
+              </div>
+            </div>
+
+            {plannedAmount > 0 && remainingAfter !== null && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-gray-600 dark:text-gray-300">
+                Bu ödənişdən sonra qalıq: <span className="font-semibold">{formatCurrency(remainingAfter)}</span>
+                {overpayAmount > 0 && (
+                  <span className="text-amber-600 dark:text-amber-400"> (Artıq ödəniş: {formatCurrency(overpayAmount)})</span>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       <div className="relative">
         <label className="block text-sm font-medium text-gray-700 mb-1.5">Məbləğ (₼) *</label>
         <div className="relative">
