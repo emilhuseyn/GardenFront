@@ -89,6 +89,14 @@ export default function DivisionsPage() {
     resolver: zodResolver(createSchema),
   });
 
+  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [selectedDivision, setSelectedDivision] = useState<Division | null>(null);
+
+  const { register: registerEdit, handleSubmit: handleEditSubmit, reset: resetEdit, formState: { errors: editErrors } } = useForm<CreateForm>({
+    resolver: zodResolver(createSchema),
+  });
+
   const load = () => {
     setLoading(true);
     divisionsApi.getAll()
@@ -111,6 +119,55 @@ export default function DivisionsPage() {
       toast.error('Xəta baş verdi');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleEditClick = (div: Division) => {
+    setSelectedDivision(div);
+    resetEdit({
+      name: div.name,
+      language: div.language,
+      description: div.description || '',
+    });
+    setEditOpen(true);
+  };
+
+  const onEditSubmit = async (data: CreateForm) => {
+    if (!selectedDivision) return;
+    setEditing(true);
+    try {
+      await divisionsApi.update(selectedDivision.id, data);
+      toast.success('Bölmə yeniləndi');
+      setEditOpen(false);
+      load();
+    } catch {
+      toast.error('Xəta baş verdi');
+    } finally {
+      setEditing(false);
+    }
+  };
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [divisionToDelete, setDivisionToDelete] = useState<Division | null>(null);
+
+  const handleDeleteClick = (div: Division) => {
+    setDivisionToDelete(div);
+    setDeleteOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!divisionToDelete) return;
+    setDeleting(true);
+    try {
+      await divisionsApi.delete(divisionToDelete.id);
+      toast.success('Bölmə silindi');
+      setDeleteOpen(false);
+      load();
+    } catch {
+      toast.error('Silinmə zamanı xəta baş verdi. Əmin olun ki, bu bölməyə qruplar bağlı deyil.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -161,9 +218,20 @@ export default function DivisionsPage() {
                     </div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">{div.description ?? div.language}</p>
                   </div>
-                  <button className="p-2 rounded-lg hover:bg-white/80 transition-colors text-gray-400">
-                    <Edit size={15} />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => handleEditClick(div)}
+                      className="p-2 rounded-lg hover:bg-white/80 transition-colors text-gray-400 hover:text-blue-600"
+                    >
+                      <Edit size={15} />
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteClick(div)}
+                      className="p-2 rounded-lg hover:bg-white/80 transition-colors text-gray-400 hover:text-rose-600"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mb-5">
@@ -227,6 +295,63 @@ export default function DivisionsPage() {
             </Button>
           </div>
           </form>
+        </ModalContent>
+      </Modal>
+
+      {/* Edit modal */}
+      <Modal open={editOpen} onOpenChange={setEditOpen}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>Bölməni redaktə et</ModalTitle>
+          </ModalHeader>
+          <form onSubmit={handleEditSubmit(onEditSubmit)} className="space-y-4">
+          <Input
+            label="Bölmə adı"
+            placeholder="məs. Fransız bölməsi"
+            error={editErrors.name?.message}
+            {...registerEdit('name')}
+          />
+          <Input
+            label="Dil"
+            placeholder="məs. Fransız"
+            error={editErrors.language?.message}
+            {...registerEdit('language')}
+          />
+          <Input
+            label="Təsvir (ixtiyari)"
+            placeholder="Qısa açıqlama"
+            {...registerEdit('description')}
+          />
+          <div className="flex gap-2 pt-2">
+            <Button type="button" variant="secondary" className="flex-1" onClick={() => setEditOpen(false)}>
+              Ləğv et
+            </Button>
+            <Button type="submit" className="flex-1" loading={editing}>
+              Yadda saxla
+            </Button>
+          </div>
+          </form>
+        </ModalContent>
+      </Modal>
+
+      {/* Delete modal */}
+      <Modal open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <ModalContent className="max-w-sm text-center">
+          <div className="mx-auto w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-4">
+            <Trash2 size={24} />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Bölməni sil?</h3>
+          <p className="text-sm text-gray-500 mb-6">
+            <span className="font-semibold text-gray-700 dark:text-gray-300">{divisionToDelete?.name}</span> bölməsini silmək istədiyinizə əminsiniz? Bu əməliyyat geri qaytarılmır.
+          </p>
+          <div className="flex gap-3">
+            <Button variant="secondary" className="flex-1" onClick={() => setDeleteOpen(false)}>
+              Ləğv et
+            </Button>
+            <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" loading={deleting} onClick={confirmDelete}>
+              Bəli, Sil
+            </Button>
+          </div>
         </ModalContent>
       </Modal>
     </div>
