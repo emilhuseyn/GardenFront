@@ -406,14 +406,14 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
               </div>
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 lg:justify-end">
-            <div className="flex items-center gap-2 p-1 bg-white/40 rounded-xl border border-white-border">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 lg:justify-end mt-4 lg:mt-0">
+            <div className="flex items-center gap-2 p-1.5 bg-white/60 rounded-xl border border-white-border shadow-sm">
               <Button
                 variant="outline"
                 size="sm"
                 loading={downloadingAgreement}
                 onClick={handleDownloadAgreement}
-                className="text-blue-600 border-transparent bg-white shadow-sm hover:border-blue-200 hover:bg-blue-50 transition-all font-medium"
+                className="text-blue-600 border-transparent bg-white shadow-sm hover:text-blue-700 hover:bg-blue-50"
               >
                 {!downloadingAgreement && <Download size={14} />} Razılaşma
               </Button>
@@ -422,15 +422,15 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                 size="sm"
                 loading={downloadingContract}
                 onClick={handleDownloadContract}
-                className="text-indigo-600 border-transparent bg-white shadow-sm hover:border-indigo-200 hover:bg-indigo-50 transition-all font-medium"
+                className="text-indigo-600 border-transparent bg-white shadow-sm hover:text-indigo-700 hover:bg-indigo-50"
               >
                 {!downloadingContract && <Download size={14} />} Kontrakt
               </Button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" onClick={onEdit} className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200 transition-all shadow-sm">
-                <Edit size={14} /> Redaktə et
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="outline" size="sm" onClick={onEdit} className="bg-white text-gray-700 hover:bg-gray-50 border-gray-200">
+                <Edit size={14} /> Düzəliş et
               </Button>
               {child.status === 'Inactive' ? (
                 <>
@@ -439,7 +439,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                     size="sm"
                     disabled={actionLoading}
                     onClick={handleToggleStatus}
-                    className="text-green-600 border-green-200 hover:bg-green-50 shadow-sm bg-white"
+                    className="text-green-600 border-green-300 bg-white hover:bg-green-50"
                   >
                     <UserCheck size={14} /> Aktiv et
                   </Button>
@@ -448,7 +448,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                     size="sm"
                     disabled={actionLoading}
                     onClick={() => setDeleteModalOpen(true)}
-                    className="text-rose-500 border-rose-200 hover:bg-rose-50 shadow-sm bg-white"
+                    className="text-rose-500 border-rose-300 bg-white hover:bg-rose-50"
                   >
                     <Trash2 size={14} /> Sil
                   </Button>
@@ -459,7 +459,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                   size="sm"
                   disabled={actionLoading}
                   onClick={handleToggleStatus}
-                  className="text-amber-600 border-amber-200 hover:bg-amber-50 shadow-sm bg-white"
+                  className="text-amber-600 border-amber-300 bg-white hover:bg-amber-50"
                 >
                   <UserX size={14} /> Deaktiv et
                 </Button>
