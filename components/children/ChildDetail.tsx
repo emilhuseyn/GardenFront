@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   User, Calendar, DollarSign, FileText,
   Phone, Mail, Clock, BookOpen, Edit, Sparkles,
-  ArrowRightLeft, CheckCircle2, AlertTriangle, NotebookPen,
+  ArrowRightLeft, CheckCircle2, NotebookPen,
   UserCheck, UserX, Trash2, ChevronLeft, ChevronRight, Download,
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, isToday as isTodayDate, subDays, addMonths, subMonths, isSameMonth } from 'date-fns';
@@ -101,6 +101,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
   const [monthAttendance, setMonthAttendance] = useState<AttendanceEntry[]>([]);
   const [monthAttLoading, setMonthAttLoading] = useState(false);
   const [downloadingAgreement, setDownloadingAgreement] = useState(false);
+  const [downloadingContract, setDownloadingContract] = useState(false);
 
   const numId = Number(childId);
 
@@ -117,8 +118,8 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
         setChild((c) => c ? { ...c, status: 'Active' } : c);
         toast.success('Uşaq aktiv edildi');
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Xəta baş verdi');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Xəta baş verdi');
     } finally {
       setActionLoading(false);
     }
@@ -152,10 +153,30 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
       link.click();
       link.parentNode?.removeChild(link);
       window.URL.revokeObjectURL(url);
-    } catch (err: unknown) {
+    } catch {
       toast.error('Razılaşmanı yükləmək mümkün olmadı');
     } finally {
       setDownloadingAgreement(false);
+    }
+  };
+
+  const handleDownloadContract = async () => {
+    if (!child) return;
+    setDownloadingContract(true);
+    try {
+      const { blob, fileName } = await childrenApi.downloadContract(numId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Kontraktı yükləmək mümkün olmadı');
+    } finally {
+      setDownloadingContract(false);
     }
   };
 
@@ -425,6 +446,15 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
               className="text-blue-600 border-blue-300 hover:bg-blue-50"
             >
               {!downloadingAgreement && <Download size={14} />} Razılaşmanı yüklə
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              loading={downloadingContract}
+              onClick={handleDownloadContract}
+              className="text-indigo-600 border-indigo-300 hover:bg-indigo-50"
+            >
+              {!downloadingContract && <Download size={14} />} Kontraktı yüklə
             </Button>
             <Button variant="outline" size="sm" onClick={onEdit}>
               <Edit size={14} /> Düzəliş et

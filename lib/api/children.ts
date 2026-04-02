@@ -76,4 +76,17 @@ export const childrenApi = {
     const fileName = extractFileName(contentDisposition) || `Razilasma_${id}.doc`;
     return { blob: res.data as Blob, fileName };
   },
+
+  downloadContract: async (id: number): Promise<{ blob: Blob; fileName: string }> => {
+    const res = await apiClient.get(`/api/childrens/${id}/contract`, {
+      responseType: 'blob',
+      headers: {
+        Accept: '*/*',
+      },
+    });
+
+    const contentDisposition = (res.headers['content-disposition'] as string | undefined) ?? null;
+    const fileName = extractFileName(contentDisposition) || `Kontrakt_${id}.doc`;
+    return { blob: res.data as Blob, fileName };
+  },
 };
