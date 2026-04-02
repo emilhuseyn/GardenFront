@@ -50,7 +50,7 @@ export const paymentsApi = {
   },
 
   delete: async (id: number) => {
-    const res = await apiClient.delete(`/api/payments/${id}`);
+    const res = await apiClient.delete(`/api/paymentses/${id}`);
     return unwrap(res);
   },
 };
