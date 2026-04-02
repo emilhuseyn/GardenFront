@@ -406,15 +406,15 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
               </div>
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 lg:justify-end mt-4 lg:mt-0">
+          <div className="flex flex-wrap items-center gap-4 mt-5 lg:mt-0 lg:justify-end w-full lg:w-auto">
             {/* Sənədlər */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 loading={downloadingAgreement}
                 onClick={handleDownloadAgreement}
-                className="text-blue-600 border-blue-200 bg-white hover:bg-blue-50"
+                className="text-blue-600 border-blue-200 bg-white hover:bg-blue-50 whitespace-nowrap shadow-sm"
               >
                 {!downloadingAgreement && <Download size={14} />} Razılaşma
               </Button>
@@ -423,18 +423,18 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                 size="sm"
                 loading={downloadingContract}
                 onClick={handleDownloadContract}
-                className="text-indigo-600 border-indigo-200 bg-white hover:bg-indigo-50"
+                className="text-indigo-600 border-indigo-200 bg-white hover:bg-indigo-50 whitespace-nowrap shadow-sm"
               >
                 {!downloadingContract && <Download size={14} />} Kontrakt
               </Button>
             </div>
 
-            {/* Ayırıcı xətt (yalnız geniş ekranlarda) */}
-            <div className="hidden sm:block w-px h-8 bg-gray-300 mx-1"></div>
+            {/* Ayırıcı */}
+            <div className="hidden lg:block w-px h-6 bg-gray-200/80 mx-1"></div>
 
             {/* CRUD Əməliyyatları */}
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" onClick={onEdit} className="bg-white text-gray-700 border-gray-200 hover:bg-gray-50">
+              <Button variant="outline" size="sm" onClick={onEdit} className="bg-white text-gray-700 border-gray-200 hover:bg-gray-50 whitespace-nowrap shadow-sm">
                 <Edit size={14} /> Düzəliş et
               </Button>
               {child.status === 'Inactive' ? (
@@ -444,7 +444,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                     size="sm"
                     disabled={actionLoading}
                     onClick={handleToggleStatus}
-                    className="text-green-600 border-green-300 bg-white hover:bg-green-50"
+                    className="text-green-600 border-green-300 bg-white hover:bg-green-50 justify-center whitespace-nowrap shadow-sm"
                   >
                     <UserCheck size={14} /> Aktiv et
                   </Button>
@@ -453,7 +453,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                     size="sm"
                     disabled={actionLoading}
                     onClick={() => setDeleteModalOpen(true)}
-                    className="text-rose-500 border-rose-300 bg-white hover:bg-rose-50"
+                    className="text-rose-500 border-rose-300 bg-white hover:bg-rose-50 whitespace-nowrap shadow-sm"
                   >
                     <Trash2 size={14} /> Sil
                   </Button>
@@ -464,7 +464,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                   size="sm"
                   disabled={actionLoading}
                   onClick={handleToggleStatus}
-                  className="text-amber-600 border-amber-300 bg-white hover:bg-amber-50"
+                  className="text-amber-600 border-amber-300 bg-white hover:bg-amber-50 whitespace-nowrap shadow-sm"
                 >
                   <UserX size={14} /> Deaktiv et
                 </Button>
