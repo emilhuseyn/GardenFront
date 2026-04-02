@@ -11,7 +11,7 @@ import { paymentSchema, type PaymentFormValues } from '@/lib/utils/validators';
 import { paymentsApi } from '@/lib/api/payments';
 import { childrenApi } from '@/lib/api/children';
 import { formatCurrency } from '@/lib/utils/format';
-import { DollarSign, Trash2 } from 'lucide-react';
+import { DollarSign, ReceiptText, Trash2 } from 'lucide-react';
 import type { Payment } from '@/types';
 
 const MONTH_OPTIONS = [
@@ -41,6 +41,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const [historyLoading, setHistoryLoading] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [receiptLoading, setReceiptLoading] = useState(false);
 
   const { register, handleSubmit, setValue, control, formState: { errors, isSubmitting } } = useForm<PaymentFormValues>({
     mode: 'onChange',
@@ -200,6 +201,29 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
     }
   };
 
+  const handleShowReceipt = async (paymentId: number) => {
+    setReceiptLoading(true);
+    try {
+      const receipt = await paymentsApi.downloadReceipt(paymentId);
+      const receiptUrl = URL.createObjectURL(receipt.blob);
+      const opened = window.open(receiptUrl, '_blank', 'noopener,noreferrer');
+
+      if (!opened) {
+        const a = document.createElement('a');
+        a.href = receiptUrl;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.click();
+      }
+
+      window.setTimeout(() => URL.revokeObjectURL(receiptUrl), 300000);
+    } catch {
+      toast.error('Çek yüklənmədi');
+    } finally {
+      setReceiptLoading(false);
+    }
+  };
+
   return (
     <>
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -295,10 +319,21 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
       <Input {...register('notes')} label="Qeyd (opsional)" placeholder="Əlave məlumat..." />
       {currentPayment && currentPayment.paidAmount > 0 && (
         <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
-          <p className="text-xs text-rose-700 mb-2">Bu ay üçün mövcud ödəniş qeydini silmək mümkündür.</p>
-          <Button type="button" variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
-            <Trash2 size={13} /> Bu ayın ödənişini sil
-          </Button>
+          <p className="text-xs text-rose-700 mb-2">Bu ay üçün mövcud ödəniş qeydi üçün çeki görə və silə bilərsiniz.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              loading={receiptLoading}
+              onClick={() => handleShowReceipt(currentPayment.id)}
+            >
+              <ReceiptText size={13} /> Bu ödənişi göstər
+            </Button>
+            <Button type="button" variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
+              <Trash2 size={13} /> Bu ayın ödənişini sil
+            </Button>
+          </div>
         </div>
       )}
       <div className="flex gap-2 pt-2">
