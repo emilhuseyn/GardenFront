@@ -14,23 +14,23 @@ export interface DueAndOverdueAlertsResult {
 
 export const notificationsApi = {
   getWhatsAppStatus: async (): Promise<WhatsAppStatus> => {
-    const res = await apiClient.get('/api/notifications/whatsapp/status');
+    const res = await apiClient.get('/api/notificationses/whatsapp/status');
     return unwrap<WhatsAppStatus>(res);
   },
 
   getWhatsAppQR: async (): Promise<{ qr: string }> => {
-    const res = await apiClient.get('/api/notifications/whatsapp/qr');
+    const res = await apiClient.get('/api/notificationses/whatsapp/qr');
     try { return unwrap<{ qr: string }>(res); } catch {
       return res.data as { qr: string };
     }
   },
 
   sendOverdueAlerts: async (): Promise<void> => {
-    await apiClient.post('/api/notifications/send-overdue-alerts');
+    await apiClient.post('/api/notificationses/send-overdue-alerts');
   },
 
   sendDueAndOverdueAlerts: async (): Promise<DueAndOverdueAlertsResult> => {
-    const res = await apiClient.post('/api/notifications/send-due-and-overdue-alerts');
+    const res = await apiClient.post('/api/notificationses/send-due-and-overdue-alerts');
 
     let payload: Record<string, unknown>;
     try {
@@ -53,11 +53,11 @@ export const notificationsApi = {
   },
 
   sendReminder: async (childId: number): Promise<void> => {
-    await apiClient.post(`/api/notifications/send-reminder/${childId}`);
+    await apiClient.post(`/api/notificationses/send-reminder/${childId}`);
   },
 
   startWhatsApp: async (): Promise<{ started: boolean }> => {
-    const res = await apiClient.post('/api/notifications/whatsapp/start');
+    const res = await apiClient.post('/api/notificationses/whatsapp/start');
     // Handle both envelope { success, data: { started } } and direct { started }
     try { return unwrap<{ started: boolean }>(res); } catch {
       return (res.data ?? { started: true }) as { started: boolean };
@@ -65,6 +65,6 @@ export const notificationsApi = {
   },
 
   disconnectWhatsApp: async (): Promise<void> => {
-    await apiClient.post('/api/notifications/whatsapp/disconnect');
+    await apiClient.post('/api/notificationses/whatsapp/disconnect');
   },
 };
