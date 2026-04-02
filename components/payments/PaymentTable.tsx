@@ -8,8 +8,7 @@ import { formatCurrency } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/constants';
 import { childrenApi } from '@/lib/api/children';
 import { paymentsApi } from '@/lib/api/payments';
-import { groupsApi } from '@/lib/api/groups';
-import type { Child, Payment, Group } from '@/types';
+import type { Payment } from '@/types';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const MONTHS_SHORT = ['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'];
@@ -25,13 +24,6 @@ interface ChildPayRow {
   payments: Record<number, PaymentCell>;
   amounts: Record<number, { paid: number; remaining: number }>;
 }
-
-// Handle both numeric (0/1/2) and string ('Paid'/'PartiallyPaid'/'Debt') statuses from API
-const STATUS_TO_CELL: Record<string | number, PaymentCell> = {
-  0: 'paid',            1: 'partial',          2: 'unpaid',
-  Paid: 'paid',         PartiallyPaid: 'partial', Debt: 'unpaid',
-  paid: 'paid',         partiallyPaid: 'partial', debt: 'unpaid',
-};
 
 const CELL_CLASS: Record<string, string> = {
   paid:    'bg-green-400 text-white',
@@ -57,42 +49,59 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    setRows([]);
-    childrenApi.getAll({ status: 'Active', pageSize: 50, groupId: groupId ?? undefined }).then(async (result) => {
-      const children = result.items;
-      const paymentHistories = await Promise.all(
-        children.map((c) => paymentsApi.getChildHistory(c.id).catch(() => [] as Payment[]))
-      );
-      const mapped: ChildPayRow[] = children.map((child, i) => {
-        const payments: Record<number, PaymentCell> = {};
-        const amounts: Record<number, { paid: number; remaining: number }> = {};
-        paymentHistories[i]
-          .filter((p) => Number(p.year) === CURRENT_YEAR)
-          .forEach((p) => {
-            let cell: PaymentCell;
-            if (p.remainingDebt <= 0) {
-              cell = 'paid';
-            } else if (p.paidAmount > 0) {
-              cell = 'partial';
-            } else {
-              cell = 'unpaid';
-            }
-            payments[p.month - 1] = cell;
-            amounts[p.month - 1] = { paid: p.paidAmount, remaining: p.remainingDebt };
-          });
-        return {
-          id: String(child.id),
-          firstName: child.firstName,
-          lastName: child.lastName,
-          groupName: child.groupName,
-          monthlyFee: child.monthlyFee,
-          payments,
-          amounts,
-        };
-      });
-      setRows(mapped);
-    }).catch(() => setRows([])).finally(() => setLoading(false));
+    let active = true;
+
+    const loadRows = async () => {
+      setLoading(true);
+      setRows([]);
+
+      try {
+        const result = await childrenApi.getAll({ status: 'Active', pageSize: 50, groupId: groupId ?? undefined });
+        const children = result.items;
+        const paymentHistories = await Promise.all(
+          children.map((c) => paymentsApi.getChildHistory(c.id).catch(() => [] as Payment[]))
+        );
+
+        const mapped: ChildPayRow[] = children.map((child, i) => {
+          const payments: Record<number, PaymentCell> = {};
+          const amounts: Record<number, { paid: number; remaining: number }> = {};
+          paymentHistories[i]
+            .filter((p) => Number(p.year) === CURRENT_YEAR)
+            .forEach((p) => {
+              let cell: PaymentCell;
+              if (p.remainingDebt <= 0) {
+                cell = 'paid';
+              } else if (p.paidAmount > 0) {
+                cell = 'partial';
+              } else {
+                cell = 'unpaid';
+              }
+              payments[p.month - 1] = cell;
+              amounts[p.month - 1] = { paid: p.paidAmount, remaining: p.remainingDebt };
+            });
+          return {
+            id: String(child.id),
+            firstName: child.firstName,
+            lastName: child.lastName,
+            groupName: child.groupName,
+            monthlyFee: child.monthlyFee,
+            payments,
+            amounts,
+          };
+        });
+
+        if (active) setRows(mapped);
+      } catch {
+        if (active) setRows([]);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void loadRows();
+    return () => {
+      active = false;
+    };
   }, [refreshKey, groupId]);
 
   if (loading) {
@@ -197,7 +206,7 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
                 return (
                   <td key={mi} className="px-1 py-2 text-center">
                     <button
-                      onClick={() => cell !== 'paid' && onRecord?.(row.id, mi + 1, `${row.firstName} ${row.lastName}`)}
+                      onClick={() => onRecord?.(row.id, mi + 1, `${row.firstName} ${row.lastName}`)}
                       title={tooltipParts.length ? tooltipParts.join(' · ') : (cell ? undefined : `${MONTHS_SHORT[mi]}: Qeyd et`)}
                       className={cn(
                         'rounded-md transition-all mx-auto flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-[44px]',
