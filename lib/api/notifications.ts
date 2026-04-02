@@ -30,7 +30,7 @@ export const notificationsApi = {
   },
 
   sendDueAndOverdueAlerts: async (): Promise<DueAndOverdueAlertsResult> => {
-    const res = await apiClient.post('/api/notificationses/send-due-and-overdue-alerts');
+    const res = await apiClient.post('/api/notificationses/send-due-alerts');
 
     let payload: Record<string, unknown>;
     try {
