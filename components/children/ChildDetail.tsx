@@ -407,13 +407,14 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
             </div>
           </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 lg:justify-end mt-4 lg:mt-0">
-            <div className="flex items-center gap-2 p-1.5 bg-white/60 rounded-xl border border-white-border shadow-sm">
+            {/* Sənədlər */}
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 loading={downloadingAgreement}
                 onClick={handleDownloadAgreement}
-                className="text-blue-600 border-transparent bg-white shadow-sm hover:text-blue-700 hover:bg-blue-50"
+                className="text-blue-600 border-blue-200 bg-white hover:bg-blue-50"
               >
                 {!downloadingAgreement && <Download size={14} />} Razılaşma
               </Button>
@@ -422,14 +423,18 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                 size="sm"
                 loading={downloadingContract}
                 onClick={handleDownloadContract}
-                className="text-indigo-600 border-transparent bg-white shadow-sm hover:text-indigo-700 hover:bg-indigo-50"
+                className="text-indigo-600 border-indigo-200 bg-white hover:bg-indigo-50"
               >
                 {!downloadingContract && <Download size={14} />} Kontrakt
               </Button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <Button variant="outline" size="sm" onClick={onEdit} className="bg-white text-gray-700 hover:bg-gray-50 border-gray-200">
+            {/* Ayırıcı xətt (yalnız geniş ekranlarda) */}
+            <div className="hidden sm:block w-px h-8 bg-gray-300 mx-1"></div>
+
+            {/* CRUD Əməliyyatları */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" onClick={onEdit} className="bg-white text-gray-700 border-gray-200 hover:bg-gray-50">
                 <Edit size={14} /> Düzəliş et
               </Button>
               {child.status === 'Inactive' ? (
