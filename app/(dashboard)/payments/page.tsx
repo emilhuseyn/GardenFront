@@ -149,7 +149,26 @@ export default function PaymentsPage() {
       setTableRefreshKey((k) => k + 1);
       refreshPaymentOverview();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Ödəniş silinmədi');
+      const rawMessage = error instanceof Error ? error.message : '';
+      const normalized = rawMessage.toLowerCase();
+
+      if (
+        normalized.includes('404') ||
+        normalized.includes('not found') ||
+        normalized.includes('tapılmadı')
+      ) {
+        toast.error('Ödəniş tapılmadı');
+      } else if (
+        normalized.includes('401') ||
+        normalized.includes('403') ||
+        normalized.includes('unauthorized') ||
+        normalized.includes('forbidden') ||
+        normalized.includes('səlahiyyət')
+      ) {
+        toast.error('Səlahiyyət yoxdur');
+      } else {
+        toast.error(rawMessage || 'Ödəniş silinmədi');
+      }
     } finally {
       setDeleteLoading(false);
     }
