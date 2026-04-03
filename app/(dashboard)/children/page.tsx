@@ -173,29 +173,39 @@ export default function ChildrenPage() {
         } else {
           const baseFilters: ChildFilters = {
             divisionId:   divFilter ? Number(divFilter) : undefined,
-            status:       (statusFilter as 'Active' | 'Inactive' | '') || undefined,
             scheduleType: schedFilter !== '' ? (schedFilter as 'FullDay' | 'HalfDay') : undefined,
           };
 
-          const pageSize = 100;
-          const firstPage = await childrenApi.getAll({
-            ...baseFilters,
-            page: 1,
-            pageSize,
-          });
+          const fetchAllPages = async (filters: ChildFilters) => {
+            const pageSize = 100;
+            const firstPage = await childrenApi.getAll({ ...filters, page: 1, pageSize });
+            let allItems = [...firstPage.items];
 
-          let allItems = [...firstPage.items];
-          const totalPages = Math.max(firstPage.totalPages || 1, 1);
-
-          if (totalPages > 1) {
-            for (let page = 2; page <= totalPages; page += 1) {
-              const nextPage = await childrenApi.getAll({
-                ...baseFilters,
-                page,
-                pageSize,
-              }, { silentError: true });
-              allItems = allItems.concat(nextPage.items);
+            if (firstPage.hasNextPage || firstPage.totalPages > 1) {
+              const totalPages = Math.max(firstPage.totalPages || 1, 1);
+              for (let page = 2; page <= totalPages; page += 1) {
+                const nextPage = await childrenApi.getAll(
+                  { ...filters, page, pageSize },
+                  { silentError: true }
+                );
+                allItems = allItems.concat(nextPage.items);
+              }
             }
+
+            return allItems;
+          };
+
+          const selectedStatus = (statusFilter as 'Active' | 'Inactive' | '') || undefined;
+
+          let allItems: Child[];
+          if (selectedStatus) {
+            allItems = await fetchAllPages({ ...baseFilters, status: selectedStatus });
+          } else {
+            const [activeItems, inactiveItems] = await Promise.all([
+              fetchAllPages({ ...baseFilters, status: 'Active' }),
+              fetchAllPages({ ...baseFilters, status: 'Inactive' }),
+            ]);
+            allItems = activeItems.concat(inactiveItems);
           }
 
           // Keep latest item per id in case backend pages overlap.
