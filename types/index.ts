@@ -77,6 +77,7 @@ export interface Child {
   paymentDay: number;
   status: ChildStatus;
   parentFullName: string;
+  secondParentFullName?: string;
   parentPhone: string;
   secondParentPhone?: string;
   teacherName?: string;
@@ -96,6 +97,7 @@ export interface ChildFormData {
   monthlyFee: number;
   paymentDay: number;
   parentFullName: string;
+  secondParentFullName?: string;
   parentPhone: string;
   secondParentPhone?: string;
   parentEmail?: string;

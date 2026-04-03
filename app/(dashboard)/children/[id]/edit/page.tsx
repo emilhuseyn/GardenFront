@@ -79,6 +79,7 @@ export default function EditChildPage() {
         monthlyFee:     c.monthlyFee,
         paymentDay:     c.paymentDay ?? 1,
         parentFullName: c.parentFullName,
+        secondParentFullName: c.secondParentFullName ?? '',
         parentPhone:    c.parentPhone,
         secondParentPhone: c.secondParentPhone ?? '',
         parentEmail:    c.parentEmail ?? '',
@@ -244,6 +245,12 @@ export default function EditChildPage() {
                 label="Valideynin adı soyadı *"
                 placeholder="Əli Əliyev"
                 error={errors.parentFullName?.message}
+              />
+              <Input
+                {...register('secondParentFullName')}
+                label="Əlavə valideyn adı soyadı (ixtiyari)"
+                placeholder="Məs: Əliyev Kamran"
+                error={errors.secondParentFullName?.message}
               />
               <Input
                 {...register('parentPhone')}

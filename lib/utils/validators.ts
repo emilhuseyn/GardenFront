@@ -11,6 +11,7 @@ export const childSchema = z.object({
   monthlyFee: z.number().min(1, 'Ödəniş məbləği mütləqdir').max(10000, 'Ən çox 10000 ₼ ola bilər'),
   paymentDay: z.number().min(1, 'Ödəniş günü seçin').max(28, 'Maksimum 28 ola bilər'),
   parentFullName: z.string().min(3, 'Ən azı 3 hərf olmalıdır'),
+  secondParentFullName: z.string().min(3, 'Ən azı 3 hərf olmalıdır').optional().or(z.literal('')),
   parentPhone: z.string().regex(phoneRegex, 'Düzgün telefon nömrəsi daxil edin (+994XXXXXXXXX)'),
   secondParentPhone: z.string().regex(phoneRegex, 'Düzgün telefon nömrəsi daxil edin (+994XXXXXXXXX)').optional().or(z.literal('')),
   parentEmail: z.string().email('Düzgün e-poçt daxil edin').optional().or(z.literal('')),

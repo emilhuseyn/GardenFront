@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { childSchema, type ChildFormValues } from '@/lib/utils/validators';
 import { cn } from '@/lib/utils/constants';
 import { groupsApi } from '@/lib/api/groups';
@@ -40,6 +39,7 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
     'İyul', 'Avqust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr',
   ];
   const currentYear = new Date().getFullYear();
+  const defaultPaymentDay = Math.min(new Date().getDate(), 28);
   const dayOptions   = Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1).padStart(2, '0'), label: String(i + 1) }));
   const monthOptions = AZ_MONTHS.map((m, i) => ({ value: String(i + 1).padStart(2, '0'), label: m }));
   const yearOptions  = Array.from({ length: 12 }, (_, i) => currentYear - 1 - i).map((y) => ({ value: String(y), label: String(y) }));
@@ -56,7 +56,12 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
     defaultValues: {
       scheduleType: 0,
       monthlyFee: 300,
-      paymentDay: 1,
+      paymentDay: defaultPaymentDay,
+      parentFullName: '',
+      secondParentFullName: '',
+      parentPhone: '',
+      secondParentPhone: '',
+      parentEmail: '',
       ...(defaultGroupId !== undefined ? { groupId: defaultGroupId } : {}),
     },
   });
@@ -75,7 +80,7 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
     const fields: (keyof ChildFormValues)[][] = [
       ['firstName', 'lastName', 'dateOfBirth'],
       ['groupId', 'scheduleType'],
-      ['parentFullName', 'parentPhone', 'secondParentPhone', 'monthlyFee', 'paymentDay'],
+      ['parentFullName', 'secondParentFullName', 'parentPhone', 'secondParentPhone', 'monthlyFee', 'paymentDay'],
     ];
     const valid = await trigger(fields[step - 1]);
     if (valid) setStep((s) => Math.min(s + 1, 3));
@@ -196,7 +201,7 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
                       onChange={(e) => setDobYear(e.target.value)}
                       className="w-full h-10 px-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-400/40 focus:border-green-400 transition-colors appearance-none cursor-pointer"
                     >
-                      <option value="">Il</option>
+                      <option value="">İl</option>
                       {yearOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
@@ -265,6 +270,12 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
               className="space-y-4"
             >
               <Input {...register('parentFullName')} label="Valideyn adı soyadı *" placeholder="Məhəmməd Əliyev" error={errors.parentFullName?.message} />
+              <Input
+                {...register('secondParentFullName')}
+                label="Əlavə valideyn adı soyadı"
+                placeholder="Məs: Əliyev Kamran"
+                error={errors.secondParentFullName?.message}
+              />
               <div>
                 <Input
                   {...register('parentPhone')}
