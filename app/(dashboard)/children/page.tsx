@@ -20,7 +20,7 @@ import { divisionsApi } from '@/lib/api/groups';
 import { useDebounce } from '@/lib/hooks/useDebounce';
 import { equalsNormalizedText, getAge } from '@/lib/utils/format';
 import { toast } from 'sonner';
-import type { Child, Division } from '@/types';
+import type { Child, ChildFilters, Division } from '@/types';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Bütün statuslar' },
@@ -154,14 +154,38 @@ export default function ChildrenPage() {
           setChildren(results);
           sessionStorage.setItem(cacheKey, JSON.stringify(results));
         } else {
-          const result = await childrenApi.getAll({
+          const baseFilters: ChildFilters = {
             divisionId:   divFilter ? Number(divFilter) : undefined,
             status:       (statusFilter as 'Active' | 'Inactive' | '') || undefined,
             scheduleType: schedFilter !== '' ? (schedFilter as 'FullDay' | 'HalfDay') : undefined,
-            pageSize:     0,   // 0 → server bütün nəticələri qaytarır
+          };
+
+          const pageSize = 100;
+          const firstPage = await childrenApi.getAll({
+            ...baseFilters,
+            page: 1,
+            pageSize,
           });
-          setChildren(result.items);
-          sessionStorage.setItem(cacheKey, JSON.stringify(result.items));
+
+          let allItems = [...firstPage.items];
+          const totalPages = Math.max(firstPage.totalPages || 1, 1);
+
+          if (totalPages > 1) {
+            for (let page = 2; page <= totalPages; page += 1) {
+              const nextPage = await childrenApi.getAll({
+                ...baseFilters,
+                page,
+                pageSize,
+              }, { silentError: true });
+              allItems = allItems.concat(nextPage.items);
+            }
+          }
+
+          // Keep latest item per id in case backend pages overlap.
+          const uniqueItems = Array.from(new Map(allItems.map((child) => [child.id, child])).values());
+
+          setChildren(uniqueItems);
+          sessionStorage.setItem(cacheKey, JSON.stringify(uniqueItems));
         }
       } catch {
         if (!cached) setChildren([]);
