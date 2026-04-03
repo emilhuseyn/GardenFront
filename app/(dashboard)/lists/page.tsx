@@ -10,11 +10,12 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { childrenApi } from '@/lib/api/children';
 import { paymentsApi } from '@/lib/api/payments';
 import { formatCurrency } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/constants';
 import { useAuth } from '@/lib/hooks/useAuth';
-import type { DebtorInfo } from '@/types';
+import type { ChildFilters, DebtorInfo } from '@/types';
 
 type ViewMode = 'all' | 'grouped';
 type SortMode = 'debt-desc' | 'debt-asc' | 'name-asc' | 'name-desc';
@@ -89,14 +90,70 @@ export default function ListsPage() {
   const [groupSortMode, setGroupSortMode] = useState<GroupSortMode>('debt-desc');
 
   useEffect(() => {
-    paymentsApi
-      .getDebtors({ silentError: true })
-      .then(setRows)
-      .catch(() => {
-        setRows([]);
-        toast.error('Siyahı yüklənmədi');
-      })
-      .finally(() => setLoading(false));
+    let active = true;
+
+    const fetchAllPages = async (filters: ChildFilters) => {
+      const firstPage = await childrenApi.getAll(
+        { ...filters, page: 1, pageSize: 0 },
+        { silentError: true }
+      );
+
+      let allItems = [...firstPage.items];
+      const totalPages = Math.max(firstPage.totalPages || 1, 1);
+
+      if (totalPages > 1) {
+        for (let page = 2; page <= totalPages; page += 1) {
+          const nextPage = await childrenApi.getAll(
+            { ...filters, page, pageSize: 0 },
+            { silentError: true }
+          );
+          allItems = allItems.concat(nextPage.items);
+        }
+      }
+
+      return allItems;
+    };
+
+    const run = async () => {
+      try {
+        const [activeChildren, inactiveChildren, debtors] = await Promise.all([
+          fetchAllPages({ status: 'Active' }),
+          fetchAllPages({ status: 'Inactive' }),
+          paymentsApi.getDebtors({ silentError: true }).catch(() => [] as DebtorInfo[]),
+        ]);
+
+        const allChildren = [...activeChildren, ...inactiveChildren];
+        const uniqueChildren = Array.from(new Map(allChildren.map((c) => [c.id, c])).values());
+        const debtByChildId = new Map(debtors.map((d) => [d.childId, d]));
+
+        const mapped: DebtorInfo[] = uniqueChildren.map((child) => {
+          const debtInfo = debtByChildId.get(child.id);
+          return {
+            childId: child.id,
+            childFullName: `${child.firstName} ${child.lastName}`.trim(),
+            groupName: child.groupName,
+            divisionName: child.divisionName,
+            parentPhone: child.parentPhone,
+            totalDebt: debtInfo?.totalDebt ?? child.totalDebt ?? 0,
+            unpaidMonths: debtInfo?.unpaidMonths ?? [],
+          };
+        });
+
+        if (active) setRows(mapped);
+      } catch {
+        if (active) {
+          setRows([]);
+          toast.error('Siyahı yüklənmədi');
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void run();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const divisionOptions = useMemo(
