@@ -46,6 +46,8 @@ export default function EditChildPage() {
     reset,
   } = useForm<ChildFormValues>({
     resolver: zodResolver(childSchema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
   });
 
   const scheduleType = watch('scheduleType');

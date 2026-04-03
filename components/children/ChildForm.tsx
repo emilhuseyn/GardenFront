@@ -53,6 +53,8 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
     formState: { errors, isSubmitting },
   } = useForm<ChildFormValues>({
     resolver: zodResolver(childSchema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: {
       scheduleType: 0,
       monthlyFee: 300,
