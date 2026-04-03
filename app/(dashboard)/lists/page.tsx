@@ -30,6 +30,10 @@ interface GroupDebtRow {
   avgDebt: number;
 }
 
+interface ListRow extends DebtorInfo {
+  parentFullName: string;
+}
+
 function fmtMonths(months: number[]) {
   return months
     .slice()
@@ -38,12 +42,13 @@ function fmtMonths(months: number[]) {
     .join(', ');
 }
 
-async function exportDebtWorkbook(rows: DebtorInfo[], grouped: GroupDebtRow[], fileName: string) {
+async function exportDebtWorkbook(rows: ListRow[], grouped: GroupDebtRow[], fileName: string) {
   const XLSX = await import('xlsx');
 
   const detailData = rows.map((r, i) => ({
     No: i + 1,
     Sagird: r.childFullName,
+    ValideynAdSoyad: r.parentFullName,
     Bolme: r.divisionName,
     Qrup: r.groupName,
     ValideynElaqeNomresi: r.parentPhone,
@@ -79,7 +84,7 @@ async function exportDebtWorkbook(rows: DebtorInfo[], grouped: GroupDebtRow[], f
 
 export default function ListsPage() {
   const { permissions } = useAuth();
-  const [rows, setRows] = useState<DebtorInfo[]>([]);
+  const [rows, setRows] = useState<ListRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [viewMode, setViewMode] = useState<ViewMode>('all');
@@ -126,11 +131,12 @@ export default function ListsPage() {
         const uniqueChildren = Array.from(new Map(allChildren.map((c) => [c.id, c])).values());
         const debtByChildId = new Map(debtors.map((d) => [d.childId, d]));
 
-        const mapped: DebtorInfo[] = uniqueChildren.map((child) => {
+        const mapped: ListRow[] = uniqueChildren.map((child) => {
           const debtInfo = debtByChildId.get(child.id);
           return {
             childId: child.id,
             childFullName: `${child.firstName} ${child.lastName}`.trim(),
+            parentFullName: child.parentFullName,
             groupName: child.groupName,
             divisionName: child.divisionName,
             parentPhone: child.parentPhone,
@@ -182,6 +188,7 @@ export default function ListsPage() {
 
       return (
         r.childFullName.toLowerCase().includes(q)
+        || r.parentFullName.toLowerCase().includes(q)
         || r.parentPhone.toLowerCase().includes(q)
         || r.groupName.toLowerCase().includes(q)
         || r.divisionName.toLowerCase().includes(q)
@@ -317,7 +324,7 @@ export default function ListsPage() {
           <SearchBar
             value={search}
             onChange={setSearch}
-            placeholder="Şagird, nömrə, qrup və ya bölmə axtar..."
+            placeholder="Şagird, valideyn, nömrə, qrup və ya bölmə axtar..."
             className="sm:max-w-sm"
           />
           <Select
@@ -422,28 +429,30 @@ export default function ListsPage() {
                 <thead>
                   <tr className="bg-gray-50/70 dark:bg-gray-800/40 border-b border-gray-100 dark:border-gray-700/40">
                     <th className="text-left px-4 py-3 text-gray-500">Şagird</th>
-                    <th className="text-left px-4 py-3 text-gray-500 hidden md:table-cell">Valideyn əlaqə nömrəsi</th>
-                    <th className="text-left px-4 py-3 text-gray-500 hidden lg:table-cell">Bölmə</th>
+                    <th className="text-left px-4 py-3 text-gray-500 hidden md:table-cell">Valideyn ad soyad</th>
+                    <th className="text-left px-4 py-3 text-gray-500 hidden lg:table-cell">Valideyn əlaqə nömrəsi</th>
+                    <th className="text-left px-4 py-3 text-gray-500 hidden xl:table-cell">Bölmə</th>
                     <th className="text-left px-4 py-3 text-gray-500">Qrup</th>
                     <th className="text-left px-4 py-3 text-gray-500">Qalıq borc</th>
-                    <th className="text-left px-4 py-3 text-gray-500 hidden xl:table-cell">Ödənilməmiş aylar</th>
+                    <th className="text-left px-4 py-3 text-gray-500 hidden 2xl:table-cell">Ödənilməmiş aylar</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 dark:divide-gray-700/40">
                   {filteredRows.map((r) => (
                     <tr key={r.childId} className="hover:bg-gray-50/60 dark:hover:bg-gray-700/20 transition-colors">
                       <td className="px-4 py-3.5 font-medium text-gray-800 dark:text-gray-100">{r.childFullName}</td>
-                      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 hidden md:table-cell">
+                      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 hidden md:table-cell">{r.parentFullName}</td>
+                      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 hidden lg:table-cell">
                         <span className="inline-flex items-center gap-1.5">
                           <Phone size={13} className="text-gray-400" /> {r.parentPhone}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 hidden lg:table-cell">
+                      <td className="px-4 py-3.5 hidden xl:table-cell">
                         <Badge variant="blue" size="sm">{r.divisionName}</Badge>
                       </td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{r.groupName}</td>
                       <td className="px-4 py-3.5 font-semibold text-rose-600">{formatCurrency(r.totalDebt)}</td>
-                      <td className="px-4 py-3.5 text-gray-500 hidden xl:table-cell">{fmtMonths(r.unpaidMonths) || '-'}</td>
+                      <td className="px-4 py-3.5 text-gray-500 hidden 2xl:table-cell">{fmtMonths(r.unpaidMonths) || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
