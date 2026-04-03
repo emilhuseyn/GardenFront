@@ -173,7 +173,7 @@ export default function ListsPage() {
           const debtInfo = debtByChildId.get(child.id);
           return {
             childId: child.id,
-            childFullName: `${child.firstName} ${child.lastName}`.trim(),
+            childFullName: `${child.lastName} ${child.firstName}`.trim(),
             parentFullName: child.parentFullName?.trim() || parentNameById.get(child.id) || '-',
             groupName: child.groupName,
             divisionName: child.divisionName,
