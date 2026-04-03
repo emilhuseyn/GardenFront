@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Download, Filter, ListChecks, Layers, Phone } from 'lucide-react';
@@ -522,7 +523,11 @@ export default function ListsPage() {
                 <tbody className="divide-y divide-gray-50 dark:divide-gray-700/40">
                   {filteredRows.map((r) => (
                     <tr key={r.childId} className="hover:bg-gray-50/60 dark:hover:bg-gray-700/20 transition-colors">
-                      <td className="px-4 py-3.5 font-medium text-gray-800 dark:text-gray-100">{r.childFullName}</td>
+                      <td className="px-4 py-3.5 font-medium text-gray-800 dark:text-gray-100">
+                        <Link href={`/children/${r.childId}`} className="hover:text-green-600 transition-colors underline-offset-2 hover:underline">
+                          {r.childFullName}
+                        </Link>
+                      </td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 hidden md:table-cell">{r.parentFullName}</td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 hidden lg:table-cell">
                         <span className="inline-flex items-center gap-1.5">

@@ -248,7 +248,7 @@ export default function EditChildPage() {
               />
               <Input
                 {...register('secondParentFullName')}
-                label="Əlavə valideyn adı soyadı (ixtiyari)"
+                label="Əlavə valideyn adı soyadı"
                 placeholder="Məs: Əliyev Kamran"
                 error={errors.secondParentFullName?.message}
               />
@@ -260,7 +260,7 @@ export default function EditChildPage() {
               />
               <Input
                 {...register('secondParentPhone')}
-                label="Əlavə telefon (ixtiyari)"
+                label="Əlavə telefon"
                 placeholder="+994501234567"
                 error={errors.secondParentPhone?.message}
               />
