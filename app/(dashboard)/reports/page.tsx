@@ -1,4 +1,5 @@
 ﻿'use client';
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Download, TrendingUp, Users, DollarSign, Calendar } from 'lucide-react';
@@ -61,6 +62,8 @@ export default function ReportsPage() {
   const [divRevMonth, setDivRevMonth] = useState(String(now.getMonth() + 1));
   const [divRevReport, setDivRevReport] = useState<{ name: string; value: number }[]>([]);
   const [loadingDivRev, setLoadingDivRev] = useState(false);
+  const [loadingLookups, setLoadingLookups] = useState(true);
+  const [bootDone, setBootDone] = useState(false);
 
   useEffect(() => {
     const yr = Number(year);
@@ -85,9 +88,11 @@ export default function ReportsPage() {
   }, [year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    setLoadingLookups(true);
     Promise.all([groupsApi.getAll(), divisionsApi.getAll()])
       .then(([g, d]) => { setGroups(g); setDivisions(d); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingLookups(false));
   }, []);
 
   useEffect(() => {
@@ -167,9 +172,38 @@ export default function ReportsPage() {
     : [];
   const totalChildren = stats?.totalActiveChildren ?? 0;
   const monthOptions = MONTHS.map((m) => ({ value: String(m.value), label: m.label }));
+  const initialLoading = loading
+    || loadingLookups
+    || (groups.length > 0 && loadingGroupRev)
+    || (divisions.length > 0 && loadingDivRev);
+
+  useEffect(() => {
+    if (!bootDone && !initialLoading) {
+      setBootDone(true);
+    }
+  }, [bootDone, initialLoading]);
+
+  const showBootLoader = !bootDone;
 
   return (
     <div className="space-y-6">
+      {showBootLoader && (
+        <div className="fixed inset-0 z-[90] bg-white/95 dark:bg-[#0f1117]/95 backdrop-blur-sm flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4 px-6 text-center">
+            <Image
+              src="/KinderGardenLogo.png"
+              alt="KinderGarden"
+              width={220}
+              height={64}
+              priority
+              className="h-16 w-auto object-contain"
+            />
+            <div className="w-9 h-9 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">Hesabatlar yüklənir...</p>
+          </div>
+        </div>
+      )}
+
       <PageHeader
         title="Hesabatlar"
         description="Ətraflı statistika və analitika"
