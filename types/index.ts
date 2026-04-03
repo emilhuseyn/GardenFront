@@ -61,6 +61,17 @@ export interface GroupDetail extends Group {
   children: GroupDetailChild[];
 }
 
+export type GroupLogActionType = 'ChildAdded' | 'ChildRemoved' | 'GroupUpdated';
+
+export interface GroupLogResponse {
+  id: number;
+  groupId: number;
+  childId?: number;
+  actionType: GroupLogActionType;
+  message: string;
+  actionDate: string;
+}
+
 // ─── Child ────────────────────────────────────────────────────────────────────
 export type ChildStatus = 'Active' | 'Inactive';
 export type ScheduleType = 'FullDay' | 'HalfDay';

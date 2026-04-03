@@ -1,5 +1,5 @@
 import apiClient, { unwrap } from './client';
-import type { Group, GroupDetail, Division } from '@/types';
+import type { Group, GroupDetail, Division, GroupLogResponse } from '@/types';
 
 export const groupsApi = {
   getAll: async () => {
@@ -15,6 +15,11 @@ export const groupsApi = {
   getByDivision: async (divisionId: number) => {
     const res = await apiClient.get(`/api/groupses/division/${divisionId}`);
     return unwrap<Group[]>(res);
+  },
+
+  getLogs: async (id: number) => {
+    const res = await apiClient.get(`/api/groups/${id}/logs`);
+    return unwrap<GroupLogResponse[]>(res);
   },
 
   create: async (data: { name: string; divisionId: number; teacherId?: string; maxChildCount: number; ageCategory: string; language: string }) => {
