@@ -173,7 +173,7 @@ export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDelete
                   ₼{child.monthlyFee}
                 </td>
                 <td className="px-4 py-3.5 font-mono-nums text-gray-700 dark:text-gray-300 hidden lg:table-cell">
-                  {child.paymentDay}-i
+                  {child.paymentDay}
                 </td>
                 <td className="px-4 py-3.5">
                   <Badge variant={child.status === 'Active' ? 'active' : 'inactive'} size="pill" dot>
