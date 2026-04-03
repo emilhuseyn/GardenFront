@@ -44,6 +44,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     '/children':   (p) => p.children.view,
     '/attendance': (p) => p.attendance.view,
     '/payments':   (p) => p.payments.view,
+    '/lists':      (p) => p.payments.view,
     '/groups':     (p) => p.groups.view,
     '/divisions':  (p) => p.groups.view,
     '/reports':    (p) => p.reports.view,
