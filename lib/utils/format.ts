@@ -87,6 +87,7 @@ export function normalizeText(value: string): string {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLocaleLowerCase('az')
+    .replace(/ı/g, 'i')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -103,6 +104,65 @@ export function isEnglishDivisionName(value?: string): boolean {
     || normalized.includes('english')
     || normalized === 'en'
     || normalized.startsWith('en ');
+}
+
+export function isRussianDivisionName(value?: string): boolean {
+  if (!value) return false;
+  const normalized = normalizeText(value);
+  return normalized.includes('rus')
+    || normalized.includes('russian')
+    || normalized === 'ru'
+    || normalized.startsWith('ru ');
+}
+
+export type DivisionVisualVariant = 'green' | 'blue' | 'violet' | 'teal' | 'amber' | 'orange' | 'rose' | 'gray';
+
+const DIVISION_VARIANTS: DivisionVisualVariant[] = ['green', 'blue', 'violet', 'teal', 'amber', 'orange', 'rose'];
+
+const DIVISION_ACCENTS: Record<DivisionVisualVariant, string> = {
+  green: 'linear-gradient(90deg, #34C47E, #22A965)',
+  blue: 'linear-gradient(90deg, #4A90D9, #357ABD)',
+  violet: 'linear-gradient(90deg, #8B5CF6, #6D28D9)',
+  teal: 'linear-gradient(90deg, #14B8A6, #0F766E)',
+  amber: 'linear-gradient(90deg, #F59E0B, #D97706)',
+  orange: 'linear-gradient(90deg, #F97316, #EA580C)',
+  rose: 'linear-gradient(90deg, #F43F5E, #E11D48)',
+  gray: 'linear-gradient(90deg, #9CA3AF, #6B7280)',
+};
+
+function hashText(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = value.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return Math.abs(hash);
+}
+
+export function getDivisionBadgeVariant(value?: string): DivisionVisualVariant {
+  if (!value) return 'gray';
+  if (isEnglishDivisionName(value)) return 'green';
+  if (isRussianDivisionName(value)) return 'blue';
+
+  const normalized = normalizeText(value);
+  return DIVISION_VARIANTS[hashText(normalized) % DIVISION_VARIANTS.length];
+}
+
+export function getDivisionFlag(value?: string): string {
+  if (!value) return '🏫';
+  if (isEnglishDivisionName(value)) return '🇬🇧';
+  if (isRussianDivisionName(value)) return '🇷🇺';
+
+  const normalized = normalizeText(value);
+  if (normalized.includes('azerbaycan') || normalized.includes('azerbaijan') || normalized === 'az' || normalized.startsWith('az ')) {
+    return '🇦🇿';
+  }
+
+  return '🏫';
+}
+
+export function getDivisionAccent(value?: string): string {
+  const variant = getDivisionBadgeVariant(value);
+  return DIVISION_ACCENTS[variant];
 }
 
 // ─── Name Formatting ──────────────────────────────────────────────────────────

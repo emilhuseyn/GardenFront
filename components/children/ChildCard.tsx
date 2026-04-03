@@ -6,7 +6,7 @@ import { Phone, Clock, MoreVertical, UserX, UserCheck, Trash2 } from 'lucide-rea
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { formatPhone, getAge, isEnglishDivisionName } from '@/lib/utils/format';
+import { formatPhone, getAge, getDivisionAccent, getDivisionBadgeVariant, getDivisionFlag } from '@/lib/utils/format';
 import { SCHEDULE_LABELS } from '@/lib/utils/constants';
 import type { Child } from '@/types';
 
@@ -32,7 +32,9 @@ const paymentLabel = {
 export function ChildCard({ child, index = 0, onToggleStatus, onDelete }: ChildCardProps) {
   const fullName = `${child.firstName} ${child.lastName}`;
   const payStatus = (['paid', 'partial', 'unpaid'] as const)[index % 3];
-  const isEnglish = isEnglishDivisionName(child.divisionName);
+  const divisionVariant = getDivisionBadgeVariant(child.divisionName);
+  const divisionFlag = getDivisionFlag(child.divisionName);
+  const divisionAccent = getDivisionAccent(child.divisionName);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -56,9 +58,7 @@ export function ChildCard({ child, index = 0, onToggleStatus, onDelete }: ChildC
       <div
         className="h-1 w-full"
         style={{
-          background: isEnglish
-            ? 'linear-gradient(90deg, #34C47E, #22A965)'
-            : 'linear-gradient(90deg, #4A90D9, #357ABD)'
+          background: divisionAccent,
         }}
       />
 
@@ -112,10 +112,10 @@ export function ChildCard({ child, index = 0, onToggleStatus, onDelete }: ChildC
         {/* Badges row */}
         <div className="flex flex-wrap gap-1.5 mb-4">
           <Badge
-            variant={isEnglish ? 'green' : 'blue'}
+            variant={divisionVariant}
             size="pill"
           >
-            {isEnglish ? '🇬🇧' : '🇷🇺'} {child.divisionName}
+            {divisionFlag} {child.divisionName}
           </Badge>
           <Badge variant="gray" size="pill">
             <Clock size={9} />
