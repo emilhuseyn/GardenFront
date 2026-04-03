@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Download, Filter, ListChecks, Layers, Phone } from 'lucide-react';
@@ -355,6 +356,25 @@ export default function ListsPage() {
 
   if (!permissions.payments.view) {
     return null;
+  }
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-[90] bg-white/95 dark:bg-[#0f1117]/95 backdrop-blur-sm flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 px-6 text-center">
+          <Image
+            src="/KinderGardenLogo.png"
+            alt="KinderGarden"
+            width={220}
+            height={64}
+            priority
+            className="h-16 w-auto object-contain"
+          />
+          <div className="w-9 h-9 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-500 dark:text-gray-400">Siyahılar yüklənir...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
