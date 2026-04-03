@@ -80,6 +80,7 @@ export default function EditChildPage() {
         paymentDay:     c.paymentDay ?? 1,
         parentFullName: c.parentFullName,
         parentPhone:    c.parentPhone,
+        secondParentPhone: c.secondParentPhone ?? '',
         parentEmail:    c.parentEmail ?? '',
       });
     }).catch(() => toast.error('Məlumatlar yüklənmədi'))
@@ -249,6 +250,12 @@ export default function EditChildPage() {
                 label="Telefon nömrəsi *"
                 placeholder="+994501234567"
                 error={errors.parentPhone?.message}
+              />
+              <Input
+                {...register('secondParentPhone')}
+                label="Əlavə telefon (ixtiyari)"
+                placeholder="+994501234567"
+                error={errors.secondParentPhone?.message}
               />
               <Input
                 {...register('parentEmail')}

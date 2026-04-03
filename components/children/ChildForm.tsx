@@ -75,7 +75,7 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
     const fields: (keyof ChildFormValues)[][] = [
       ['firstName', 'lastName', 'dateOfBirth'],
       ['groupId', 'scheduleType'],
-      ['parentFullName', 'parentPhone', 'monthlyFee', 'paymentDay'],
+      ['parentFullName', 'parentPhone', 'secondParentPhone', 'monthlyFee', 'paymentDay'],
     ];
     const valid = await trigger(fields[step - 1]);
     if (valid) setStep((s) => Math.min(s + 1, 3));
@@ -272,6 +272,15 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
                   placeholder="+994501234567"
                   error={errors.parentPhone?.message}
                   hint="+994XXXXXXXXX formatında daxil edin"
+                />
+              </div>
+              <div>
+                <Input
+                  {...register('secondParentPhone')}
+                  label="Əlavə telefon"
+                  placeholder="+994501234567"
+                  error={errors.secondParentPhone?.message}
+                  hint="İstəyə bağlı: +994XXXXXXXXX"
                 />
               </div>
               <Input {...register('parentEmail')} label="E-poçt" type="email" placeholder="email@example.com" error={errors.parentEmail?.message} />
