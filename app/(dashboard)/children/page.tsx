@@ -1,12 +1,13 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, LayoutGrid, List } from 'lucide-react';
+import { Plus, LayoutGrid, List, Users } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
+import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -14,14 +15,13 @@ import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
 import { ChildCard } from '@/components/children/ChildCard';
 import { ChildTable } from '@/components/children/ChildTable';
 import { cn } from '@/lib/utils/constants';
-import { Users } from 'lucide-react';
 import { childrenApi } from '@/lib/api/children';
-import { divisionsApi } from '@/lib/api/groups';
+import { divisionsApi, groupsApi } from '@/lib/api/groups';
 import { reportsApi } from '@/lib/api/reports';
 import { useDebounce } from '@/lib/hooks/useDebounce';
 import { equalsNormalizedText, getAge } from '@/lib/utils/format';
 import { toast } from 'sonner';
-import type { ActiveInactive, Child, ChildFilters, Division } from '@/types';
+import type { ActiveInactive, Child, ChildFilters, Division, Group } from '@/types';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Bütün statuslar' },
@@ -49,12 +49,20 @@ export default function ChildrenPage() {
   const [view, setViewInternal]     = useState<'grid' | 'table'>('grid');
   const [search, setSearch]         = useState('');
   const [divFilter, setDivFilter]   = useState('');
+  const [groupFilter, setGroupFilter] = useState('');
   const [statusFilter, setStatus]   = useState('');
   const [schedFilter, setSched]     = useState('');
+  const [ageMin, setAgeMin]         = useState('');
+  const [ageMax, setAgeMax]         = useState('');
+  const [feeMin, setFeeMin]         = useState('');
+  const [feeMax, setFeeMax]         = useState('');
+  const [payDayMin, setPayDayMin]   = useState('');
+  const [payDayMax, setPayDayMax]   = useState('');
   const [sortBy, setSortBy]         = useState('name_asc');
   const [children, setChildren]     = useState<Child[]>([]);
   const [loading, setLoading]       = useState(true);
   const [divisions, setDivisions]   = useState<Division[]>([]);
+  const [groups, setGroups]         = useState<Group[]>([]);
   const [summary, setSummary]       = useState<ActiveInactive | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<Child[]>([]);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -149,7 +157,12 @@ export default function ChildrenPage() {
   };
 
   useEffect(() => {
-    divisionsApi.getAll().then(setDivisions).catch(() => {});
+    Promise.all([divisionsApi.getAll(), groupsApi.getAll()])
+      .then(([divisionData, groupData]) => {
+        setDivisions(divisionData);
+        setGroups(groupData);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -228,16 +241,54 @@ export default function ChildrenPage() {
     ...divisions.map((d) => ({ value: String(d.id), label: d.name })),
   ];
 
+  const groupOptions = [
+    { value: '', label: 'Bütün qruplar' },
+    ...Array.from(new Map(groups.map((g) => [g.name, g])).values())
+      .sort((a, b) => a.name.localeCompare(b.name, 'az'))
+      .map((g) => ({ value: g.name, label: g.name })),
+  ];
+
+  const clearAllFilters = () => {
+    setSearch('');
+    setDivFilter('');
+    setGroupFilter('');
+    setStatus('');
+    setSched('');
+    setAgeMin('');
+    setAgeMax('');
+    setFeeMin('');
+    setFeeMax('');
+    setPayDayMin('');
+    setPayDayMax('');
+    setSortBy('name_asc');
+  };
+
   const processedChildren = useMemo(() => {
     const selectedDivisionName = divFilter
       ? divisions.find((d) => String(d.id) === divFilter)?.name
       : undefined;
 
+    const minAge = ageMin.trim() !== '' ? Number(ageMin) : undefined;
+    const maxAge = ageMax.trim() !== '' ? Number(ageMax) : undefined;
+    const minFee = feeMin.trim() !== '' ? Number(feeMin) : undefined;
+    const maxFee = feeMax.trim() !== '' ? Number(feeMax) : undefined;
+    const minPayDay = payDayMin.trim() !== '' ? Number(payDayMin) : undefined;
+    const maxPayDay = payDayMax.trim() !== '' ? Number(payDayMax) : undefined;
+
     const filtered = children.filter((child) => {
+      const childAge = getAge(child.dateOfBirth);
+
       if (selectedDivisionName && !equalsNormalizedText(child.divisionName, selectedDivisionName)) return false;
+      if (groupFilter && !equalsNormalizedText(child.groupName, groupFilter)) return false;
       if (statusFilter && child.status !== statusFilter) return false;
       if (schedFilter === 'FullDay' && child.scheduleType !== 'FullDay') return false;
       if (schedFilter === 'HalfDay' && child.scheduleType !== 'HalfDay') return false;
+      if (minAge !== undefined && Number.isFinite(minAge) && childAge < minAge) return false;
+      if (maxAge !== undefined && Number.isFinite(maxAge) && childAge > maxAge) return false;
+      if (minFee !== undefined && Number.isFinite(minFee) && child.monthlyFee < minFee) return false;
+      if (maxFee !== undefined && Number.isFinite(maxFee) && child.monthlyFee > maxFee) return false;
+      if (minPayDay !== undefined && Number.isFinite(minPayDay) && child.paymentDay < minPayDay) return false;
+      if (maxPayDay !== undefined && Number.isFinite(maxPayDay) && child.paymentDay > maxPayDay) return false;
       return true;
     });
 
@@ -268,7 +319,21 @@ export default function ChildrenPage() {
     });
 
     return sorted;
-  }, [children, divisions, divFilter, schedFilter, sortBy, statusFilter]);
+  }, [
+    children,
+    divisions,
+    divFilter,
+    groupFilter,
+    statusFilter,
+    schedFilter,
+    ageMin,
+    ageMax,
+    feeMin,
+    feeMax,
+    payDayMin,
+    payDayMax,
+    sortBy,
+  ]);
 
   const activeCount   = summary?.activeCount ?? processedChildren.filter((c) => c.status === 'Active').length;
   const inactiveCount = summary?.inactiveCount ?? processedChildren.filter((c) => c.status !== 'Active').length;
@@ -305,6 +370,7 @@ export default function ChildrenPage() {
             className="sm:max-w-xs"
           />
           <Select value={divFilter} onChange={(e) => setDivFilter(e.target.value)} options={divisionOptions} className="sm:w-44" />
+          <Select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} options={groupOptions} className="sm:w-44" />
           <Select value={statusFilter} onChange={(e) => setStatus(e.target.value)} options={STATUS_OPTIONS} className="sm:w-40" />
           <Select value={schedFilter}  onChange={(e) => setSched(e.target.value)}  options={SCHEDULE_OPTIONS} className="sm:w-44" />
           <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} options={SORT_OPTIONS} className="sm:w-60" />
@@ -323,12 +389,69 @@ export default function ChildrenPage() {
             </button>
           </div>
         </div>
-        {(divFilter || statusFilter || schedFilter || sortBy !== 'name_asc') && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mt-3 pt-3 border-t border-white-border dark:border-gray-700/60">
+          <Input
+            type="number"
+            min={1}
+            value={ageMin}
+            onChange={(e) => setAgeMin(e.target.value)}
+            placeholder="Yaş min"
+            inputSize="sm"
+          />
+          <Input
+            type="number"
+            min={1}
+            value={ageMax}
+            onChange={(e) => setAgeMax(e.target.value)}
+            placeholder="Yaş max"
+            inputSize="sm"
+          />
+          <Input
+            type="number"
+            min={0}
+            value={feeMin}
+            onChange={(e) => setFeeMin(e.target.value)}
+            placeholder="Ödəniş min (₼)"
+            inputSize="sm"
+          />
+          <Input
+            type="number"
+            min={0}
+            value={feeMax}
+            onChange={(e) => setFeeMax(e.target.value)}
+            placeholder="Ödəniş max (₼)"
+            inputSize="sm"
+          />
+          <Input
+            type="number"
+            min={1}
+            max={28}
+            value={payDayMin}
+            onChange={(e) => setPayDayMin(e.target.value)}
+            placeholder="Ödəniş günü min"
+            inputSize="sm"
+          />
+          <Input
+            type="number"
+            min={1}
+            max={28}
+            value={payDayMax}
+            onChange={(e) => setPayDayMax(e.target.value)}
+            placeholder="Ödəniş günü max"
+            inputSize="sm"
+          />
+        </div>
+        {(divFilter || groupFilter || statusFilter || schedFilter || ageMin || ageMax || feeMin || feeMax || payDayMin || payDayMax || sortBy !== 'name_asc') && (
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white-border dark:border-gray-700/60">
             <span className="text-xs text-gray-400">Aktiv filter:</span>
             {divFilter && (
               <button onClick={() => setDivFilter('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-green-50 text-green-700 rounded-full hover:bg-green-100">
                 {divisions.find((d) => String(d.id) === divFilter)?.name ?? divFilter} ×
+              </button>
+            )}
+            {groupFilter && (
+              <button onClick={() => setGroupFilter('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700 rounded-full hover:bg-emerald-100">
+                Qrup: {groupFilter} ×
               </button>
             )}
             {statusFilter && (
@@ -346,6 +469,42 @@ export default function ChildrenPage() {
                 Sıralama: {SORT_OPTIONS.find((opt) => opt.value === sortBy)?.label ?? 'Ad (A-Z)'} ×
               </button>
             )}
+            {ageMin && (
+              <button onClick={() => setAgeMin('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-cyan-50 text-cyan-700 rounded-full hover:bg-cyan-100">
+                Yaş min: {ageMin} ×
+              </button>
+            )}
+            {ageMax && (
+              <button onClick={() => setAgeMax('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-cyan-50 text-cyan-700 rounded-full hover:bg-cyan-100">
+                Yaş max: {ageMax} ×
+              </button>
+            )}
+            {feeMin && (
+              <button onClick={() => setFeeMin('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-amber-50 text-amber-700 rounded-full hover:bg-amber-100">
+                Ödəniş min: ₼{feeMin} ×
+              </button>
+            )}
+            {feeMax && (
+              <button onClick={() => setFeeMax('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-amber-50 text-amber-700 rounded-full hover:bg-amber-100">
+                Ödəniş max: ₼{feeMax} ×
+              </button>
+            )}
+            {payDayMin && (
+              <button onClick={() => setPayDayMin('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-fuchsia-50 text-fuchsia-700 rounded-full hover:bg-fuchsia-100">
+                Gün min: {payDayMin} ×
+              </button>
+            )}
+            {payDayMax && (
+              <button onClick={() => setPayDayMax('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-fuchsia-50 text-fuchsia-700 rounded-full hover:bg-fuchsia-100">
+                Gün max: {payDayMax} ×
+              </button>
+            )}
+            <button
+              onClick={clearAllFilters}
+              className="ml-auto px-2 py-0.5 text-xs text-gray-500 hover:text-gray-700"
+            >
+              Hamısını sıfırla
+            </button>
           </div>
         )}
       </div>
@@ -367,7 +526,7 @@ export default function ChildrenPage() {
           icon={<Users size={28} />}
           title="Uşaq tapılmadı"
           description="Axtarış kriteriyalarınıza uyğun uşaq yoxdur."
-          action={{ label: 'Filterləri sıfırla', onClick: () => { setSearch(''); setDivFilter(''); setStatus(''); setSched(''); setSortBy('name_asc'); } }}
+          action={{ label: 'Filterləri sıfırla', onClick: clearAllFilters }}
         />
       ) : view === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
