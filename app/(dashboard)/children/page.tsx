@@ -362,19 +362,14 @@ export default function ChildrenPage() {
 
       {/* Filters */}
       <div className="bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-2xl p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <SearchBar
             value={search}
             onChange={setSearch}
             placeholder="Ad, soyad və ya telefon axtar..."
-            className="sm:max-w-xs"
+            className="w-full sm:max-w-md"
           />
-          <Select value={divFilter} onChange={(e) => setDivFilter(e.target.value)} options={divisionOptions} className="sm:w-44" />
-          <Select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} options={groupOptions} className="sm:w-44" />
-          <Select value={statusFilter} onChange={(e) => setStatus(e.target.value)} options={STATUS_OPTIONS} className="sm:w-40" />
-          <Select value={schedFilter}  onChange={(e) => setSched(e.target.value)}  options={SCHEDULE_OPTIONS} className="sm:w-44" />
-          <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} options={SORT_OPTIONS} className="sm:w-60" />
-          <div className="flex items-center gap-1 ml-auto bg-gray-50 dark:bg-gray-800/60 rounded-lg p-1">
+          <div className="flex items-center gap-1 sm:ml-auto bg-gray-50 dark:bg-gray-800/60 rounded-lg p-1 self-start sm:self-auto">
             <button
               onClick={() => setView('grid')}
               className={cn('p-2 rounded-md transition-all', view === 'grid' ? 'bg-white dark:bg-gray-700 shadow-sm text-green-600' : 'text-gray-400 dark:text-gray-500')}
@@ -389,14 +384,20 @@ export default function ChildrenPage() {
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mt-3 pt-3 border-t border-white-border dark:border-gray-700/60">
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          <Select value={divFilter} onChange={(e) => setDivFilter(e.target.value)} options={divisionOptions} />
+          <Select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} options={groupOptions} />
+          <Select value={statusFilter} onChange={(e) => setStatus(e.target.value)} options={STATUS_OPTIONS} />
+          <Select value={schedFilter}  onChange={(e) => setSched(e.target.value)}  options={SCHEDULE_OPTIONS} />
+          <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} options={SORT_OPTIONS} />
+          
           <Input
             type="number"
             min={1}
             value={ageMin}
             onChange={(e) => setAgeMin(e.target.value)}
             placeholder="Yaş min"
-            inputSize="sm"
           />
           <Input
             type="number"
@@ -404,7 +405,6 @@ export default function ChildrenPage() {
             value={ageMax}
             onChange={(e) => setAgeMax(e.target.value)}
             placeholder="Yaş max"
-            inputSize="sm"
           />
           <Input
             type="number"
@@ -412,7 +412,6 @@ export default function ChildrenPage() {
             value={feeMin}
             onChange={(e) => setFeeMin(e.target.value)}
             placeholder="Ödəniş min (₼)"
-            inputSize="sm"
           />
           <Input
             type="number"
@@ -420,7 +419,6 @@ export default function ChildrenPage() {
             value={feeMax}
             onChange={(e) => setFeeMax(e.target.value)}
             placeholder="Ödəniş max (₼)"
-            inputSize="sm"
           />
           <Input
             type="number"
@@ -429,7 +427,6 @@ export default function ChildrenPage() {
             value={payDayMin}
             onChange={(e) => setPayDayMin(e.target.value)}
             placeholder="Ödəniş günü min"
-            inputSize="sm"
           />
           <Input
             type="number"
@@ -438,7 +435,6 @@ export default function ChildrenPage() {
             value={payDayMax}
             onChange={(e) => setPayDayMax(e.target.value)}
             placeholder="Ödəniş günü max"
-            inputSize="sm"
           />
         </div>
         {(divFilter || groupFilter || statusFilter || schedFilter || ageMin || ageMax || feeMin || feeMax || payDayMin || payDayMax || sortBy !== 'name_asc') && (
