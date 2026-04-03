@@ -577,6 +577,8 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
             <InfoCard icon={Phone}      label="Valideyn telefonu" value={formatPhone(child.parentPhone)} />
             <InfoCard icon={Mail}       label="E-poçt"            value={child.parentEmail || '-'} />
             <InfoCard icon={User}       label="Valideyn adı"      value={child.parentFullName} />
+            <InfoCard icon={User}       label="Əlavə valideyn"    value={child.secondParentFullName || '-'} />
+            <InfoCard icon={Phone}      label="Əlavə telefon"     value={child.secondParentPhone ? formatPhone(child.secondParentPhone) : '-'} />
             <InfoCard icon={DollarSign} label="Aylıq ödəniş"      value={formatCurrency(child.monthlyFee)} />
             <InfoCard icon={Calendar}   label="Ödəniş günü"       value={`${child.paymentDay}-i`} />
             <InfoCard icon={BookOpen}   label="Bölmə"             value={child.divisionName} />
