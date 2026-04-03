@@ -35,14 +35,9 @@ const SCHEDULE_OPTIONS = [
   { value: 'HalfDay', label: 'Yarım günlük' },
 ];
 
-const DEBT_OPTIONS = [
-  { value: '', label: 'Bütün ödəniş statusu' },
-  { value: 'debt_only', label: 'Yalnız borclular' },
-];
-
-const BIRTHDAY_OPTIONS = [
-  { value: '', label: 'Ad günü (hamısı)' },
-  { value: 'this_month', label: 'Bu ay ad günü olanlar' },
+const INSIGHT_OPTIONS = [
+  { value: '', label: 'Maraqlı filter (hamısı)' },
+  { value: 'recent_30_days', label: 'Son 30 gündə qeydiyyat' },
 ];
 
 const SORT_OPTIONS = [
@@ -66,8 +61,7 @@ export default function ChildrenPage() {
   const [ageMax, setAgeMax]         = useState('');
   const [feeMin, setFeeMin]         = useState('');
   const [feeMax, setFeeMax]         = useState('');
-  const [debtFilter, setDebtFilter] = useState('');
-  const [birthdayFilter, setBirthdayFilter] = useState('');
+  const [insightFilter, setInsightFilter] = useState('');
   const [sortBy, setSortBy]         = useState('name_asc');
   const [children, setChildren]     = useState<Child[]>([]);
   const [loading, setLoading]       = useState(true);
@@ -268,8 +262,7 @@ export default function ChildrenPage() {
     setAgeMax('');
     setFeeMin('');
     setFeeMax('');
-    setDebtFilter('');
-    setBirthdayFilter('');
+    setInsightFilter('');
     setSortBy('name_asc');
   };
 
@@ -282,7 +275,9 @@ export default function ChildrenPage() {
     const maxAge = ageMax.trim() !== '' ? Number(ageMax) : undefined;
     const minFee = feeMin.trim() !== '' ? Number(feeMin) : undefined;
     const maxFee = feeMax.trim() !== '' ? Number(feeMax) : undefined;
-    const currentMonth = new Date().getMonth();
+    const now = new Date();
+    const recentCutoff = new Date(now);
+    recentCutoff.setDate(now.getDate() - 30);
 
     const filtered = children.filter((child) => {
       const childAge = getAge(child.dateOfBirth);
@@ -296,10 +291,10 @@ export default function ChildrenPage() {
       if (maxAge !== undefined && Number.isFinite(maxAge) && childAge > maxAge) return false;
       if (minFee !== undefined && Number.isFinite(minFee) && child.monthlyFee < minFee) return false;
       if (maxFee !== undefined && Number.isFinite(maxFee) && child.monthlyFee > maxFee) return false;
-      if (debtFilter === 'debt_only' && !(typeof child.totalDebt === 'number' && child.totalDebt > 0)) return false;
-      if (birthdayFilter === 'this_month') {
-        const birthMonth = new Date(child.dateOfBirth).getMonth();
-        if (Number.isNaN(birthMonth) || birthMonth !== currentMonth) return false;
+      if (insightFilter === 'recent_30_days') {
+        if (!child.registrationDate) return false;
+        const registrationDate = new Date(child.registrationDate);
+        if (Number.isNaN(registrationDate.getTime()) || registrationDate < recentCutoff) return false;
       }
       return true;
     });
@@ -342,8 +337,7 @@ export default function ChildrenPage() {
     ageMax,
     feeMin,
     feeMax,
-    debtFilter,
-    birthdayFilter,
+    insightFilter,
     sortBy,
   ]);
 
@@ -432,10 +426,9 @@ export default function ChildrenPage() {
             onChange={(e) => setFeeMax(e.target.value)}
             placeholder="Ödəniş max (₼)"
           />
-          <Select value={debtFilter} onChange={(e) => setDebtFilter(e.target.value)} options={DEBT_OPTIONS} />
-          <Select value={birthdayFilter} onChange={(e) => setBirthdayFilter(e.target.value)} options={BIRTHDAY_OPTIONS} />
+          <Select value={insightFilter} onChange={(e) => setInsightFilter(e.target.value)} options={INSIGHT_OPTIONS} />
         </div>
-        {(divFilter || groupFilter || statusFilter || schedFilter || ageMin || ageMax || feeMin || feeMax || debtFilter || birthdayFilter || sortBy !== 'name_asc') && (
+        {(divFilter || groupFilter || statusFilter || schedFilter || ageMin || ageMax || feeMin || feeMax || insightFilter || sortBy !== 'name_asc') && (
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white-border dark:border-gray-700/60">
             <span className="text-xs text-gray-400">Aktiv filter:</span>
             {divFilter && (
@@ -483,14 +476,9 @@ export default function ChildrenPage() {
                 Ödəniş max: ₼{feeMax} ×
               </button>
             )}
-            {debtFilter && (
-              <button onClick={() => setDebtFilter('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-rose-50 text-rose-700 rounded-full hover:bg-rose-100">
-                Yalnız borclular ×
-              </button>
-            )}
-            {birthdayFilter && (
-              <button onClick={() => setBirthdayFilter('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-sky-50 text-sky-700 rounded-full hover:bg-sky-100">
-                Bu ay ad günü ×
+            {insightFilter && (
+              <button onClick={() => setInsightFilter('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-sky-50 text-sky-700 rounded-full hover:bg-sky-100">
+                Son 30 gündə qeydiyyat ×
               </button>
             )}
             <button
