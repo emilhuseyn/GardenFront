@@ -142,12 +142,39 @@ export default function ListsPage() {
         const uniqueChildren = Array.from(new Map(allChildren.map((c) => [c.id, c])).values());
         const debtByChildId = new Map(debtors.map((d) => [d.childId, d]));
 
+        const parentNameById = new Map<number, string>();
+        const missingParentIds = uniqueChildren
+          .filter((c) => !c.parentFullName?.trim())
+          .map((c) => c.id);
+
+        if (missingParentIds.length > 0) {
+          const batchSize = 20;
+          for (let i = 0; i < missingParentIds.length; i += batchSize) {
+            if (!active) break;
+
+            const batch = missingParentIds.slice(i, i + batchSize);
+            const detailResults = await Promise.all(
+              batch.map((id) =>
+                childrenApi.getById(id)
+                  .then((detail) => ({ id, name: detail.parentFullName }))
+                  .catch(() => ({ id, name: '' }))
+              )
+            );
+
+            for (const result of detailResults) {
+              if (result.name?.trim()) {
+                parentNameById.set(result.id, result.name.trim());
+              }
+            }
+          }
+        }
+
         const mapped: ListRow[] = uniqueChildren.map((child) => {
           const debtInfo = debtByChildId.get(child.id);
           return {
             childId: child.id,
             childFullName: `${child.firstName} ${child.lastName}`.trim(),
-            parentFullName: child.parentFullName,
+            parentFullName: child.parentFullName?.trim() || parentNameById.get(child.id) || '-',
             groupName: child.groupName,
             divisionName: child.divisionName,
             parentPhone: child.parentPhone,
