@@ -1,4 +1,5 @@
 ﻿'use client';
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -45,6 +46,7 @@ export default function PaymentsPage() {
 
   const [tableRefreshKey, setTableRefreshKey] = useState(0);
   const [groups, setGroups] = useState<{ value: string; label: string }[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(true);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [paymentSearch, setPaymentSearch] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<'all' | 'has-debt' | 'has-partial' | 'full'>('all');
@@ -60,7 +62,7 @@ export default function PaymentsPage() {
   useEffect(() => {
     groupsApi.getAll().then((gs) => {
       setGroups([{ value: '', label: 'Bütün qruplar' }, ...gs.map((g) => ({ value: String(g.id), label: g.name }))]);
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setLoadingGroups(false));
   }, []);
 
   useEffect(() => {
@@ -208,6 +210,26 @@ export default function PaymentsPage() {
   };
 
   const totalDebt = debtors.reduce((s, d) => s + d.totalDebt, 0);
+  const showBootLoader = loadingDebtors || loadingReports || loadingGroups;
+
+  if (showBootLoader) {
+    return (
+      <div className="fixed inset-0 z-[90] bg-white/95 dark:bg-[#0f1117]/95 backdrop-blur-sm flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 px-6 text-center">
+          <Image
+            src="/KinderGardenLogo.png"
+            alt="KinderGarden"
+            width={220}
+            height={64}
+            priority
+            className="h-16 w-auto object-contain"
+          />
+          <div className="w-9 h-9 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-500 dark:text-gray-400">Ödənişlər yüklənir...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
