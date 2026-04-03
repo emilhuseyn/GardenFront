@@ -18,7 +18,7 @@ export const groupsApi = {
   },
 
   getLogs: async (id: number) => {
-    const res = await apiClient.get(`/api/groups/${id}/logs`);
+    const res = await apiClient.get(`/api/groupses/${id}/logs`);
     return unwrap<GroupLogResponse[]>(res);
   },
 
