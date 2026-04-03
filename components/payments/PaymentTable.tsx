@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Avatar } from '@/components/ui/Avatar';
@@ -41,12 +41,14 @@ interface PaymentTableProps {
   search?: string;
   statusFilter?: 'all' | 'has-debt' | 'has-partial' | 'full';
   sortBy?: 'name' | 'fee';
+  onInitialLoadDone?: () => void;
 }
 
-export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', statusFilter = 'all', sortBy = 'name' }: PaymentTableProps) {
+export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', statusFilter = 'all', sortBy = 'name', onInitialLoadDone }: PaymentTableProps) {
   const router = useRouter();
   const [rows, setRows] = useState<ChildPayRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const initialLoadNotifiedRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -94,7 +96,13 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
       } catch {
         if (active) setRows([]);
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          if (!initialLoadNotifiedRef.current) {
+            initialLoadNotifiedRef.current = true;
+            onInitialLoadDone?.();
+          }
+        }
       }
     };
 
