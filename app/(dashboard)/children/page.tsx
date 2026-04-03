@@ -177,7 +177,7 @@ export default function ChildrenPage() {
           };
 
           const fetchAllPages = async (filters: ChildFilters) => {
-            const pageSize = 100;
+            const pageSize = 0;
             const firstPage = await childrenApi.getAll({ ...filters, page: 1, pageSize });
             let allItems = [...firstPage.items];
 
