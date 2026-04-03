@@ -18,7 +18,7 @@ import { Users } from 'lucide-react';
 import { childrenApi } from '@/lib/api/children';
 import { divisionsApi } from '@/lib/api/groups';
 import { useDebounce } from '@/lib/hooks/useDebounce';
-import { getAge } from '@/lib/utils/format';
+import { equalsNormalizedText, getAge } from '@/lib/utils/format';
 import { toast } from 'sonner';
 import type { Child, Division } from '@/types';
 
@@ -183,7 +183,7 @@ export default function ChildrenPage() {
       : undefined;
 
     const filtered = children.filter((child) => {
-      if (selectedDivisionName && child.divisionName !== selectedDivisionName) return false;
+      if (selectedDivisionName && !equalsNormalizedText(child.divisionName, selectedDivisionName)) return false;
       if (statusFilter && child.status !== statusFilter) return false;
       if (schedFilter === 'FullDay' && child.scheduleType !== 'FullDay') return false;
       if (schedFilter === 'HalfDay' && child.scheduleType !== 'HalfDay') return false;

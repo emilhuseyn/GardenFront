@@ -5,7 +5,7 @@ import { MoreHorizontal, Eye, Pencil, UserX, UserCheck, Trash2 } from 'lucide-re
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { getAge } from '@/lib/utils/format';
+import { getAge, isEnglishDivisionName } from '@/lib/utils/format';
 import { SCHEDULE_LABELS } from '@/lib/utils/constants';
 import { cn } from '@/lib/utils/constants';
 import type { Child } from '@/types';
@@ -129,7 +129,7 @@ export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDelete
           <tbody className="divide-y divide-gray-50 dark:divide-gray-700/40">
             {childList.map((child) => {
               const fullName = `${child.firstName} ${child.lastName}`;
-              const isEnglish = child.divisionName?.toLowerCase().includes('ingilis') || child.divisionName?.toLowerCase().includes('english');
+              const isEnglish = isEnglishDivisionName(child.divisionName);
               return (
               <tr
                 key={child.id}
@@ -159,7 +159,7 @@ export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDelete
                 </td>
                 <td className="px-4 py-3.5 hidden lg:table-cell">
                   <Badge variant={isEnglish ? 'green' : 'blue'} size="sm">
-                    {isEnglish ? '🇬🇧 İngilis' : '🇷🇺 Rus'}
+                    {isEnglish ? '🇬🇧' : '🇷🇺'} {child.divisionName}
                   </Badge>
                 </td>
                 <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 hidden lg:table-cell">

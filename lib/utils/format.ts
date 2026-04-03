@@ -81,6 +81,30 @@ export function formatPhoneInput(value: string): string {
   return value;
 }
 
+// ─── Text normalization helpers ──────────────────────────────────────────────
+export function normalizeText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('az')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function equalsNormalizedText(a?: string, b?: string): boolean {
+  if (!a || !b) return false;
+  return normalizeText(a) === normalizeText(b);
+}
+
+export function isEnglishDivisionName(value?: string): boolean {
+  if (!value) return false;
+  const normalized = normalizeText(value);
+  return normalized.includes('ingilis')
+    || normalized.includes('english')
+    || normalized === 'en'
+    || normalized.startsWith('en ');
+}
+
 // ─── Name Formatting ──────────────────────────────────────────────────────────
 export function getInitials(name: string): string {
   return name
