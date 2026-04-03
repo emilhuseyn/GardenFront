@@ -42,6 +42,17 @@ function fmtMonths(months: number[]) {
     .join(', ');
 }
 
+function sanitizeFilePart(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ı/g, 'i')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 40);
+}
+
 async function exportDebtWorkbook(rows: ListRow[], grouped: GroupDebtRow[], fileName: string) {
   const XLSX = await import('xlsx');
 
@@ -252,9 +263,33 @@ export default function ListsPage() {
 
   const totalDebt = filteredRows.reduce((sum, r) => sum + r.totalDebt, 0);
 
+  const buildFilteredFileName = () => {
+    const parts = ['sagird_siyahi'];
+
+    if (groupFilter !== 'all') {
+      parts.push(`qrup_${sanitizeFilePart(groupFilter)}`);
+    }
+
+    if (divisionFilter !== 'all') {
+      parts.push(`bolme_${sanitizeFilePart(divisionFilter)}`);
+    }
+
+    if (search.trim()) {
+      const searchPart = sanitizeFilePart(search.trim());
+      if (searchPart) parts.push(`axtaris_${searchPart}`);
+    }
+
+    if (viewMode === 'grouped') {
+      parts.push('qruplar_uzre');
+    }
+
+    parts.push('filtered');
+    return `${parts.join('_')}.xlsx`;
+  };
+
   const handleExportFiltered = async () => {
     try {
-      await exportDebtWorkbook(filteredRows, groupedRows, 'sagird_siyahi_filtered.xlsx');
+      await exportDebtWorkbook(filteredRows, groupedRows, buildFilteredFileName());
       toast.success('Filterə görə Excel yükləndi');
     } catch {
       toast.error('Excel export alınmadı');
