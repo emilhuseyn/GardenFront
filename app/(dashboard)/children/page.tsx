@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, LayoutGrid, List } from 'lucide-react';
 import Link from 'next/link';
@@ -17,10 +17,11 @@ import { cn } from '@/lib/utils/constants';
 import { Users } from 'lucide-react';
 import { childrenApi } from '@/lib/api/children';
 import { divisionsApi } from '@/lib/api/groups';
+import { reportsApi } from '@/lib/api/reports';
 import { useDebounce } from '@/lib/hooks/useDebounce';
 import { equalsNormalizedText, getAge } from '@/lib/utils/format';
 import { toast } from 'sonner';
-import type { Child, ChildFilters, Division } from '@/types';
+import type { ActiveInactive, Child, ChildFilters, Division } from '@/types';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Bütün statuslar' },
@@ -54,6 +55,7 @@ export default function ChildrenPage() {
   const [children, setChildren]     = useState<Child[]>([]);
   const [loading, setLoading]       = useState(true);
   const [divisions, setDivisions]   = useState<Division[]>([]);
+  const [summary, setSummary]       = useState<ActiveInactive | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<Child[]>([]);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -70,6 +72,19 @@ export default function ChildrenPage() {
       setViewInternal(saved);
     }
   }, []);
+
+  const refreshSummary = useCallback(async () => {
+    try {
+      const data = await reportsApi.getActiveInactive();
+      setSummary(data);
+    } catch {
+      // keep UI responsive even if summary endpoint fails
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshSummary();
+  }, [refreshSummary]);
 
   const handleDeleteRequest = (id: number) => {
     const child = children.find((c) => c.id === id);
@@ -97,6 +112,7 @@ export default function ChildrenPage() {
           .forEach((k) => sessionStorage.removeItem(k));
         return updated;
       });
+      void refreshSummary();
       setDeleteTargets([]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Silinmə xətası');
@@ -126,6 +142,7 @@ export default function ChildrenPage() {
           .forEach((k) => sessionStorage.removeItem(k));
         return updated;
       });
+      void refreshSummary();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Xəta baş verdi, adminlə əlaqə saxlayın');
     }
@@ -243,9 +260,9 @@ export default function ChildrenPage() {
     return sorted;
   }, [children, divisions, divFilter, schedFilter, sortBy, statusFilter]);
 
-  const activeCount   = processedChildren.filter((c) => c.status === 'Active').length;
-  const inactiveCount = processedChildren.filter((c) => c.status !== 'Active').length;
-  const totalShown    = processedChildren.length;
+  const activeCount   = summary?.activeCount ?? processedChildren.filter((c) => c.status === 'Active').length;
+  const inactiveCount = summary?.inactiveCount ?? processedChildren.filter((c) => c.status !== 'Active').length;
+  const totalShown    = summary ? summary.activeCount + summary.inactiveCount : processedChildren.length;
 
   return (
     <div className="space-y-6">
