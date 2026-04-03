@@ -32,10 +32,10 @@ const TABS = [
 ];
 
 const statusColor: Record<string, string> = {
-  present:     'bg-green-100 text-green-700 ring-1 ring-green-200',
-  absent:      'bg-rose-100 text-rose-700 ring-1 ring-rose-200',
-  inactive:    'bg-gray-50 text-gray-300 ring-1 ring-gray-100',
-  not_counted: 'bg-violet-100 text-violet-400 ring-1 ring-violet-200',
+  present:     'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 ring-1 ring-green-200 dark:ring-green-900/50',
+  absent:      'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 ring-1 ring-rose-200 dark:ring-rose-900/50',
+  inactive:    'bg-gray-50 dark:bg-gray-800/50 text-gray-400 dark:text-gray-500 ring-1 ring-gray-200 dark:ring-gray-700',
+  not_counted: 'bg-violet-100 dark:bg-violet-900/30 text-violet-500 dark:text-violet-400 ring-1 ring-violet-200 dark:ring-violet-900/50',
 };
 
 type TimelineEventType = 'registration' | 'group' | 'payment' | 'attendance' | 'note';
@@ -52,18 +52,18 @@ type TimelineEvent = {
 const EVENT_STYLE: Record<TimelineEvent['tone'], { dot: string; icon: string; card: string }> = {
   success: {
     dot: 'bg-green-500',
-    icon: 'text-green-700 bg-green-50',
-    card: 'border-green-100 bg-gradient-to-r from-white to-green-50/40',
+    icon: 'text-green-700 bg-green-50 dark:text-green-400 dark:bg-green-900/40',
+    card: 'border-green-100 dark:border-green-900/30 bg-gradient-to-r from-white dark:from-[#1e2130] to-green-50/40 dark:to-green-900/20',
   },
   warning: {
     dot: 'bg-accent-rose',
-    icon: 'text-accent-rose bg-rose-50',
-    card: 'border-rose-100 bg-gradient-to-r from-white to-rose-50/40',
+    icon: 'text-accent-rose bg-rose-50 dark:text-rose-400 dark:bg-rose-900/40',
+    card: 'border-rose-100 dark:border-rose-900/30 bg-gradient-to-r from-white dark:from-[#1e2130] to-rose-50/40 dark:to-rose-900/20',
   },
   neutral: {
     dot: 'bg-accent-blue',
-    icon: 'text-accent-blue bg-blue-50',
-    card: 'border-blue-100 bg-gradient-to-r from-white to-blue-50/40',
+    icon: 'text-accent-blue bg-blue-50 dark:text-blue-400 dark:bg-blue-900/40',
+    card: 'border-blue-100 dark:border-blue-900/30 bg-gradient-to-r from-white dark:from-[#1e2130] to-blue-50/40 dark:to-blue-900/20',
   },
 };
 
@@ -386,13 +386,13 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
         childName={`${child.firstName} ${child.lastName}`}
         loading={actionLoading}
       />
-      <div className="relative rounded-2xl overflow-hidden mb-6 p-6 bg-gradient-to-br from-green-400/10 to-accent-blue/5 border border-white-border">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-6 justify-between">
+      <div className="relative rounded-2xl overflow-hidden mb-6 p-6 bg-gradient-to-br from-green-400/10 to-accent-blue/5 dark:from-green-400/5 dark:to-accent-blue/5 border border-white-border dark:border-gray-700/60">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-6 justify-between w-full">
           <div className="flex items-center gap-5">
             <Avatar name={`${child.firstName} ${child.lastName}`} size="2xl" ring />
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-2xl font-bold text-gray-900 font-display">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-50 font-display">
                   {child.firstName} {child.lastName}
                 </h2>
                 <ChildStatusBadge isActive={child.status === 'Active'} />
@@ -474,7 +474,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
         </div>
       </div>
 
-      <div className="flex gap-1 mb-6 bg-gray-50 p-1 rounded-xl">
+      <div className="flex gap-1 mb-6 bg-gray-50 dark:bg-[#1e2130]/60 p-1 rounded-xl">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -484,8 +484,8 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
               className={cn(
                 'flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-sm font-medium rounded-lg transition-all',
                 activeTab === tab.id
-                  ? 'bg-white shadow-sm text-green-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-white dark:bg-gray-800 shadow-sm text-green-600 dark:text-green-400'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               )}
             >
               <Icon size={14} />
@@ -498,34 +498,34 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
       <motion.div key={activeTab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
         {activeTab === 'timeline' && (
           <div className="space-y-4">
-            <div className="rounded-2xl border border-white-border p-4 sm:p-5 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.12),transparent_50%),radial-gradient(circle_at_bottom_left,rgba(34,197,94,0.12),transparent_45%)]">
+            <div className="rounded-2xl border border-white-border dark:border-gray-700/60 p-4 sm:p-5 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.12),transparent_50%),radial-gradient(circle_at_bottom_left,rgba(34,197,94,0.12),transparent_45%)] dark:bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.05),transparent_50%),radial-gradient(circle_at_bottom_left,rgba(34,197,94,0.05),transparent_45%)]">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Zaman Xətti 360</p>
-                  <h4 className="text-lg font-semibold text-gray-900 font-display mt-0.5">Nə baş verib?</h4>
+                  <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Zaman Xətti 360</p>
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-50 font-display mt-0.5">Nə baş verib?</h4>
                 </div>
                 <Badge variant="blue" size="sm">Son 120 günün xülasəsi</Badge>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
-                <div className="rounded-xl border border-white-border bg-white/80 p-3">
-                  <p className="text-[11px] text-gray-500">Son hadisə</p>
-                  <p className="text-sm font-semibold text-gray-900 mt-1 line-clamp-1">{latestEvent?.title || 'Hadisə yoxdur'}</p>
-                  <p className="text-xs text-gray-500 mt-1">{latestEvent ? formatDate(new Date(latestEvent.date), 'dd MMMM yyyy') : '-'}</p>
+                <div className="rounded-xl border border-white-border dark:border-gray-700/60 bg-white/80 dark:bg-[#1e2130]/80 p-3">
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Son hadisə</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-50 mt-1 line-clamp-1">{latestEvent?.title || 'Hadisə yoxdur'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{latestEvent ? formatDate(new Date(latestEvent.date), 'dd MMMM yyyy') : '-'}</p>
                 </div>
-                <div className="rounded-xl border border-white-border bg-white/80 p-3">
-                  <p className="text-[11px] text-gray-500">Son ödəniş statusu</p>
-                  <p className="text-sm font-semibold text-gray-900 mt-1 line-clamp-1">
+                <div className="rounded-xl border border-white-border dark:border-gray-700/60 bg-white/80 dark:bg-[#1e2130]/80 p-3">
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Son ödəniş statusu</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-50 mt-1 line-clamp-1">
                     {latestPayment ? getPaymentMeta(latestPayment.status).statusLabel : 'Ödəniş yoxdur'}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     {latestPayment ? `${AZ_MONTHS[latestPayment.month - 1]} ${latestPayment.year}` : '-'}
                   </p>
                 </div>
-                <div className="rounded-xl border border-white-border bg-white/80 p-3">
-                  <p className="text-[11px] text-gray-500">30 günlük davamiyyət</p>
-                  <p className="text-sm font-semibold text-gray-900 mt-1">{recent30Rate}%</p>
-                  <p className="text-xs text-gray-500 mt-1">{recent30Present}/{recent30Attendance.length} gün iştirak</p>
+                <div className="rounded-xl border border-white-border dark:border-gray-700/60 bg-white/80 dark:bg-[#1e2130]/80 p-3">
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">30 günlük davamiyyət</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-50 mt-1">{recent30Rate}%</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{recent30Present}/{recent30Attendance.length} gün iştirak</p>
                 </div>
               </div>
             </div>
@@ -534,7 +534,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
               <div className="absolute left-[10px] sm:left-[12px] top-2 bottom-2 w-px bg-gradient-to-b from-accent-blue/40 via-green-300/40 to-accent-rose/40" />
 
               {timelineEvents.length === 0 && (
-                <div className="rounded-xl border border-white-border bg-white p-4 text-sm text-gray-500">
+                <div className="rounded-xl border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#1e2130] p-4 text-sm text-gray-500 dark:text-gray-400">
                   Hələ timeline hadisəsi yoxdur.
                 </div>
               )}
@@ -544,17 +544,17 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                 const style = EVENT_STYLE[event.tone];
                 return (
                   <div key={event.id} className="relative mb-3">
-                    <span className={cn('absolute -left-6 sm:-left-7 top-5 block h-2.5 w-2.5 rounded-full ring-2 ring-white', style.dot)} />
+                    <span className={cn('absolute -left-6 sm:-left-7 top-5 block h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-[#1e2130]', style.dot)} />
                     <div className={cn('flex items-start gap-3 rounded-xl border p-3.5 shadow-sm', style.card)}>
                       <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', style.icon)}>
                         <Icon size={15} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                          <p className="text-sm font-semibold text-gray-900">{event.title}</p>
-                          <span className="text-[11px] text-gray-500">{formatDate(new Date(event.date), 'dd MMM yyyy')}</span>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-gray-50">{event.title}</p>
+                          <span className="text-[11px] text-gray-500 dark:text-gray-400">{formatDate(new Date(event.date), 'dd MMM yyyy')}</span>
                         </div>
-                        <p className="text-sm text-gray-600 mt-1">{event.description}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{event.description}</p>
                       </div>
                     </div>
                   </div>
@@ -589,42 +589,42 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
         {activeTab === 'attendance' && (
           <div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-              <div className="bg-green-50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-green-600 font-display">{presentDays}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Gəldi</p>
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400 font-display">{presentDays}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Gəldi</p>
               </div>
-              <div className="bg-rose-50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-accent-rose font-display">{absentDays}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Gəlmədi</p>
+              <div className="bg-rose-50 dark:bg-rose-900/20 rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-accent-rose dark:text-rose-400 font-display">{absentDays}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Gəlmədi</p>
               </div>
-              <div className="bg-blue-50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-accent-blue font-display">
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-accent-blue dark:text-blue-400 font-display">
                   {workDays > 0 ? Math.round((presentDays / workDays) * 100) : 0}%
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">Davamiyyət</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Davamiyyət</p>
               </div>
-              <div className="bg-violet-50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-violet-500 font-display">{notCountedDays}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Sayılmır</p>
+              <div className="bg-violet-50 dark:bg-violet-900/20 rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-violet-500 dark:text-violet-400 font-display">{notCountedDays}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Sayılmır</p>
               </div>
             </div>
-            <div className="bg-white border border-white-border rounded-2xl p-4 sm:p-5 shadow-sm">
+            <div className="bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-2xl p-4 sm:p-5 shadow-sm">
               {/* Month navigator */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setCalendarMonth((m) => subMonths(m, 1))}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
                   >
                     <ChevronLeft size={15} />
                   </button>
-                  <h4 className="text-sm font-semibold text-gray-700 min-w-[110px] text-center">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 min-w-[110px] text-center">
                     {format(calendarMonth, 'MMMM yyyy')}
                   </h4>
                   <button
                     onClick={() => setCalendarMonth((m) => addMonths(m, 1))}
                     disabled={isSameMonth(calendarMonth, new Date())}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:opacity-30 disabled:pointer-events-none"
                   >
                     <ChevronRight size={15} />
                   </button>
@@ -632,7 +632,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                 {!isSameMonth(calendarMonth, new Date()) && (
                   <button
                     onClick={() => setCalendarMonth(startOfMonth(new Date()))}
-                    className="text-xs text-green-600 hover:text-green-700 font-medium"
+                    className="text-xs text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium"
                   >
                     Bu ay
                   </button>
@@ -642,14 +642,14 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
               {monthAttLoading ? (
                 <div className="grid grid-cols-7 gap-2">
                   {Array.from({ length: 35 }).map((_, i) => (
-                    <div key={i} className="aspect-square rounded-xl bg-gray-100 animate-pulse" />
+                    <div key={i} className="aspect-square rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
                   ))}
                 </div>
               ) : (
                 <>
                   <div className="grid grid-cols-7 gap-2 mb-2">
                     {['B.e','C.a','C','Ca','Cu','S','B'].map((d) => (
-                      <div key={d} className="text-center text-[11px] font-medium text-gray-400 uppercase tracking-wide">{d}</div>
+                      <div key={d} className="text-center text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{d}</div>
                     ))}
                   </div>
                   <div className="grid grid-cols-7 gap-2">
@@ -673,16 +673,16 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                 </>
               )}
 
-              <div className="flex flex-wrap items-center gap-4 mt-4 pt-3 border-t border-white-border">
+              <div className="flex flex-wrap items-center gap-4 mt-4 pt-3 border-t border-white-border dark:border-gray-700/60">
                 {[
-                  { color: 'bg-green-100 ring-1 ring-green-200',   label: 'Gəldi'                       },
-                  { color: 'bg-rose-100 ring-1 ring-rose-200',     label: 'Gəlmədi'                     },
-                  { color: 'bg-violet-100 ring-1 ring-violet-200', label: 'Sayılmır (Ş/B, bayram)'      },
-                  { color: 'bg-gray-50 ring-1 ring-gray-100',      label: 'Gələcək / Qeydiyyatdan əvvəl'},
+                  { color: 'bg-green-100 dark:bg-green-900/40 ring-1 ring-green-200 dark:ring-green-900/50',   label: 'Gəldi'                       },
+                  { color: 'bg-rose-100 dark:bg-rose-900/40 ring-1 ring-rose-200 dark:ring-rose-900/50',     label: 'Gəlmədi'                     },
+                  { color: 'bg-violet-100 dark:bg-violet-900/40 ring-1 ring-violet-200 dark:ring-violet-900/50', label: 'Sayılmır (Ş/B, bayram)'      },
+                  { color: 'bg-gray-50 dark:bg-gray-800/50 ring-1 ring-gray-100 dark:ring-gray-700/50',      label: 'Gələcək / Qeydiyyatdan əvvəl'},
                 ].map((l) => (
                   <div key={l.label} className="flex items-center gap-1.5">
                     <div className={cn('w-3 h-3 rounded-sm', l.color)} />
-                    <span className="text-xs text-gray-500">{l.label}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{l.label}</span>
                   </div>
                 ))}
               </div>
@@ -700,10 +700,10 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
               return (
                 <div
                   key={p.id}
-                  className="flex items-center justify-between p-3.5 bg-white border border-white-border rounded-xl"
+                  className="flex items-center justify-between p-3.5 bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-xl"
                 >
                   <div>
-                    <p className="text-sm font-medium text-gray-800">
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
                       {AZ_MONTHS[p.month - 1]} {p.year}
                     </p>
                     {p.paidAmount > 0 && !isPaid && (
@@ -713,7 +713,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-gray-900">{formatCurrency(p.finalAmount)}</span>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-50">{formatCurrency(p.finalAmount)}</span>
                     <Badge variant={statusVariant as 'paid' | 'partial' | 'unpaid'} size="sm">
                       {statusLabel}
                     </Badge>
@@ -727,7 +727,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
         {activeTab === 'notes' && (
           <div className="space-y-3">
             <textarea
-              className="w-full h-32 p-3 text-sm border border-white-border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
+              className="w-full h-32 p-3 text-sm border border-white-border dark:border-gray-700/60 dark:bg-[#1e2130] rounded-xl focus:outline-none focus:ring-2 focus:ring-green-400 dark:focus:ring-green-500 resize-none dark:text-gray-100"
               placeholder="Bu uşaq haqqında qeydlər..."
             />
             <Button className="w-full">Yadda saxla</Button>
@@ -740,13 +740,13 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
 
 function InfoCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
-    <div className="flex items-start gap-3 p-4 bg-white border border-white-border rounded-xl">
-      <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
-        <Icon size={15} className="text-green-600" />
+    <div className="flex items-start gap-3 p-4 bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-xl">
+      <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center shrink-0">
+        <Icon size={15} className="text-green-600 dark:text-green-400" />
       </div>
       <div>
-        <p className="text-xs text-gray-400">{label}</p>
-        <p className="text-sm font-medium text-gray-800 mt-0.5">{value}</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500">{label}</p>
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mt-0.5">{value}</p>
       </div>
     </div>
   );
