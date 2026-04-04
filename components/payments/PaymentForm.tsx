@@ -10,9 +10,10 @@ import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from '@/com
 import { paymentSchema, type PaymentFormValues } from '@/lib/utils/validators';
 import { paymentsApi } from '@/lib/api/payments';
 import { childrenApi } from '@/lib/api/children';
+import { cashboxesApi } from '@/lib/api/cashboxes';
 import { formatCurrency } from '@/lib/utils/format';
 import { DollarSign, ReceiptText, Trash2 } from 'lucide-react';
-import type { Payment } from '@/types';
+import type { Payment, Cashbox } from '@/types';
 
 const MONTH_OPTIONS = [
   { value: '1', label: 'Yanvar' },  { value: '2', label: 'Fevral' },
@@ -39,6 +40,8 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const [selectedChildId, setSelectedChildId] = useState('');
   const [history, setHistory] = useState<Payment[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [cashboxes, setCashboxes] = useState<{ value: string; label: string }[]>([]);
+  const [cashboxesLoading, setCashboxesLoading] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [receiptLoading, setReceiptLoading] = useState(false);
@@ -51,6 +54,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
       amount: defaultAmount,
       month: defaultMonth ?? (new Date().getMonth() + 1),
       year: new Date().getFullYear(),
+      cashboxId: 0,
     },
   });
 
@@ -59,6 +63,25 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
       setValue('childId', childId, { shouldValidate: false });
     }
   }, [childId, setValue]);
+
+  useEffect(() => {
+    cashboxesApi.getAll()
+      .then((res) => {
+        // filter mapped cashboxes
+        const actCashboxes: Cashbox[] = res.filter((c: any) => c.isActive !== false);
+        setCashboxes(
+          actCashboxes.map((c) => ({
+            value: String(c.id),
+            label: `${c.name} (${c.type === 1 ? 'Nağd' : c.type === 2 ? 'Banka' : c.type === 3 ? 'Kart' : 'Digər'})`,
+          }))
+        );
+        if (actCashboxes.length > 0) {
+           setValue('cashboxId', actCashboxes[0].id);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setCashboxesLoading(false));
+  }, [setValue]);
 
   useEffect(() => {
     if (!showChildSelector) return;
@@ -316,6 +339,13 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
         </div>
         {errors.amount && <p className="mt-1 text-xs text-accent-rose">⚠ {errors.amount.message}</p>}
       </div>
+      <Select
+        {...register('cashboxId', { valueAsNumber: true })}
+        label="Kassa *"
+        options={cashboxes}
+        disabled={cashboxesLoading}
+        error={errors.cashboxId?.message}
+      />
       <Input {...register('notes')} label="Qeyd (opsional)" placeholder="Əlave məlumat..." />
       {currentPayment && currentPayment.paidAmount > 0 && (
         <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">

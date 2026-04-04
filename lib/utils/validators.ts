@@ -28,6 +28,7 @@ export const paymentSchema = z.object({
   month: z.number().min(1, 'Ay seçin').max(12),
   year: z.number().min(2020).max(2100),
   amount: z.number().min(0.01, 'Məbləğ mütləqdir'),
+  cashboxId: z.number().min(1, 'Kassa seçin'),
   notes: z.string().optional(),
 });
 

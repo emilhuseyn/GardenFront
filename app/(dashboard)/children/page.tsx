@@ -36,7 +36,7 @@ const SCHEDULE_OPTIONS = [
 ];
 
 const INSIGHT_OPTIONS = [
-  { value: '', label: 'Maraqlı filter (hamısı)' },
+  { value: '', label: '(hamısı)' },
   { value: 'recent_30_days', label: 'Son 30 gündə qeydiyyat' },
 ];
 

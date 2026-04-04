@@ -23,6 +23,7 @@ interface ChildPayRow {
   monthlyFee: number;
   payments: Record<number, PaymentCell>;
   amounts: Record<number, { paid: number; remaining: number }>;
+  cashboxNames: Record<number, string | undefined>;
 }
 
 const CELL_CLASS: Record<string, string> = {
@@ -67,6 +68,7 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
         const mapped: ChildPayRow[] = children.map((child, i) => {
           const payments: Record<number, PaymentCell> = {};
           const amounts: Record<number, { paid: number; remaining: number }> = {};
+          const cashboxNames: Record<number, string | undefined> = {};
           paymentHistories[i]
             .filter((p) => Number(p.year) === CURRENT_YEAR)
             .forEach((p) => {
@@ -80,6 +82,7 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
               }
               payments[p.month - 1] = cell;
               amounts[p.month - 1] = { paid: p.paidAmount, remaining: p.remainingDebt };
+              cashboxNames[p.month - 1] = p.cashboxName;
             });
           return {
             id: String(child.id),
@@ -89,6 +92,7 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
             monthlyFee: child.monthlyFee,
             payments,
             amounts,
+            cashboxNames,
           };
         });
 
@@ -206,10 +210,12 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
               {MONTHS_SHORT.map((_, mi) => {
                 const cell = row.payments[mi];
                 const amt = row.amounts[mi];
+                const cbName = row.cashboxNames[mi];
                 const tooltipParts: string[] = [];
                 if (amt) {
                   tooltipParts.push(`Ödənildi: ${formatCurrency(amt.paid)}`);
                   if (amt.remaining > 0) tooltipParts.push(`Qalıq: ${formatCurrency(amt.remaining)}`);
+                  if (cbName) tooltipParts.push(`Kassa: ${cbName}`);
                 }
                 return (
                   <td key={mi} className="px-1 py-2 text-center">

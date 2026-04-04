@@ -287,12 +287,13 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
   for (const p of payments) {
     const paymentDate = format(new Date(p.year, Math.max(0, p.month - 1), 1), 'yyyy-MM-dd');
     const { statusLabel, isPaid, isPartial } = getPaymentMeta(p.status);
+    const cbInfo = p.cashboxName ? ` • Kassa: ${p.cashboxName}` : '';
     timelineEvents.push({
       id: `pay-${p.id}`,
       date: paymentDate,
       type: 'payment',
       title: `Ödəniş: ${AZ_MONTHS[p.month - 1]} ${p.year}`,
-      description: `${statusLabel} • Məbləğ: ${formatCurrency(p.finalAmount)}${isPartial ? ` • Qalıq: ${formatCurrency(p.remainingDebt)}` : ''}`,
+      description: `${statusLabel} • Məbləğ: ${formatCurrency(p.finalAmount)}${isPartial ? ` • Qalıq: ${formatCurrency(p.remainingDebt)}` : ''}${cbInfo}`,
       tone: isPaid ? 'success' : isPartial ? 'neutral' : 'warning',
     });
     if (p.notes?.trim()) {

@@ -170,6 +170,16 @@ export interface MarkAttendanceEntry {
 export type PaymentStatus = 0 | 1 | 2 | 'Paid' | 'PartiallyPaid' | 'Debt'; // API may return string or number
 export type DiscountType = 0 | 1 | 2;  // 0=None, 1=Percentage, 2=Fixed
 
+// ─── Cashbox ──────────────────────────────────────────────────────────────────
+export type CashboxType = 1 | 2; // e.g. 1=Cash, 2=Bank
+
+export interface Cashbox {
+  id: number;
+  name: string;
+  type: CashboxType;
+  isActive: boolean;
+}
+
 export interface Payment {
   id: number;
   childFullName: string;
@@ -180,6 +190,9 @@ export interface Payment {
   paidAmount: number;
   remainingDebt: number;
   status: PaymentStatus;
+  cashboxId?: number;
+  cashboxName?: string;
+  cashboxType?: CashboxType;
   notes?: string;
 }
 
@@ -188,6 +201,7 @@ export interface PaymentFormData {
   month: number;
   year: number;
   amount: number;
+  cashboxId: number;
   notes?: string;
 }
 
