@@ -103,6 +103,13 @@ export function getPermissions(role: UserRole | undefined) {
       changeLanguage:   isAdmin,
     },
 
+    // ── Kassalar ──────────────────────────────────────────────
+    cashboxes: {
+      view:             isAdmin || isAccountant,
+      create:           isAdmin || isAccountant,
+      edit:             isAdmin || isAccountant,
+    },
+
     // ── Qrafik ────────────────────────────────────────────────
     schedule: {
       view:             isAdmin || isTeacher || isAdmission,
