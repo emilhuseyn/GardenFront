@@ -18,7 +18,8 @@ interface CashboxFormProps {
 export function CashboxForm({ isOpen, onClose, cashbox, onSuccess }: CashboxFormProps) {
   const [formData, setFormData] = useState<Partial<Cashbox>>({
     name: '',
-    type: 1,
+    type: 'Cash',
+    accountNumber: '',
     isActive: true,
   });
   const [loading, setLoading] = useState(false);
@@ -30,12 +31,14 @@ export function CashboxForm({ isOpen, onClose, cashbox, onSuccess }: CashboxForm
         setFormData({
           name: cashbox.name,
           type: cashbox.type,
+          accountNumber: cashbox.accountNumber || '',
           isActive: cashbox.isActive,
         });
       } else {
         setFormData({
           name: '',
-          type: 1,
+          type: 'Cash',
+          accountNumber: '',
           isActive: true,
         });
       }
@@ -97,14 +100,28 @@ export function CashboxForm({ isOpen, onClose, cashbox, onSuccess }: CashboxForm
             Tipi
           </label>
           <Select
-            value={formData.type?.toString() || '1'}
-            onChange={(e) => setFormData({ ...formData, type: parseInt(e.target.value) as 1 | 2 })}
+            value={formData.type || 'Cash'}
+            onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
             options={[
-              { value: '1', label: 'Nağd Kassa' },
-              { value: '2', label: 'Bank Hesabı' },
+              { value: 'Cash', label: 'Nağd Kassa' },
+              { value: 'Cashless', label: 'Pos Terminal (Nağdsız)' },
+              { value: 'CardAccount', label: 'Kart Hesabı' },
             ]}
           />
         </div>
+
+        {formData.type !== 'Cash' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Test Hesab və ya Kart Nömrəsi (opsional)
+            </label>
+            <Input
+              value={formData.accountNumber || ''}
+              onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+              placeholder="Məs: AZXX..."
+            />
+          </div>
+        )}
 
         <div className="flex items-center justify-between pt-2">
           <div>

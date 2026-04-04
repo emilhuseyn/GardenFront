@@ -37,15 +37,22 @@ export function CashboxesTable({ data, onEdit, onToggleStatus, canEdit }: Cashbo
               <td className="py-3 px-4 text-sm text-gray-500">#{box.id}</td>
               <td className="py-3 px-4 text-sm font-medium text-gray-900 dark:text-gray-100">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${box.type === 1 ? 'bg-green-100 text-green-600 dark:bg-green-900/30' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'}`}>
-                    {box.type === 1 ? <Wallet size={16} /> : <Building2 size={16} />}
+                  <div className={`p-2 rounded-lg ${box.type === 'Cash' ? 'bg-green-100 text-green-600 dark:bg-green-900/30' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'}`}>
+                    {box.type === 'Cash' ? <Wallet size={16} /> : <Building2 size={16} />}
                   </div>
-                  {box.name}
+                  <div>
+                    {box.name}
+                    {box.accountNumber && (
+                      <div className="text-xs text-gray-500 font-normal mt-0.5">
+                        Hesab: {box.accountNumber}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </td>
               <td className="py-3 px-4">
-                <Badge variant={box.type === 1 ? 'green' : 'blue'}>
-                  {box.type === 1 ? 'Nağd' : 'Bank'}
+                <Badge variant={box.type === 'Cash' ? 'green' : 'blue'}>
+                  {box.type === 'Cash' ? 'Nağd Kassa' : box.type === 'Cashless' ? 'Pos Terminal' : 'Kart Hesabı'}
                 </Badge>
               </td>
               <td className="py-3 px-4">

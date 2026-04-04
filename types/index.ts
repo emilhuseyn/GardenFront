@@ -171,13 +171,14 @@ export type PaymentStatus = 0 | 1 | 2 | 'Paid' | 'PartiallyPaid' | 'Debt'; // AP
 export type DiscountType = 0 | 1 | 2;  // 0=None, 1=Percentage, 2=Fixed
 
 // ─── Cashbox ──────────────────────────────────────────────────────────────────
-export type CashboxType = 1 | 2; // e.g. 1=Cash, 2=Bank
+export type CashboxType = 'Cash' | 'Cashless' | 'CardAccount';
 
 export interface Cashbox {
   id: number;
   name: string;
   type: CashboxType;
   isActive: boolean;
+  accountNumber?: string;
 }
 
 export interface Payment {
