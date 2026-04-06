@@ -25,6 +25,29 @@ export function CashboxForm({ isOpen, onClose, cashbox, onSuccess }: CashboxForm
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const getErrorMessage = (err: unknown): string => {
+    if (err instanceof Error && err.message.trim()) {
+      return err.message;
+    }
+
+    if (typeof err === 'object' && err !== null) {
+      const responseData = (err as { response?: { data?: Record<string, unknown> } }).response?.data;
+      const msg = responseData?.Message ?? responseData?.message;
+      const errors = responseData?.Errors ?? responseData?.errors;
+
+      if (Array.isArray(errors) && errors.length > 0) {
+        const first = errors.find((item): item is string => typeof item === 'string' && item.trim().length > 0);
+        if (first) return first;
+      }
+
+      if (typeof msg === 'string' && msg.trim()) {
+        return msg;
+      }
+    }
+
+    return 'Xəta baş verdi.';
+  };
+
   useEffect(() => {
     if (isOpen) {
       if (cashbox) {
@@ -64,8 +87,8 @@ export function CashboxForm({ isOpen, onClose, cashbox, onSuccess }: CashboxForm
       }
 
       onSuccess();
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Xəta baş verdi.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -101,7 +124,7 @@ export function CashboxForm({ isOpen, onClose, cashbox, onSuccess }: CashboxForm
           </label>
           <Select
             value={formData.type || 'Cash'}
-            onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+            onChange={(e) => setFormData({ ...formData, type: e.target.value as Cashbox['type'] })}
             options={[
               { value: 'Cash', label: 'Nağd Kassa' },
               { value: 'Cashless', label: 'Pos Terminal (Nağdsız)' },
