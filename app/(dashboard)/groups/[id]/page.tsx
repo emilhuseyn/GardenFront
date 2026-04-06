@@ -66,7 +66,12 @@ export default function GroupDetailPage() {
       } catch {
         setGroupTeachers([]);
       }
-    } catch (e) {
+    } catch (e: unknown) {
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      if (status === 401 || status === 403 || status === 404) {
+        router.replace('/groups');
+        return;
+      }
       console.error(e);
       setGroup(null);
       setLogs([]);
