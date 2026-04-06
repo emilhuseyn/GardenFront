@@ -199,6 +199,21 @@ export interface SetOpeningBalanceRequest {
   openingBalance: number;
 }
 
+export interface CashboxOperationRequest {
+  amount: number;
+  note?: string;
+  operationDate: string;
+}
+
+export interface CashboxOperation {
+  id: number;
+  cashboxId: number;
+  amount: number;
+  note?: string;
+  operationDate: string;
+  operationType?: 'Income' | 'Expense' | string;
+}
+
 export interface Payment {
   id: number;
   childFullName: string;

@@ -4,7 +4,7 @@ import { Plus, Wallet, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore, getPermissions } from '@/lib/stores/authStore';
 import { cashboxesApi } from '@/lib/api/cashboxes';
-import type { Cashbox, CashboxMonthlyBalance } from '@/types';
+import type { Cashbox, CashboxMonthlyBalance, CashboxOperation } from '@/types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -14,7 +14,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { CashboxesTable } from '@/components/cashboxes/CashboxesTable';
 import { CashboxForm } from '@/components/cashboxes/CashboxForm';
 import { useRouter } from 'next/navigation';
-import { AZ_MONTHS, formatCurrency, formatMonthYear } from '@/lib/utils/format';
+import { AZ_MONTHS, formatCurrency, formatDate, formatMonthYear } from '@/lib/utils/format';
 
 export default function CashboxesPage() {
   const { user } = useAuthStore();
@@ -34,10 +34,16 @@ export default function CashboxesPage() {
   const [openingBalanceInput, setOpeningBalanceInput] = useState('0');
   const [monthlyBalance, setMonthlyBalance] = useState<CashboxMonthlyBalance | null>(null);
   const [balanceHistory, setBalanceHistory] = useState<CashboxMonthlyBalance[]>([]);
+  const [operations, setOperations] = useState<CashboxOperation[]>([]);
   const [monthlyLoading, setMonthlyLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [operationsLoading, setOperationsLoading] = useState(false);
   const [balanceSaving, setBalanceSaving] = useState(false);
+  const [operationSaving, setOperationSaving] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+  const [operationAmountInput, setOperationAmountInput] = useState('');
+  const [operationNote, setOperationNote] = useState('');
+  const [operationDateInput, setOperationDateInput] = useState(() => new Date().toISOString().slice(0, 16));
 
   const loadData = async () => {
     try {
@@ -75,6 +81,10 @@ export default function CashboxesPage() {
     setBalanceYear(new Date().getFullYear());
     setOpeningBalanceInput('0');
     setMonthlyBalance(null);
+    setOperations([]);
+    setOperationAmountInput('');
+    setOperationNote('');
+    setOperationDateInput(new Date().toISOString().slice(0, 16));
     setBalanceError(null);
     setIsBalanceOpen(true);
   };
@@ -109,6 +119,35 @@ export default function CashboxesPage() {
       active = false;
     };
   }, [isBalanceOpen, balanceCashbox]);
+
+  useEffect(() => {
+    if (!isBalanceOpen || !balanceCashbox) return;
+
+    let active = true;
+    setOperationsLoading(true);
+
+    cashboxesApi.getOperations(balanceCashbox.id, { month: balanceMonth, year: balanceYear })
+      .then((items) => {
+        if (!active) return;
+        const sorted = [...items].sort(
+          (a, b) => new Date(b.operationDate).getTime() - new Date(a.operationDate).getTime()
+        );
+        setOperations(sorted);
+      })
+      .catch((err: unknown) => {
+        if (!active) return;
+        const message = err instanceof Error ? err.message : 'Əməliyyatlar yüklənmədi';
+        setBalanceError(message);
+        setOperations([]);
+      })
+      .finally(() => {
+        if (active) setOperationsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isBalanceOpen, balanceCashbox, balanceMonth, balanceYear]);
 
   useEffect(() => {
     if (!isBalanceOpen || !balanceCashbox) return;
@@ -177,6 +216,69 @@ export default function CashboxesPage() {
       setBalanceError(err instanceof Error ? err.message : 'Açılış qalığı yadda saxlanmadı');
     } finally {
       setBalanceSaving(false);
+    }
+  };
+
+  const normalizeOperationType = (value?: string) => {
+    const normalized = (value ?? '').toLowerCase();
+    if (normalized.includes('expense')) return 'Expense';
+    return 'Income';
+  };
+
+  const handleCreateOperation = async (kind: 'income' | 'expense') => {
+    if (!balanceCashbox) return;
+
+    const amount = Number(operationAmountInput);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setBalanceError('Məbləğ 0-dan böyük olmalıdır.');
+      return;
+    }
+
+    try {
+      setOperationSaving(true);
+      setBalanceError(null);
+
+      const payload = {
+        amount,
+        note: operationNote.trim() || undefined,
+        operationDate: operationDateInput
+          ? new Date(operationDateInput).toISOString()
+          : new Date().toISOString(),
+      };
+
+      if (kind === 'income') {
+        await cashboxesApi.addIncome(balanceCashbox.id, payload);
+      } else {
+        await cashboxesApi.addExpense(balanceCashbox.id, payload);
+      }
+
+      const [monthly, history, ops] = await Promise.all([
+        cashboxesApi.getMonthlyBalance(balanceCashbox.id, balanceMonth, balanceYear),
+        cashboxesApi.getBalanceHistory(balanceCashbox.id),
+        cashboxesApi.getOperations(balanceCashbox.id, { month: balanceMonth, year: balanceYear }),
+      ]);
+
+      setMonthlyBalance(monthly);
+      setBalanceHistory(
+        [...history].sort((a, b) => {
+          const av = a.year * 100 + a.month;
+          const bv = b.year * 100 + b.month;
+          return bv - av;
+        })
+      );
+      setOperations(
+        [...ops].sort((a, b) => new Date(b.operationDate).getTime() - new Date(a.operationDate).getTime())
+      );
+
+      setOperationAmountInput('');
+      setOperationNote('');
+
+      await loadData();
+      toast.success(kind === 'income' ? 'Mədaxil əlavə olundu' : 'Məxaric əlavə olundu');
+    } catch (err: unknown) {
+      setBalanceError(err instanceof Error ? err.message : 'Əməliyyat qeydə alınmadı');
+    } finally {
+      setOperationSaving(false);
     }
   };
 
@@ -282,6 +384,48 @@ export default function CashboxesPage() {
               />
             </div>
 
+            <div className="rounded-xl border border-gray-100 dark:border-gray-700/50 p-3 bg-gray-50/60 dark:bg-gray-800/40 space-y-3">
+              <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">Mədaxil / Məxaric əlavə et</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Input
+                  type="number"
+                  label="Məbləğ"
+                  value={operationAmountInput}
+                  onChange={(e) => setOperationAmountInput(e.target.value)}
+                  min={0.01}
+                  step="0.01"
+                />
+                <Input
+                  type="datetime-local"
+                  label="Əməliyyat vaxtı"
+                  value={operationDateInput}
+                  onChange={(e) => setOperationDateInput(e.target.value)}
+                />
+                <Input
+                  type="text"
+                  label="Qeyd"
+                  value={operationNote}
+                  onChange={(e) => setOperationNote(e.target.value)}
+                  placeholder="Məs: Kassaya əlavə pul"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="secondary"
+                  onClick={() => handleCreateOperation('expense')}
+                  loading={operationSaving}
+                >
+                  Məxaric et
+                </Button>
+                <Button
+                  onClick={() => handleCreateOperation('income')}
+                  loading={operationSaving}
+                >
+                  Mədaxil et
+                </Button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="rounded-xl border border-gray-100 dark:border-gray-700/50 p-3 bg-gray-50/60 dark:bg-gray-800/40">
                 <p className="text-xs text-gray-500">Açılış qalığı</p>
@@ -336,13 +480,59 @@ export default function CashboxesPage() {
                 )}
               </div>
             </div>
+
+            <div className="rounded-xl border border-gray-100 dark:border-gray-700/50 overflow-hidden">
+              <div className="px-3 py-2 bg-gray-50/80 dark:bg-gray-800/40 border-b border-gray-100 dark:border-gray-700/50">
+                <p className="text-xs font-semibold text-gray-500">Aylıq əməliyyatlar</p>
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                {operationsLoading ? (
+                  <p className="px-3 py-4 text-sm text-gray-400">Yüklənir...</p>
+                ) : operations.length === 0 ? (
+                  <p className="px-3 py-4 text-sm text-gray-400">Əməliyyat tapılmadı</p>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-gray-500 border-b border-gray-100 dark:border-gray-700/50">
+                        <th className="px-3 py-2">Tarix</th>
+                        <th className="px-3 py-2">Növ</th>
+                        <th className="px-3 py-2">Məbləğ</th>
+                        <th className="px-3 py-2">Qeyd</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {operations.map((op) => {
+                        const type = normalizeOperationType(op.operationType);
+                        const isExpense = type === 'Expense';
+                        return (
+                          <tr key={op.id} className="border-b border-gray-100 dark:border-gray-700/40 last:border-none">
+                            <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
+                              {formatDate(op.operationDate, 'dd MMM yyyy HH:mm')}
+                            </td>
+                            <td className="px-3 py-2">
+                              <span className={isExpense ? 'text-rose-600 dark:text-rose-400' : 'text-green-600 dark:text-green-400'}>
+                                {isExpense ? 'Məxaric' : 'Mədaxil'}
+                              </span>
+                            </td>
+                            <td className={isExpense ? 'px-3 py-2 text-rose-600 dark:text-rose-400 font-semibold' : 'px-3 py-2 text-green-600 dark:text-green-400 font-semibold'}>
+                              {isExpense ? '-' : '+'}{formatCurrency(op.amount)}
+                            </td>
+                            <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{op.note || '-'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
           </div>
 
           <ModalFooter>
-            <Button variant="secondary" onClick={() => setIsBalanceOpen(false)} disabled={balanceSaving}>
+            <Button variant="secondary" onClick={() => setIsBalanceOpen(false)} disabled={balanceSaving || operationSaving}>
               Bağla
             </Button>
-            <Button onClick={handleSaveOpeningBalance} loading={balanceSaving}>
+            <Button onClick={handleSaveOpeningBalance} loading={balanceSaving} disabled={operationSaving}>
               Açılış qalığını yadda saxla
             </Button>
           </ModalFooter>
