@@ -13,6 +13,7 @@ import { ChildStatusBadge } from '@/components/children/ChildStatusBadge';
 import { ChildForm } from '@/components/children/ChildForm';
 import { groupsApi } from '@/lib/api/groups';
 import { usersApi } from '@/lib/api/users';
+import { useAuthStore, getPermissions } from '@/lib/stores/authStore';
 import { formatDate } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/constants';
 import type { GroupDetail, GroupLogResponse, GroupTeacher, UserResponse } from '@/types';
@@ -21,6 +22,8 @@ import Link from 'next/link';
 export default function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuthStore();
+  const perms = getPermissions(user?.role);
 
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -103,12 +106,14 @@ export default function GroupDetailPage() {
   }, [numId]);
 
   const openTeacherManageModal = async () => {
+    if (!perms.groups.assignTeacher) return;
     setTeacherManageOpen(true);
     setTeacherSelection('');
     await Promise.all([loadTeachers(), refreshGroupTeachers()]);
   };
 
   const onAddTeacher = async () => {
+    if (!perms.groups.assignTeacher) return;
     if (!teacherSelection) {
       toast.error('Müəllim seçin');
       return;
@@ -133,6 +138,7 @@ export default function GroupDetailPage() {
   };
 
   const onRemoveTeacher = async (userId: string) => {
+    if (!perms.groups.assignTeacher) return;
     setRemovingTeacherId(userId);
     try {
       await groupsApi.removeTeacher(numId, userId);
@@ -198,7 +204,9 @@ export default function GroupDetailPage() {
         </div>
         
         <div className="flex flex-wrap items-center gap-2 justify-end">
-          <Button variant="secondary" onClick={openTeacherManageModal}>Müəllimləri idarə et</Button>
+          {perms.groups.assignTeacher && (
+            <Button variant="secondary" onClick={openTeacherManageModal}>Müəllimləri idarə et</Button>
+          )}
           <Button 
             onClick={() => setAddOpen(true)}
             className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
@@ -427,59 +435,61 @@ export default function GroupDetailPage() {
       </Modal>
 
       {/* Teacher Manage Modal */}
-      <Modal open={teacherManageOpen} onOpenChange={setTeacherManageOpen}>
-        <ModalContent size="md">
-          <ModalHeader>
-            <ModalTitle>Müəllimləri idarə et</ModalTitle>
-          </ModalHeader>
+      {perms.groups.assignTeacher && (
+        <Modal open={teacherManageOpen} onOpenChange={setTeacherManageOpen}>
+          <ModalContent size="md">
+            <ModalHeader>
+              <ModalTitle>Müəllimləri idarə et</ModalTitle>
+            </ModalHeader>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Cari müəllimlər</p>
-              {groupTeachers.length === 0 ? (
-                <p className="text-sm text-gray-400">Bu qrupda müəllim yoxdur.</p>
-              ) : (
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                  {groupTeachers.map((teacher) => (
-                    <div key={teacher.userId} className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 p-2.5">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{teacher.fullName}</p>
-                        <p className="text-xs text-gray-400 truncate">{teacher.email}</p>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Cari müəllimlər</p>
+                {groupTeachers.length === 0 ? (
+                  <p className="text-sm text-gray-400">Bu qrupda müəllim yoxdur.</p>
+                ) : (
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {groupTeachers.map((teacher) => (
+                      <div key={teacher.userId} className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 p-2.5">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{teacher.fullName}</p>
+                          <p className="text-xs text-gray-400 truncate">{teacher.email}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          loading={removingTeacherId === teacher.userId}
+                          onClick={() => onRemoveTeacher(teacher.userId)}
+                        >
+                          Çıxar
+                        </Button>
                       </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        loading={removingTeacherId === teacher.userId}
-                        onClick={() => onRemoveTeacher(teacher.userId)}
-                      >
-                        Çıxar
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Select
+                  label="Yeni müəllim"
+                  value={teacherSelection}
+                  onChange={(event) => setTeacherSelection(event.target.value)}
+                  options={[{ value: '', label: teachersLoading ? 'Yüklənir...' : 'Müəllim seçin' }, ...assignableTeacherOptions]}
+                />
+                {!teachersLoading && assignableTeacherOptions.length === 0 && (
+                  <p className="text-xs text-gray-400">Əlavə edilə biləcək müəllim yoxdur.</p>
+                )}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Select
-                label="Yeni müəllim"
-                value={teacherSelection}
-                onChange={(event) => setTeacherSelection(event.target.value)}
-                options={[{ value: '', label: teachersLoading ? 'Yüklənir...' : 'Müəllim seçin' }, ...assignableTeacherOptions]}
-              />
-              {!teachersLoading && assignableTeacherOptions.length === 0 && (
-                <p className="text-xs text-gray-400">Əlavə edilə biləcək müəllim yoxdur.</p>
-              )}
-            </div>
-          </div>
-
-          <ModalFooter>
-            <Button type="button" variant="secondary" onClick={() => setTeacherManageOpen(false)}>Bağla</Button>
-            <Button type="button" loading={addTeacherLoading} onClick={onAddTeacher}>Əlavə et</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+            <ModalFooter>
+              <Button type="button" variant="secondary" onClick={() => setTeacherManageOpen(false)}>Bağla</Button>
+              <Button type="button" loading={addTeacherLoading} onClick={onAddTeacher}>Əlavə et</Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      )}
     </div>
   );
 }
