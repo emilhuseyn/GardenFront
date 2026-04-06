@@ -413,71 +413,73 @@ export default function ListsPage() {
       />
 
       <div className="bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-2xl p-4 space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
-          <SearchBar
-            value={search}
-            onChange={setSearch}
-            placeholder="Şagird, valideyn, nömrə, qrup və ya bölmə axtar..."
-            className="sm:max-w-sm"
-          />
-          <Select
-            value={divisionFilter}
-            onChange={(e) => setDivisionFilter(e.target.value)}
-            options={divisionOptions}
-            className="sm:w-52"
-          />
-          <Select
-            value={groupFilter}
-            onChange={(e) => setGroupFilter(e.target.value)}
-            options={groupOptions}
-            className="sm:w-52"
-          />
-          <Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-            options={[
-              { value: 'all', label: 'Bütün statuslar' },
-              { value: 'active', label: 'Aktiv' },
-              { value: 'inactive', label: 'Deaktiv' },
-            ]}
-            className="sm:w-44"
-          />
-          <Select
-            value={viewMode}
-            onChange={(e) => setViewMode(e.target.value as ViewMode)}
-            options={[
-              { value: 'all', label: 'Ümumi siyahı' },
-              { value: 'grouped', label: 'Qruplar üzrə' },
-            ]}
-            className="sm:w-44"
-          />
+        <div className="overflow-x-auto pb-1">
+          <div className="flex items-center gap-2 min-w-max">
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              placeholder="Şagird, valideyn, nömrə, qrup və ya bölmə axtar..."
+              className="w-[320px] shrink-0"
+            />
+            <Select
+              value={divisionFilter}
+              onChange={(e) => setDivisionFilter(e.target.value)}
+              options={divisionOptions}
+              className="w-52 shrink-0"
+            />
+            <Select
+              value={groupFilter}
+              onChange={(e) => setGroupFilter(e.target.value)}
+              options={groupOptions}
+              className="w-52 shrink-0"
+            />
+            <Select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+              options={[
+                { value: 'all', label: 'Bütün statuslar' },
+                { value: 'active', label: 'Aktiv' },
+                { value: 'inactive', label: 'Deaktiv' },
+              ]}
+              className="w-44 shrink-0"
+            />
+            <Select
+              value={viewMode}
+              onChange={(e) => setViewMode(e.target.value as ViewMode)}
+              options={[
+                { value: 'all', label: 'Ümumi siyahı' },
+                { value: 'grouped', label: 'Qruplar üzrə' },
+              ]}
+              className="w-44 shrink-0"
+            />
 
-          {viewMode === 'all' ? (
-            <Select
-              value={sortMode}
-              onChange={(e) => setSortMode(e.target.value as SortMode)}
-              options={[
-                { value: 'debt-desc', label: 'Borc çoxdan aza' },
-                { value: 'debt-asc', label: 'Borc azdan çoxa' },
-                { value: 'name-asc', label: 'Ad A-Z' },
-                { value: 'name-desc', label: 'Ad Z-A' },
-              ]}
-              className="sm:w-48"
-            />
-          ) : (
-            <Select
-              value={groupSortMode}
-              onChange={(e) => setGroupSortMode(e.target.value as GroupSortMode)}
-              options={[
-                { value: 'debt-desc', label: 'Qrup borcu çoxdan aza' },
-                { value: 'debt-asc', label: 'Qrup borcu azdan çoxa' },
-                { value: 'count-desc', label: 'Şagird sayı çoxdan aza' },
-                { value: 'count-asc', label: 'Şagird sayı azdan çoxa' },
-                { value: 'name-asc', label: 'Qrup A-Z' },
-              ]}
-              className="sm:w-56"
-            />
-          )}
+            {viewMode === 'all' ? (
+              <Select
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value as SortMode)}
+                options={[
+                  { value: 'debt-desc', label: 'Borc çoxdan aza' },
+                  { value: 'debt-asc', label: 'Borc azdan çoxa' },
+                  { value: 'name-asc', label: 'Ad A-Z' },
+                  { value: 'name-desc', label: 'Ad Z-A' },
+                ]}
+                className="w-48 shrink-0"
+              />
+            ) : (
+              <Select
+                value={groupSortMode}
+                onChange={(e) => setGroupSortMode(e.target.value as GroupSortMode)}
+                options={[
+                  { value: 'debt-desc', label: 'Qrup borcu çoxdan aza' },
+                  { value: 'debt-asc', label: 'Qrup borcu azdan çoxa' },
+                  { value: 'count-desc', label: 'Şagird sayı çoxdan aza' },
+                  { value: 'count-asc', label: 'Şagird sayı azdan çoxa' },
+                  { value: 'name-asc', label: 'Qrup A-Z' },
+                ]}
+                className="w-56 shrink-0"
+              />
+            )}
+          </div>
         </div>
 
         {(search || divisionFilter !== 'all' || groupFilter !== 'all' || statusFilter !== 'all') && (
