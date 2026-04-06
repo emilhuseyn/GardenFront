@@ -83,7 +83,11 @@ export function CashboxForm({ isOpen, onClose, cashbox, onSuccess }: CashboxForm
       if (cashbox?.id) {
         await cashboxesApi.update(cashbox.id, formData);
       } else {
-        await cashboxesApi.create(formData);
+        await cashboxesApi.create({
+          name: formData.name!,
+          type: formData.type as string,
+          accountNumber: formData.accountNumber || undefined,
+        });
       }
 
       onSuccess();
