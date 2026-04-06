@@ -219,10 +219,46 @@ export default function CashboxesPage() {
     }
   };
 
-  const normalizeOperationType = (value?: string) => {
-    const normalized = (value ?? '').toLowerCase();
-    if (normalized.includes('expense')) return 'Expense';
-    return 'Income';
+  const normalizeOperationType = (operation: CashboxOperation): 'Income' | 'Expense' => {
+    const raw = operation as unknown as Record<string, unknown>;
+
+    if (typeof raw.isExpense === 'boolean') {
+      return raw.isExpense ? 'Expense' : 'Income';
+    }
+
+    if (typeof raw.isIncome === 'boolean') {
+      return raw.isIncome ? 'Income' : 'Expense';
+    }
+
+    const candidates: unknown[] = [
+      operation.operationType,
+      raw.type,
+      raw.operationKind,
+      raw.transactionType,
+      raw.direction,
+      raw.kind,
+      raw.movementType,
+    ];
+
+    for (const value of candidates) {
+      if (typeof value === 'number') {
+        // Common enum mapping in APIs: 1=Income, 2=Expense.
+        if (value === 2) return 'Expense';
+        if (value === 1 || value === 0) return 'Income';
+      }
+
+      if (typeof value === 'string') {
+        const normalized = value.toLowerCase();
+        if (/(expense|outflow|withdraw|debit|mexaric|məxaric|xerc|xərc|cixis|çıxış)/.test(normalized)) {
+          return 'Expense';
+        }
+        if (/(income|inflow|credit|medaxil|mədaxil|daxil)/.test(normalized)) {
+          return 'Income';
+        }
+      }
+    }
+
+    return Number(operation.amount) < 0 ? 'Expense' : 'Income';
   };
 
   const handleCreateOperation = async (kind: 'income' | 'expense') => {
@@ -502,8 +538,9 @@ export default function CashboxesPage() {
                     </thead>
                     <tbody>
                       {operations.map((op) => {
-                        const type = normalizeOperationType(op.operationType);
+                        const type = normalizeOperationType(op);
                         const isExpense = type === 'Expense';
+                        const normalizedAmount = Math.abs(Number(op.amount) || 0);
                         return (
                           <tr key={op.id} className="border-b border-gray-100 dark:border-gray-700/40 last:border-none">
                             <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
@@ -515,7 +552,7 @@ export default function CashboxesPage() {
                               </span>
                             </td>
                             <td className={isExpense ? 'px-3 py-2 text-rose-600 dark:text-rose-400 font-semibold' : 'px-3 py-2 text-green-600 dark:text-green-400 font-semibold'}>
-                              {isExpense ? '-' : '+'}{formatCurrency(op.amount)}
+                              {isExpense ? '-' : '+'}{formatCurrency(normalizedAmount)}
                             </td>
                             <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{op.note || '-'}</td>
                           </tr>
