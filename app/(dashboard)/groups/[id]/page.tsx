@@ -60,6 +60,10 @@ export default function GroupDetailPage() {
 
   const activeChildren = group?.children.filter(c => c.status === 'Active').length || 0;
   const totalChildren = group?.children.length || 0;
+  const sortedChildren = [...(group?.children ?? [])].sort((a, b) => {
+    if (a.status === b.status) return a.fullName.localeCompare(b.fullName, 'az');
+    return a.status === 'Active' ? -1 : 1;
+  });
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10">
@@ -173,11 +177,16 @@ export default function GroupDetailPage() {
               </div>
             ) : (
               <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                {group?.children.map((child) => (
+                {sortedChildren.map((child) => (
                   <Link 
                     href={`/children/${child.id}`} 
                     key={child.id}
-                    className="flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group cursor-pointer"
+                    className={cn(
+                      'flex items-center p-4 transition-colors group cursor-pointer',
+                      child.status === 'Active'
+                        ? 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                        : 'bg-gray-50/70 dark:bg-gray-800/30 hover:bg-gray-100/80 dark:hover:bg-gray-800/50'
+                    )}
                   >
                     <div className="relative">
                       <Avatar name={child.fullName} size="md" className="ring-2 ring-white dark:ring-[#1e2130] shadow-sm" />
@@ -185,10 +194,16 @@ export default function GroupDetailPage() {
                     </div>
                     
                     <div className="ml-4 flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      <p className={cn(
+                        'text-sm font-semibold truncate transition-colors',
+                        child.status === 'Active'
+                          ? 'text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
+                          : 'text-gray-500 dark:text-gray-400 line-through'
+                      )}>
                         {child.fullName}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
+                        <ChildStatusBadge isActive={child.status === 'Active'} size="xs" />
                         <Badge 
                           variant={child.scheduleType === 'FullDay' ? 'blue' : 'amber'} 
                           size="xs"
