@@ -68,14 +68,27 @@ export default function GroupDetailPage() {
       }
     } catch (e: unknown) {
       const status = (e as { response?: { status?: number } })?.response?.status;
-      if (status === 401 || status === 403 || status === 404) {
-        router.replace('/groups');
+      const message = (e as { message?: string })?.message || '';
+
+      if (status === 403 || message.includes("qrupa giriş")) {
+        toast.error("Bu qrupda istifadəçi deyilsiniz");
+        setGroup(null);
+        setLogs([]);
+        setGroupTeachers([]);
+      } else if (status === 404) {
+        toast.error("Qrup tapılmadı");
+        setGroup(null);
+        setLogs([]);
+        setGroupTeachers([]);
+      } else if (status === 401) {
+        router.replace('/login');
         return;
+      } else {
+        console.error(e);
+        setGroup(null);
+        setLogs([]);
+        setGroupTeachers([]);
       }
-      console.error(e);
-      setGroup(null);
-      setLogs([]);
-      setGroupTeachers([]);
     } finally {
       setLoading(false);
       setLogsLoading(false);
