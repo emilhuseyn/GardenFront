@@ -97,6 +97,7 @@ export interface Child {
   totalDebt?: number;
   parentEmail?: string;
   registrationDate?: string;
+  deactivationDate?: string | null;
 }
 
 export interface ChildFormData {

@@ -1,6 +1,11 @@
 import apiClient, { unwrap } from './client';
 import type { Child, ChildFormData, PaginatedResponse, ChildFilters } from '@/types';
 
+type ChildUpdateData = Partial<ChildFormData> & {
+  registrationDate?: string;
+  deactivationDate?: string | null;
+};
+
 function extractFileName(contentDisposition: string | null): string | null {
   if (!contentDisposition) return null;
 
@@ -44,7 +49,7 @@ export const childrenApi = {
     return unwrap<Child>(res);
   },
 
-  update: async (id: number, data: Partial<ChildFormData>) => {
+  update: async (id: number, data: ChildUpdateData) => {
     const res = await apiClient.put(`/api/childrens/${id}`, data);
     return unwrap<Child>(res);
   },

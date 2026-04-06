@@ -34,6 +34,8 @@ export default function EditChildPage() {
   const [dobDay, setDobDay]     = useState('');
   const [dobMonth, setDobMonth] = useState('');
   const [dobYear, setDobYear]   = useState('');
+  const [registrationDate, setRegistrationDate] = useState('');
+  const [deactivationDate, setDeactivationDate] = useState('');
 
   const currentYear = new Date().getFullYear();
   const dayOptions   = Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1).padStart(2, '0'), label: String(i + 1) }));
@@ -69,6 +71,9 @@ export default function EditChildPage() {
         setDobDay(d);
       }
 
+      setRegistrationDate(c.registrationDate ? c.registrationDate.split('T')[0] : '');
+      setDeactivationDate(c.deactivationDate ? c.deactivationDate.split('T')[0] : '');
+
       // Pre-fill the group id from groupName match (Child has groupName not groupId)
       const matchedGroup = g.find((gr) => gr.name === c.groupName);
 
@@ -99,7 +104,13 @@ export default function EditChildPage() {
 
   const onSubmit = async (data: ChildFormValues) => {
     try {
-      await childrenApi.update(numId, data);
+      const toIsoDate = (value: string) => `${value}T00:00:00Z`;
+
+      await childrenApi.update(numId, {
+        ...data,
+        ...(registrationDate ? { registrationDate: toIsoDate(registrationDate) } : {}),
+        ...(deactivationDate ? { deactivationDate: toIsoDate(deactivationDate) } : {}),
+      });
       toast.success('Məlumatlar yeniləndi');
       router.push(`/children/${id}`);
     } catch (err: unknown) {
@@ -272,6 +283,25 @@ export default function EditChildPage() {
                 type="email"
                 placeholder="valideyn@email.com"
                 error={errors.parentEmail?.message}
+              />
+            </div>
+          </Card>
+
+          <Card padding="md">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">Tarix Məlumatları</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                type="date"
+                label="Qeydiyyat tarixi"
+                value={registrationDate}
+                onChange={(e) => setRegistrationDate(e.target.value)}
+              />
+              <Input
+                type="date"
+                label="Deaktiv tarixi"
+                value={deactivationDate}
+                onChange={(e) => setDeactivationDate(e.target.value)}
+                hint="Sıfırlamaq üçün uşaq statusunu Aktiv et (PATCH /activate)."
               />
             </div>
           </Card>

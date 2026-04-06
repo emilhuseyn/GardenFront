@@ -6,7 +6,7 @@ import { Phone, Clock, MoreVertical, UserX, UserCheck, Trash2 } from 'lucide-rea
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { formatPhone, getAge, getDivisionAccent, getDivisionBadgeVariant, getDivisionFlag } from '@/lib/utils/format';
+import { formatDate, formatPhone, getAge, getDivisionAccent, getDivisionBadgeVariant, getDivisionFlag } from '@/lib/utils/format';
 import { SCHEDULE_LABELS } from '@/lib/utils/constants';
 import type { Child } from '@/types';
 
@@ -135,6 +135,15 @@ export function ChildCard({ child, index = 0, onToggleStatus, onDelete }: ChildC
           <a href={`tel:${child.parentPhone}`} className="hover:text-green-600 transition-colors truncate">
             {formatPhone(child.parentPhone)}
           </a>
+        </div>
+
+        <div className="space-y-1 mb-4 text-[11px] text-gray-500 dark:text-gray-400">
+          <p>
+            Qeydiyyat tarixi: {child.registrationDate ? formatDate(child.registrationDate, 'dd MMM yyyy') : '-'}
+          </p>
+          <p>
+            Deaktiv tarixi: {child.deactivationDate ? formatDate(child.deactivationDate, 'dd MMM yyyy') : '-'}
+          </p>
         </div>
 
         {/* Footer */}

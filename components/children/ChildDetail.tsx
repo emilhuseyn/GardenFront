@@ -620,6 +620,8 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <InfoCard icon={User}       label="Ad Soyad"          value={`${child.firstName} ${child.lastName}`} />
             <InfoCard icon={Calendar}   label="Doğum tarixi"      value={formatDate(new Date(child.dateOfBirth), 'dd MMMM yyyy')} />
+            <InfoCard icon={Calendar}   label="Qeydiyyat tarixi"  value={child.registrationDate ? formatDate(new Date(child.registrationDate), 'dd MMMM yyyy') : '-'} />
+            <InfoCard icon={Calendar}   label="Deaktiv tarixi"    value={child.deactivationDate ? formatDate(new Date(child.deactivationDate), 'dd MMMM yyyy') : '-'} />
             <InfoCard icon={Phone}      label="Valideyn telefonu" value={formatPhone(child.parentPhone)} />
             <InfoCard icon={Mail}       label="E-poçt"            value={child.parentEmail || '-'} />
             <InfoCard icon={User}       label="Valideyn adı"      value={child.parentFullName} />
