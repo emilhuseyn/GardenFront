@@ -301,7 +301,6 @@ export default function EditChildPage() {
                 label="Deaktiv tarixi"
                 value={deactivationDate}
                 onChange={(e) => setDeactivationDate(e.target.value)}
-                hint="Sıfırlamaq üçün uşaq statusunu Aktiv et (PATCH /activate)."
               />
             </div>
           </Card>
