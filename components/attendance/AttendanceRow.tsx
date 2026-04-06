@@ -13,6 +13,7 @@ export interface AttendanceRowData {
   firstName: string;
   lastName: string;
   groupName: string;
+  childStatus?: 'Active' | 'Inactive';
   scheduleStartTime?: string; // 'HH:mm'
   scheduleEndTime?: string;   // 'HH:mm'
   checkIn?: string;
@@ -43,6 +44,7 @@ export function AttendanceRow({ row, index, onChange, onToggleEarlyLeave }: Atte
       transition={{ delay: index * 0.025 }}
       className={cn(
         'border-b border-white-border dark:border-gray-700/40 transition-colors',
+        row.childStatus === 'Inactive' ? 'bg-gray-50/70 dark:bg-gray-800/20' :
         row.status === 'absent'      ? 'bg-rose-50/40 dark:bg-rose-900/10' :
         row.status === 'not_counted' ? 'bg-gray-50/60 dark:bg-gray-800/20 opacity-70' : ''
       )}
@@ -54,11 +56,16 @@ export function AttendanceRow({ row, index, onChange, onToggleEarlyLeave }: Atte
           <div>
             <p className={cn(
               'text-sm font-medium text-gray-800 dark:text-gray-100 group-hover:text-primary transition-colors',
-              row.status === 'absent' && 'line-through text-gray-400'
+              (row.status === 'absent' || row.childStatus === 'Inactive') && 'line-through text-gray-400'
             )}>
               {row.firstName} {row.lastName}
             </p>
-            <p className="text-xs text-gray-400">{row.groupName}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-gray-400">{row.groupName}</p>
+              {row.childStatus === 'Inactive' && (
+                <Badge variant="inactive" size="xs">Deaktiv</Badge>
+              )}
+            </div>
           </div>
         </Link>
       </td>

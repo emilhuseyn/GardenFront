@@ -85,12 +85,19 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
 
   useEffect(() => {
     if (!showChildSelector) return;
-    childrenApi.getAll({ status: 'Active', pageSize: 200 })
-      .then((res) => {
+    Promise.all([
+      childrenApi.getAll({ status: 'Active', pageSize: 200 }),
+      childrenApi.getAll({ status: 'Inactive', pageSize: 200 }),
+    ])
+      .then(([activeRes, inactiveRes]) => {
+        const allChildren = Array.from(
+          new Map([...activeRes.items, ...inactiveRes.items].map((child) => [child.id, child])).values()
+        );
+
         setChildOptions(
-          res.items.map((c) => ({
+          allChildren.map((c) => ({
             value: String(c.id),
-            label: `${c.firstName} ${c.lastName} - ${c.groupName}`,
+            label: `${c.firstName} ${c.lastName} - ${c.groupName}${c.status === 'Inactive' ? ' (Deaktiv)' : ''}`,
           }))
         );
       })

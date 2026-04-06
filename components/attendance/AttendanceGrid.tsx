@@ -80,12 +80,18 @@ export function AttendanceGrid() {
     const dateStr = format(date, 'yyyy-MM-dd');
 
     Promise.all([
-      childrenApi.getAll({ groupId: selectedGroupId ?? undefined, status: 'Active', pageSize: 200 }),
+      Promise.all([
+        childrenApi.getAll({ groupId: selectedGroupId ?? undefined, status: 'Active', pageSize: 200 }),
+        childrenApi.getAll({ groupId: selectedGroupId ?? undefined, status: 'Inactive', pageSize: 200 }),
+      ]),
       attendanceApi.getDaily(dateStr, selectedGroupId ?? undefined),
     ])
-      .then(([childrenResult, daily]) => {
+      .then(([[activeResult, inactiveResult], daily]) => {
+        const children = Array.from(
+          new Map([...activeResult.items, ...inactiveResult.items].map((child) => [child.id, child])).values()
+        );
         const entryMap = new Map(daily.entries.map((e) => [e.childId, e]));
-        const eligibleChildren = childrenResult.items.filter((child) => {
+        const eligibleChildren = children.filter((child) => {
           if (!child.registrationDate) return true;
           const registeredOn = child.registrationDate.slice(0, 10);
           return dateStr >= registeredOn;
@@ -123,6 +129,7 @@ export function AttendanceGrid() {
             firstName: child.firstName,
             lastName: child.lastName,
             groupName: child.groupName,
+            childStatus: child.status,
             scheduleStartTime: sched?.startTime,
             scheduleEndTime: sched?.endTime,
             checkIn: entry?.arrivalTime,

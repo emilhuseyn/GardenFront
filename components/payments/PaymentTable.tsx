@@ -3,12 +3,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Avatar } from '@/components/ui/Avatar';
+import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { formatCurrency } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/constants';
 import { childrenApi } from '@/lib/api/children';
 import { paymentsApi } from '@/lib/api/payments';
-import type { Payment } from '@/types';
+import type { ChildStatus, Payment } from '@/types';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const MONTHS_SHORT = ['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'];
@@ -19,6 +20,7 @@ interface ChildPayRow {
   id: string;
   firstName: string;
   lastName: string;
+  childStatus: ChildStatus;
   groupName: string;
   monthlyFee: number;
   payments: Record<number, PaymentCell>;
@@ -59,8 +61,13 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
       setRows([]);
 
       try {
-        const result = await childrenApi.getAll({ status: 'Active', pageSize: 50, groupId: groupId ?? undefined });
-        const children = result.items;
+        const [activeResult, inactiveResult] = await Promise.all([
+          childrenApi.getAll({ status: 'Active', pageSize: 50, groupId: groupId ?? undefined }),
+          childrenApi.getAll({ status: 'Inactive', pageSize: 50, groupId: groupId ?? undefined }),
+        ]);
+        const children = Array.from(
+          new Map([...activeResult.items, ...inactiveResult.items].map((child) => [child.id, child])).values()
+        );
         const paymentHistories = await Promise.all(
           children.map((c) => paymentsApi.getChildHistory(c.id).catch(() => [] as Payment[]))
         );
@@ -88,6 +95,7 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
             id: String(child.id),
             firstName: child.firstName,
             lastName: child.lastName,
+            childStatus: child.status,
             groupName: child.groupName,
             monthlyFee: child.monthlyFee,
             payments,
@@ -188,17 +196,33 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: ri * 0.03 }}
-              className="border-b border-white-border dark:border-gray-700/40 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors"
+              className={cn(
+                'border-b border-white-border dark:border-gray-700/40 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors',
+                row.childStatus === 'Inactive' && 'bg-gray-50/70 dark:bg-gray-800/20'
+              )}
             >
-              <td className="px-4 py-3 sticky left-0 bg-white dark:bg-[#1e2130]">
+              <td className={cn(
+                'px-4 py-3 sticky left-0 bg-white dark:bg-[#1e2130]',
+                row.childStatus === 'Inactive' && 'bg-gray-50/70 dark:bg-gray-800/20'
+              )}>
                 <div
                   className="flex items-center gap-2.5 cursor-pointer group"
                   onClick={() => router.push(`/children/${row.id}`)}
                 >
                   <Avatar name={`${row.firstName} ${row.lastName}`} size="sm" />
                   <div>
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-100 group-hover:text-primary transition-colors">{row.firstName} {row.lastName}</p>
-                    <p className="text-xs text-gray-400">{row.groupName}</p>
+                    <p className={cn(
+                      'text-sm font-medium text-gray-800 dark:text-gray-100 group-hover:text-primary transition-colors',
+                      row.childStatus === 'Inactive' && 'text-gray-500 dark:text-gray-400'
+                    )}>
+                      {row.firstName} {row.lastName}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-gray-400">{row.groupName}</p>
+                      {row.childStatus === 'Inactive' && (
+                        <Badge variant="inactive" size="xs">Deaktiv</Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
               </td>
