@@ -18,10 +18,11 @@ import { cn } from '@/lib/utils/constants';
 import { childrenApi } from '@/lib/api/children';
 import { paymentsApi } from '@/lib/api/payments';
 import { attendanceApi } from '@/lib/api/attendance';
+import { groupsApi } from '@/lib/api/groups';
 import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import type { Child, Payment, AttendanceEntry } from '@/types';
+import type { Child, Group, Payment, AttendanceEntry } from '@/types';
 
 const TABS = [
   { id: 'timeline',   label: 'Zaman Xətti 360', icon: Sparkles },
@@ -102,6 +103,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
   const [monthAttLoading, setMonthAttLoading] = useState(false);
   const [downloadingAgreement, setDownloadingAgreement] = useState(false);
   const [downloadingContract, setDownloadingContract] = useState(false);
+  const [matchedGroupId, setMatchedGroupId] = useState<number | null>(null);
 
   const numId = Number(childId);
 
@@ -197,6 +199,32 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
       if (attendanceRes.status === 'fulfilled') setAttendance(attendanceRes.value);
     }).finally(() => setLoading(false));
   }, [numId]);
+
+  useEffect(() => {
+    if (!child?.groupName) {
+      setMatchedGroupId(null);
+      return;
+    }
+
+    let active = true;
+
+    groupsApi.getAll()
+      .then((groups) => {
+        if (!active) return;
+        const byDivisionAndName = groups.find(
+          (g: Group) => g.name === child.groupName && g.divisionName === child.divisionName
+        );
+        const byName = groups.find((g: Group) => g.name === child.groupName);
+        setMatchedGroupId((byDivisionAndName ?? byName)?.id ?? null);
+      })
+      .catch(() => {
+        if (active) setMatchedGroupId(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [child?.groupName, child?.divisionName]);
 
   // Load attendance for the selected calendar month
   useEffect(() => {
@@ -404,7 +432,20 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
               </div>
               <div className="flex flex-wrap gap-2">
                 <Badge variant="blue" size="sm" className="px-2.5 py-1 text-xs">{child.divisionName}</Badge>
-                <Badge variant="violet" size="sm" className="px-2.5 py-1 text-xs">{child.groupName}</Badge>
+                {matchedGroupId ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/groups/${matchedGroupId}`)}
+                    className="rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                    title="Qrupu aç"
+                  >
+                    <Badge variant="violet" size="sm" className="px-2.5 py-1 text-xs hover:opacity-80 transition-opacity cursor-pointer">
+                      {child.groupName}
+                    </Badge>
+                  </button>
+                ) : (
+                  <Badge variant="violet" size="sm" className="px-2.5 py-1 text-xs">{child.groupName}</Badge>
+                )}
                 <Badge variant="teal" size="sm" className="px-2.5 py-1 text-xs">
                   {child.scheduleType === 'FullDay' ? 'Tam günlük' : 'Yarım günlük'}
                 </Badge>
