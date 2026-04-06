@@ -2,17 +2,20 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, UserPlus, Users, Activity, GraduationCap, Clock, Info } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Modal, ModalContent, ModalHeader, ModalTitle } from '@/components/ui/Modal';
+import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from '@/components/ui/Modal';
+import { Select } from '@/components/ui/Select';
 import { ChildStatusBadge } from '@/components/children/ChildStatusBadge';
 import { ChildForm } from '@/components/children/ChildForm';
 import { groupsApi } from '@/lib/api/groups';
+import { usersApi } from '@/lib/api/users';
 import { formatDate } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/constants';
-import type { GroupDetail, GroupLogResponse, GroupTeacher } from '@/types';
+import type { GroupDetail, GroupLogResponse, GroupTeacher, UserResponse } from '@/types';
 import Link from 'next/link';
 
 export default function GroupDetailPage() {
@@ -24,6 +27,12 @@ export default function GroupDetailPage() {
   const [logsLoading, setLogsLoading] = useState(true);
   const [logs, setLogs] = useState<GroupLogResponse[]>([]);
   const [groupTeachers, setGroupTeachers] = useState<GroupTeacher[]>([]);
+  const [teachers, setTeachers] = useState<UserResponse[]>([]);
+  const [teacherManageOpen, setTeacherManageOpen] = useState(false);
+  const [teacherSelection, setTeacherSelection] = useState('');
+  const [teachersLoading, setTeachersLoading] = useState(false);
+  const [addTeacherLoading, setAddTeacherLoading] = useState(false);
+  const [removingTeacherId, setRemovingTeacherId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
   const numId = Number(id);
@@ -67,10 +76,82 @@ export default function GroupDetailPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  const loadTeachers = useCallback(async () => {
+    setTeachersLoading(true);
+    try {
+      const teachersResult = await usersApi.getByRole('Teacher');
+      setTeachers(teachersResult);
+    } catch {
+      setTeachers([]);
+    } finally {
+      setTeachersLoading(false);
+    }
+  }, []);
+
+  const refreshGroupTeachers = useCallback(async () => {
+    if (!Number.isFinite(numId)) {
+      setGroupTeachers([]);
+      return;
+    }
+
+    try {
+      const teachersResult = await groupsApi.getTeachers(numId);
+      setGroupTeachers(teachersResult);
+    } catch {
+      setGroupTeachers([]);
+    }
+  }, [numId]);
+
+  const openTeacherManageModal = async () => {
+    setTeacherManageOpen(true);
+    setTeacherSelection('');
+    await Promise.all([loadTeachers(), refreshGroupTeachers()]);
+  };
+
+  const onAddTeacher = async () => {
+    if (!teacherSelection) {
+      toast.error('Müəllim seçin');
+      return;
+    }
+
+    if (groupTeachers.some((teacher) => teacher.userId === teacherSelection)) {
+      toast.error('Bu müəllim artıq qrupdadır');
+      return;
+    }
+
+    setAddTeacherLoading(true);
+    try {
+      await groupsApi.addTeacher(numId, teacherSelection);
+      await refreshGroupTeachers();
+      setTeacherSelection('');
+      toast.success('Müəllim qrupa əlavə edildi');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Müəllim əlavə edilə bilmədi');
+    } finally {
+      setAddTeacherLoading(false);
+    }
+  };
+
+  const onRemoveTeacher = async (userId: string) => {
+    setRemovingTeacherId(userId);
+    try {
+      await groupsApi.removeTeacher(numId, userId);
+      await refreshGroupTeachers();
+      toast.success('Müəllim qrupdan çıxarıldı');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Müəllim çıxarıla bilmədi');
+    } finally {
+      setRemovingTeacherId(null);
+    }
+  };
+
   const activeChildren = group?.children.filter(c => c.status === 'Active').length || 0;
   const totalChildren = group?.children.length || 0;
   const teacherNames = groupTeachers.map((teacher) => teacher.fullName);
   const teacherLabel = teacherNames.length > 0 ? teacherNames.join(', ') : (group?.teacherName || 'Təyin edilməyib');
+  const assignableTeacherOptions = teachers
+    .filter((teacher) => !groupTeachers.some((assignedTeacher) => assignedTeacher.userId === teacher.id))
+    .map((teacher) => ({ value: teacher.id, label: `${teacher.firstName} ${teacher.lastName}` }));
   const sortedChildren = [...(group?.children ?? [])].sort((a, b) => {
     if (a.status === b.status) return a.fullName.localeCompare(b.fullName, 'az');
     return a.status === 'Active' ? -1 : 1;
@@ -116,13 +197,16 @@ export default function GroupDetailPage() {
           )}
         </div>
         
-        <Button 
-          onClick={() => setAddOpen(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-        >
-          <UserPlus size={16} className="mr-2" /> 
-          Uşaq Əlavə Et
-        </Button>
+        <div className="flex flex-wrap items-center gap-2 justify-end">
+          <Button variant="secondary" onClick={openTeacherManageModal}>Müəllimləri idarə et</Button>
+          <Button 
+            onClick={() => setAddOpen(true)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+          >
+            <UserPlus size={16} className="mr-2" /> 
+            Uşaq Əlavə Et
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -339,6 +423,61 @@ export default function GroupDetailPage() {
               onCancel={() => setAddOpen(false)}
             />
           </div>
+        </ModalContent>
+      </Modal>
+
+      {/* Teacher Manage Modal */}
+      <Modal open={teacherManageOpen} onOpenChange={setTeacherManageOpen}>
+        <ModalContent size="md">
+          <ModalHeader>
+            <ModalTitle>Müəllimləri idarə et</ModalTitle>
+          </ModalHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Cari müəllimlər</p>
+              {groupTeachers.length === 0 ? (
+                <p className="text-sm text-gray-400">Bu qrupda müəllim yoxdur.</p>
+              ) : (
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {groupTeachers.map((teacher) => (
+                    <div key={teacher.userId} className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 p-2.5">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{teacher.fullName}</p>
+                        <p className="text-xs text-gray-400 truncate">{teacher.email}</p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        loading={removingTeacherId === teacher.userId}
+                        onClick={() => onRemoveTeacher(teacher.userId)}
+                      >
+                        Çıxar
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Select
+                label="Yeni müəllim"
+                value={teacherSelection}
+                onChange={(event) => setTeacherSelection(event.target.value)}
+                options={[{ value: '', label: teachersLoading ? 'Yüklənir...' : 'Müəllim seçin' }, ...assignableTeacherOptions]}
+              />
+              {!teachersLoading && assignableTeacherOptions.length === 0 && (
+                <p className="text-xs text-gray-400">Əlavə edilə biləcək müəllim yoxdur.</p>
+              )}
+            </div>
+          </div>
+
+          <ModalFooter>
+            <Button type="button" variant="secondary" onClick={() => setTeacherManageOpen(false)}>Bağla</Button>
+            <Button type="button" loading={addTeacherLoading} onClick={onAddTeacher}>Əlavə et</Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
     </div>
