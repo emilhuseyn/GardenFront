@@ -1,18 +1,20 @@
 'use client';
 import { motion } from 'framer-motion';
-import { Edit2, Wallet, Building2, Check, X } from 'lucide-react';
+import { Edit2, Wallet, Building2, Landmark } from 'lucide-react';
 import type { Cashbox } from '@/types';
 import { Badge } from '@/components/ui/Badge';
 import { Switch } from '@/components/ui/Switch';
+import { formatCurrency } from '@/lib/utils/format';
 
 interface CashboxesTableProps {
   data: Cashbox[];
   onEdit?: (cashbox: Cashbox) => void;
   onToggleStatus?: (id: number, isActive: boolean) => void;
+  onManageBalance?: (cashbox: Cashbox) => void;
   canEdit?: boolean;
 }
 
-export function CashboxesTable({ data, onEdit, onToggleStatus, canEdit }: CashboxesTableProps) {
+export function CashboxesTable({ data, onEdit, onToggleStatus, onManageBalance, canEdit }: CashboxesTableProps) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left border-collapse">
@@ -21,6 +23,7 @@ export function CashboxesTable({ data, onEdit, onToggleStatus, canEdit }: Cashbo
             <th className="py-3 px-4 font-medium w-16">ID</th>
             <th className="py-3 px-4 font-medium">Kassa Adı</th>
             <th className="py-3 px-4 font-medium">Növ</th>
+            <th className="py-3 px-4 font-medium">Cari balans</th>
             <th className="py-3 px-4 font-medium">Status</th>
             {(canEdit) && <th className="py-3 px-4 font-medium text-right">Əməliyyat</th>}
           </tr>
@@ -56,6 +59,11 @@ export function CashboxesTable({ data, onEdit, onToggleStatus, canEdit }: Cashbo
                 </Badge>
               </td>
               <td className="py-3 px-4">
+                <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                  {formatCurrency(box.balance ?? 0)}
+                </span>
+              </td>
+              <td className="py-3 px-4">
                 {canEdit && onToggleStatus ? (
                   <Switch
                     checked={box.isActive}
@@ -69,6 +77,15 @@ export function CashboxesTable({ data, onEdit, onToggleStatus, canEdit }: Cashbo
               </td>
               {(canEdit) && (
                 <td className="py-3 px-4 text-right">
+                  {onManageBalance && (
+                    <button
+                      onClick={() => onManageBalance(box)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors tooltip tooltip-left mr-1"
+                      data-tip="Balans idarə et"
+                    >
+                      <Landmark size={16} />
+                    </button>
+                  )}
                   {onEdit && (
                     <button
                       onClick={() => onEdit(box)}
