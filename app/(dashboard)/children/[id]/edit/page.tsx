@@ -72,7 +72,7 @@ export default function EditChildPage() {
       }
 
       setRegistrationDate(c.registrationDate ? c.registrationDate.split('T')[0] : '');
-      setDeactivationDate(c.status === 'Inactive' && c.deactivationDate ? c.deactivationDate.split('T')[0] : '');
+      setDeactivationDate(c.deactivationDate ? c.deactivationDate.split('T')[0] : '');
 
       // Pre-fill the group id from groupName match (Child has groupName not groupId)
       const matchedGroup = g.find((gr) => gr.name === c.groupName);
