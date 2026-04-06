@@ -17,11 +17,12 @@ import { paymentsApi } from '@/lib/api/payments';
 import { formatCurrency } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/constants';
 import { useAuth } from '@/lib/hooks/useAuth';
-import type { ChildFilters, DebtorInfo } from '@/types';
+import type { ChildFilters, ChildStatus, DebtorInfo } from '@/types';
 
 type ViewMode = 'all' | 'grouped';
 type SortMode = 'debt-desc' | 'debt-asc' | 'name-asc' | 'name-desc';
 type GroupSortMode = 'debt-desc' | 'debt-asc' | 'count-desc' | 'count-asc' | 'name-asc';
+type StatusFilter = 'all' | 'active' | 'inactive';
 
 interface GroupDebtRow {
   key: string;
@@ -34,6 +35,7 @@ interface GroupDebtRow {
 
 interface ListRow extends DebtorInfo {
   parentFullName: string;
+  status: ChildStatus;
 }
 
 function fmtMonths(months: number[]) {
@@ -104,6 +106,7 @@ export default function ListsPage() {
   const [search, setSearch] = useState('');
   const [divisionFilter, setDivisionFilter] = useState('all');
   const [groupFilter, setGroupFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortMode, setSortMode] = useState<SortMode>('debt-desc');
   const [groupSortMode, setGroupSortMode] = useState<GroupSortMode>('debt-desc');
 
@@ -180,6 +183,7 @@ export default function ListsPage() {
             groupName: child.groupName,
             divisionName: child.divisionName,
             parentPhone: child.parentPhone,
+            status: child.status,
             totalDebt: debtInfo?.totalDebt ?? child.totalDebt ?? 0,
             unpaidMonths: debtInfo?.unpaidMonths ?? [],
           };
@@ -224,6 +228,8 @@ export default function ListsPage() {
     const base = rows.filter((r) => {
       if (divisionFilter !== 'all' && r.divisionName !== divisionFilter) return false;
       if (groupFilter !== 'all' && r.groupName !== groupFilter) return false;
+      if (statusFilter === 'active' && r.status !== 'Active') return false;
+      if (statusFilter === 'inactive' && r.status !== 'Inactive') return false;
       if (!q) return true;
 
       return (
@@ -248,7 +254,7 @@ export default function ListsPage() {
           return b.totalDebt - a.totalDebt;
       }
     });
-  }, [rows, divisionFilter, groupFilter, search, sortMode]);
+  }, [rows, divisionFilter, groupFilter, statusFilter, search, sortMode]);
 
   const groupedRows = useMemo(() => {
     const map = new Map<string, GroupDebtRow>();
@@ -301,6 +307,10 @@ export default function ListsPage() {
 
     if (divisionFilter !== 'all') {
       parts.push(`bolme_${sanitizeFilePart(divisionFilter)}`);
+    }
+
+    if (statusFilter !== 'all') {
+      parts.push(statusFilter === 'active' ? 'status_aktiv' : 'status_deaktiv');
     }
 
     if (search.trim()) {
@@ -423,6 +433,16 @@ export default function ListsPage() {
             className="sm:w-52"
           />
           <Select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            options={[
+              { value: 'all', label: 'Bütün statuslar' },
+              { value: 'active', label: 'Aktiv' },
+              { value: 'inactive', label: 'Deaktiv' },
+            ]}
+            className="sm:w-44"
+          />
+          <Select
             value={viewMode}
             onChange={(e) => setViewMode(e.target.value as ViewMode)}
             options={[
@@ -460,7 +480,7 @@ export default function ListsPage() {
           )}
         </div>
 
-        {(search || divisionFilter !== 'all' || groupFilter !== 'all') && (
+        {(search || divisionFilter !== 'all' || groupFilter !== 'all' || statusFilter !== 'all') && (
           <div className="flex items-center gap-2 flex-wrap text-xs">
             <span className="text-gray-400">Aktiv filter:</span>
             {search && (
@@ -478,11 +498,17 @@ export default function ListsPage() {
                 Qrup: {groupFilter} ×
               </button>
             )}
+            {statusFilter !== 'all' && (
+              <button onClick={() => setStatusFilter('all')} className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200">
+                Status: {statusFilter === 'active' ? 'Aktiv' : 'Deaktiv'} ×
+              </button>
+            )}
             <button
               onClick={() => {
                 setSearch('');
                 setDivisionFilter('all');
                 setGroupFilter('all');
+                setStatusFilter('all');
               }}
               className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 hover:bg-rose-100"
             >
