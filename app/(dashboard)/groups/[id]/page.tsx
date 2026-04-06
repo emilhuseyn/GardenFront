@@ -12,6 +12,7 @@ import { ChildStatusBadge } from '@/components/children/ChildStatusBadge';
 import { ChildForm } from '@/components/children/ChildForm';
 import { groupsApi } from '@/lib/api/groups';
 import { formatDate } from '@/lib/utils/format';
+import { cn } from '@/lib/utils/constants';
 import type { GroupDetail, GroupLogResponse } from '@/types';
 import Link from 'next/link';
 
