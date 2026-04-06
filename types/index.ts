@@ -179,6 +179,23 @@ export interface Cashbox {
   type: CashboxType;
   isActive: boolean;
   accountNumber?: string;
+  balance: number;
+}
+
+export interface CashboxMonthlyBalance {
+  cashboxId: number;
+  cashboxName: string;
+  month: number;
+  year: number;
+  openingBalance: number;
+  monthlyIncome: number;
+  totalBalance: number;
+}
+
+export interface SetOpeningBalanceRequest {
+  month: number;
+  year: number;
+  openingBalance: number;
 }
 
 export interface Payment {
