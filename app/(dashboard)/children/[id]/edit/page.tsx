@@ -72,7 +72,7 @@ export default function EditChildPage() {
       }
 
       setRegistrationDate(c.registrationDate ? c.registrationDate.split('T')[0] : '');
-      setDeactivationDate(c.deactivationDate ? c.deactivationDate.split('T')[0] : '');
+      setDeactivationDate(c.status === 'Inactive' && c.deactivationDate ? c.deactivationDate.split('T')[0] : '');
 
       // Pre-fill the group id from groupName match (Child has groupName not groupId)
       const matchedGroup = g.find((gr) => gr.name === c.groupName);
@@ -109,7 +109,7 @@ export default function EditChildPage() {
       await childrenApi.update(numId, {
         ...data,
         ...(registrationDate ? { registrationDate: toIsoDate(registrationDate) } : {}),
-        ...(deactivationDate ? { deactivationDate: toIsoDate(deactivationDate) } : {}),
+        ...(child?.status === 'Inactive' && deactivationDate ? { deactivationDate: toIsoDate(deactivationDate) } : {}),
       });
       toast.success('Məlumatlar yeniləndi');
       router.push(`/children/${id}`);
@@ -296,12 +296,21 @@ export default function EditChildPage() {
                 value={registrationDate}
                 onChange={(e) => setRegistrationDate(e.target.value)}
               />
-              <Input
-                type="date"
-                label="Deaktiv tarixi"
-                value={deactivationDate}
-                onChange={(e) => setDeactivationDate(e.target.value)}
-              />
+              {child?.status === 'Inactive' ? (
+                <Input
+                  type="date"
+                  label="Deaktiv tarixi"
+                  value={deactivationDate}
+                  onChange={(e) => setDeactivationDate(e.target.value)}
+                />
+              ) : (
+                <Input
+                  type="text"
+                  label="Deaktiv tarixi"
+                  value="Deaktiv deyil"
+                  disabled
+                />
+              )}
             </div>
           </Card>
 
