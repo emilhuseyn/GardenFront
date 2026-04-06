@@ -38,17 +38,17 @@ export const groupsApi = {
   },
 
   getTeachers: async (id: number) => {
-    const res = await apiClient.get(`/api/groups/${id}/teachers`);
+    const res = await apiClient.get(`/api/groupses/${id}/teachers`);
     return unwrap<GroupTeacher[]>(res);
   },
 
   addTeacher: async (id: number, userId: string) => {
-    const res = await apiClient.post(`/api/groups/${id}/teachers`, { userId });
+    const res = await apiClient.post(`/api/groupses/${id}/teachers`, { userId });
     return unwrap(res);
   },
 
   removeTeacher: async (id: number, userId: string) => {
-    const res = await apiClient.delete(`/api/groups/${id}/teachers/${userId}`);
+    const res = await apiClient.delete(`/api/groupses/${id}/teachers/${userId}`);
     return unwrap(res);
   },
 
