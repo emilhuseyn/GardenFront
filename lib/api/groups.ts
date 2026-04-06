@@ -43,7 +43,7 @@ export const groupsApi = {
   },
 
   addTeacher: async (id: number, userId: string) => {
-    const res = await apiClient.post(`/api/groupses/${id}/teachers`, { userId });
+    const res = await apiClient.patch(`/api/groupses/${id}/assign-teacher`, { teacherId: userId });
     return unwrap(res);
   },
 
