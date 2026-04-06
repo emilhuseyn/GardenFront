@@ -50,6 +50,13 @@ export interface Group {
   currentChildCount: number;
 }
 
+export interface GroupTeacher {
+  userId: string;
+  fullName: string;
+  email: string;
+  assignedAt: string;
+}
+
 export interface GroupDetailChild {
   id: number;
   fullName: string;

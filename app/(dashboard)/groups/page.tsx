@@ -16,7 +16,7 @@ import { groupsApi, divisionsApi } from '@/lib/api/groups';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { usersApi } from '@/lib/api/users';
 import { useAuthStore, getPermissions } from '@/lib/stores/authStore';
-import type { Group, Division, UserResponse } from '@/types';
+import type { Group, Division, UserResponse, GroupTeacher } from '@/types';
 
 const COLOR_CYCLE = [
   'border-green-400 bg-green-50',
@@ -60,6 +60,9 @@ export default function GroupsPage() {
   const [editModal, setEditModal]      = useState<Group | null>(null);
   const [assignTeacherModal, setAssignTeacherModal] = useState<{ group: Group; selectedTeacherId: string } | null>(null);
   const [assignLoading, setAssignLoading] = useState(false);
+  const [removingTeacherId, setRemovingTeacherId] = useState<string | null>(null);
+  const [teachersByGroup, setTeachersByGroup] = useState<Record<number, GroupTeacher[]>>({});
+  const [teachersByGroupLoading, setTeachersByGroupLoading] = useState<Record<number, boolean>>({});
 
   // ── Filter & sort state ───────────────────────────────────────────────────
   const [search, setSearch]             = useState('');
@@ -86,14 +89,54 @@ export default function GroupsPage() {
 
   const clearAll = () => { setSearch(''); setFilterDivision('all'); setFilterAge('all'); setFilterLang('all'); setFilterTeacher('all'); };
 
+  const getTeacherCount = (group: Group) => {
+    const groupTeachers = teachersByGroup[group.id];
+    if (groupTeachers !== undefined) return groupTeachers.length;
+    return group.teacherName ? 1 : 0;
+  };
+
+  const getTeacherPreview = (group: Group) => {
+    const groupTeachers = teachersByGroup[group.id];
+    if (groupTeachers !== undefined) {
+      if (groupTeachers.length === 0) return null;
+      return {
+        firstTeacher: groupTeachers[0].fullName,
+        extraCount: Math.max(0, groupTeachers.length - 1),
+      };
+    }
+
+    if (group.teacherName) {
+      return {
+        firstTeacher: group.teacherName,
+        extraCount: 0,
+      };
+    }
+
+    return null;
+  };
+
+  const loadGroupTeachers = async (groupId: number) => {
+    setTeachersByGroupLoading((prev) => ({ ...prev, [groupId]: true }));
+    try {
+      const groupTeachers = await groupsApi.getTeachers(groupId);
+      setTeachersByGroup((prev) => ({ ...prev, [groupId]: groupTeachers }));
+      return groupTeachers;
+    } catch {
+      return teachersByGroup[groupId] ?? [];
+    } finally {
+      setTeachersByGroupLoading((prev) => ({ ...prev, [groupId]: false }));
+    }
+  };
+
   const filteredGroups = groups
     .filter((g) => {
       if (search && !g.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (filterDivision !== 'all' && String(g.divisionId) !== filterDivision) return false;
       if (filterAge  !== 'all' && g.ageCategory !== filterAge)  return false;
       if (filterLang !== 'all' && g.language    !== filterLang) return false;
-      if (filterTeacher === 'has'  && !g.teacherName) return false;
-      if (filterTeacher === 'none' &&  g.teacherName) return false;
+      const teacherCount = getTeacherCount(g);
+      if (filterTeacher === 'has'  && teacherCount === 0) return false;
+      if (filterTeacher === 'none' && teacherCount > 0) return false;
       return true;
     })
     .sort((a, b) => {
@@ -115,7 +158,35 @@ export default function GroupsPage() {
     if (perms.groups.create) {
       divisionsApi.getAll().then(setDivisions).catch(() => {});
       usersApi.getByRole('Teacher').then(setTeachers).catch(() => {});
-    }  }, [perms.groups.create]);
+    }
+  }, [perms.groups.create]);
+
+  useEffect(() => {
+    if (groups.length === 0) {
+      setTeachersByGroup({});
+      return;
+    }
+
+    let cancelled = false;
+    const loadAllTeachers = async () => {
+      const results = await Promise.allSettled(groups.map((group) => groupsApi.getTeachers(group.id)));
+      if (cancelled) return;
+
+      const nextMap: Record<number, GroupTeacher[]> = {};
+      groups.forEach((group, index) => {
+        const result = results[index];
+        if (result.status === 'fulfilled') {
+          nextMap[group.id] = result.value;
+        }
+      });
+      setTeachersByGroup(nextMap);
+    };
+
+    void loadAllTeachers();
+    return () => {
+      cancelled = true;
+    };
+  }, [groups]);
 
   const divisionOptions = divisions.map((d) => ({ value: String(d.id), label: d.name }));
   const teacherOptions = teachers.map((t) => ({ value: t.id, label: `${t.firstName} ${t.lastName}` }));
@@ -135,27 +206,65 @@ export default function GroupsPage() {
   };
 
   const openAssignTeacher = (group: Group) => {
-    setAssignTeacherModal({ group, selectedTeacherId: group.teacherId ?? '' });
+    setAssignTeacherModal({ group, selectedTeacherId: '' });
+    void loadGroupTeachers(group.id);
   };
 
   const onAssignTeacher = async () => {
-    if (!assignTeacherModal) return;
+    if (!assignTeacherModal || !assignTeacherModal.selectedTeacherId) {
+      toast.error('Müəllim seçin');
+      return;
+    }
+
+    const currentTeachers = teachersByGroup[assignTeacherModal.group.id] ?? [];
+    if (currentTeachers.some((teacher) => teacher.userId === assignTeacherModal.selectedTeacherId)) {
+      toast.error('Bu müəllim artıq qrupdadır');
+      return;
+    }
+
     setAssignLoading(true);
     try {
-      await groupsApi.assignTeacher(assignTeacherModal.group.id, assignTeacherModal.selectedTeacherId);
-      setGroups((prev) => 
-        prev.map((g) => 
-          g.id === assignTeacherModal.group.id 
-            ? { ...g, teacherId: assignTeacherModal.selectedTeacherId, teacherName: teachers.find(t => t.id === assignTeacherModal.selectedTeacherId)?.firstName ? `${teachers.find(t => t.id === assignTeacherModal.selectedTeacherId)?.firstName} ${teachers.find(t => t.id === assignTeacherModal.selectedTeacherId)?.lastName}` : undefined }
-            : g
-        )
-      );
-      setAssignTeacherModal(null);
-      toast.success('Müəllim uğurla təyin edildi');
+      await groupsApi.addTeacher(assignTeacherModal.group.id, assignTeacherModal.selectedTeacherId);
+
+      const selectedTeacher = teachers.find((teacher) => teacher.id === assignTeacherModal.selectedTeacherId);
+      if (selectedTeacher) {
+        const newTeacher: GroupTeacher = {
+          userId: selectedTeacher.id,
+          fullName: `${selectedTeacher.firstName} ${selectedTeacher.lastName}`,
+          email: selectedTeacher.email,
+          assignedAt: new Date().toISOString(),
+        };
+
+        setTeachersByGroup((prev) => ({
+          ...prev,
+          [assignTeacherModal.group.id]: [...(prev[assignTeacherModal.group.id] ?? []), newTeacher],
+        }));
+      } else {
+        await loadGroupTeachers(assignTeacherModal.group.id);
+      }
+
+      setAssignTeacherModal((prev) => prev ? { ...prev, selectedTeacherId: '' } : prev);
+      toast.success('Müəllim qrupa əlavə edildi');
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Xəta baş verdi');
     } finally {
       setAssignLoading(false);
+    }
+  };
+
+  const onRemoveTeacher = async (groupId: number, userId: string) => {
+    setRemovingTeacherId(userId);
+    try {
+      await groupsApi.removeTeacher(groupId, userId);
+      setTeachersByGroup((prev) => ({
+        ...prev,
+        [groupId]: (prev[groupId] ?? []).filter((teacher) => teacher.userId !== userId),
+      }));
+      toast.success('Müəllim qrupdan çıxarıldı');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Xəta baş verdi');
+    } finally {
+      setRemovingTeacherId(null);
     }
   };
 
@@ -201,6 +310,11 @@ export default function GroupsPage() {
     try {
       await groupsApi.delete(deleteModal);
       setGroups((prev) => prev.filter((g) => g.id !== deleteModal));
+      setTeachersByGroup((prev) => {
+        const next = { ...prev };
+        delete next[deleteModal];
+        return next;
+      });
       toast.success('Qrup silindi');
     } catch {
       toast.error('Silinərkən xəta baş verdi');
@@ -344,6 +458,7 @@ export default function GroupsPage() {
               </div>
             ) : filteredGroups.map((group, i) => {
               const isEnglish = group.language === 'En';
+              const teacherPreview = getTeacherPreview(group);
               return (
             <motion.div
               key={group.id}
@@ -359,10 +474,13 @@ export default function GroupsPage() {
               <h3 className="text-base font-bold text-gray-900 dark:text-gray-50 font-display mb-0.5">{group.name}</h3>
               <p className="text-xs text-gray-400 mb-0.5">{group.divisionName}</p>
               <p className="text-xs text-gray-400 mb-4">{group.ageCategory}</p>
-              {group.teacherName && (
+              {teacherPreview && (
                 <div className="flex items-center gap-2 mb-4">
-                  <Avatar name={group.teacherName} size="xs" />
-                  <span className="text-xs text-gray-600">{group.teacherName}</span>
+                  <Avatar name={teacherPreview.firstTeacher} size="xs" />
+                  <span className="text-xs text-gray-600">
+                    {teacherPreview.firstTeacher}
+                    {teacherPreview.extraCount > 0 ? ` +${teacherPreview.extraCount}` : ''}
+                  </span>
                 </div>
               )}
               <div className="mb-1 flex justify-between text-xs text-gray-500 dark:text-gray-400">
@@ -385,7 +503,7 @@ export default function GroupsPage() {
                   <button
                     onClick={() => openAssignTeacher(group)}
                     className="p-2 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 text-gray-400 hover:text-amber-500 transition-colors"
-                    title="Müəllimi dəyiş"
+                    title="Müəllimləri idarə et"
                   >
                     <User size={14} />
                   </button>
@@ -533,14 +651,45 @@ export default function GroupsPage() {
       <Modal open={assignTeacherModal !== null} onOpenChange={(open) => !open && setAssignTeacherModal(null)}>
         <ModalContent size="sm">
           <ModalHeader>
-            <ModalTitle>Müəllimi dəyiş</ModalTitle>
+            <ModalTitle>Müəllimləri idarə et</ModalTitle>
           </ModalHeader>
           {assignTeacherModal && (
             <div className="space-y-4">
-              <p className="text-sm text-gray-600">{assignTeacherModal.group.name} qrupuna müəllim təyin edin</p>
+              <p className="text-sm text-gray-600">{assignTeacherModal.group.name} qrupuna müəllim əlavə edin və ya çıxarın</p>
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-gray-500">Cari müəllimlər</p>
+                {teachersByGroupLoading[assignTeacherModal.group.id] ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ) : (teachersByGroup[assignTeacherModal.group.id]?.length ?? 0) === 0 ? (
+                  <p className="text-xs text-gray-400">Bu qrupda hələ müəllim yoxdur</p>
+                ) : (
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                    {(teachersByGroup[assignTeacherModal.group.id] ?? []).map((teacher) => (
+                      <div key={teacher.userId} className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-2 py-1.5">
+                        <div className="min-w-0">
+                          <p className="text-sm text-gray-700 dark:text-gray-200 truncate">{teacher.fullName}</p>
+                          <p className="text-xs text-gray-400 truncate">{teacher.email}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          loading={removingTeacherId === teacher.userId}
+                          onClick={() => onRemoveTeacher(assignTeacherModal.group.id, teacher.userId)}
+                        >
+                          Çıxar
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <Select
-                label="Müəllim"
-                options={[{ value: '', label: 'Müəllim seçin (ixtiyari)' }, ...teacherOptions]}
+                label="Yeni müəllim"
+                options={[{ value: '', label: 'Müəllim seçin' }, ...teacherOptions]}
                 value={assignTeacherModal.selectedTeacherId}
                 onChange={(e) => setAssignTeacherModal({ ...assignTeacherModal, selectedTeacherId: e.target.value })}
               />
@@ -548,7 +697,7 @@ export default function GroupsPage() {
           )}
           <ModalFooter>
             <Button type="button" variant="secondary" onClick={() => setAssignTeacherModal(null)}>Ləğv et</Button>
-            <Button type="button" loading={assignLoading} onClick={onAssignTeacher}>Təyin et</Button>
+            <Button type="button" loading={assignLoading} onClick={onAssignTeacher}>Əlavə et</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

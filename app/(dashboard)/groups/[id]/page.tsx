@@ -1,8 +1,7 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, UserPlus, Users, Calendar, Activity, GraduationCap, MapPin, Clock, Info } from 'lucide-react';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { ArrowLeft, UserPlus, Users, Activity, GraduationCap, Clock, Info } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
@@ -13,7 +12,7 @@ import { ChildForm } from '@/components/children/ChildForm';
 import { groupsApi } from '@/lib/api/groups';
 import { formatDate } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/constants';
-import type { GroupDetail, GroupLogResponse } from '@/types';
+import type { GroupDetail, GroupLogResponse, GroupTeacher } from '@/types';
 import Link from 'next/link';
 
 export default function GroupDetailPage() {
@@ -24,6 +23,7 @@ export default function GroupDetailPage() {
   const [loading, setLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(true);
   const [logs, setLogs] = useState<GroupLogResponse[]>([]);
+  const [groupTeachers, setGroupTeachers] = useState<GroupTeacher[]>([]);
   const [addOpen, setAddOpen] = useState(false);
 
   const numId = Number(id);
@@ -47,10 +47,18 @@ export default function GroupDetailPage() {
       ]);
       setGroup(groupResult);
       setLogs(logsResult);
+
+      try {
+        const teachersResult = await groupsApi.getTeachers(numId);
+        setGroupTeachers(teachersResult);
+      } catch {
+        setGroupTeachers([]);
+      }
     } catch (e) {
       console.error(e);
       setGroup(null);
       setLogs([]);
+      setGroupTeachers([]);
     } finally {
       setLoading(false);
       setLogsLoading(false);
@@ -61,6 +69,8 @@ export default function GroupDetailPage() {
 
   const activeChildren = group?.children.filter(c => c.status === 'Active').length || 0;
   const totalChildren = group?.children.length || 0;
+  const teacherNames = groupTeachers.map((teacher) => teacher.fullName);
+  const teacherLabel = teacherNames.length > 0 ? teacherNames.join(', ') : (group?.teacherName || 'Təyin edilməyib');
   const sortedChildren = [...(group?.children ?? [])].sort((a, b) => {
     if (a.status === b.status) return a.fullName.localeCompare(b.fullName, 'az');
     return a.status === 'Active' ? -1 : 1;
@@ -98,7 +108,7 @@ export default function GroupDetailPage() {
               </h1>
               <p className="text-gray-500 dark:text-gray-400 text-sm flex items-center gap-2">
                 <GraduationCap size={16} />
-                Müəllim: <span className="font-medium text-gray-700 dark:text-gray-300">{group?.teacherName || "Təyin edilməyib"}</span> 
+                Müəllimlər: <span className="font-medium text-gray-700 dark:text-gray-300">{teacherLabel}</span>
                 <span className="mx-1">•</span>
                 Yaş qrupu: <span className="font-medium text-gray-700 dark:text-gray-300">{group?.ageCategory}</span>
               </p>
@@ -264,7 +274,7 @@ export default function GroupDetailPage() {
                 </div>
               ) : (
                 <div className="space-y-5">
-                  {logs.slice(0, 10).map((log, index) => { // Sadece en son 10 log'u goster
+                  {logs.slice(0, 10).map((log) => { // Sadece en son 10 log'u goster
                     const isAdded = log.actionType === 'ChildAdded';
                     const isRemoved = log.actionType === 'ChildRemoved';
                     

@@ -1,5 +1,5 @@
 import apiClient, { unwrap } from './client';
-import type { Group, GroupDetail, Division, GroupLogResponse } from '@/types';
+import type { Group, GroupDetail, Division, GroupLogResponse, GroupTeacher } from '@/types';
 
 export const groupsApi = {
   getAll: async () => {
@@ -34,6 +34,21 @@ export const groupsApi = {
 
   assignTeacher: async (id: number, teacherId: string) => {
     const res = await apiClient.patch(`/api/groupses/${id}/assign-teacher`, { teacherId });
+    return unwrap(res);
+  },
+
+  getTeachers: async (id: number) => {
+    const res = await apiClient.get(`/api/groups/${id}/teachers`);
+    return unwrap<GroupTeacher[]>(res);
+  },
+
+  addTeacher: async (id: number, userId: string) => {
+    const res = await apiClient.post(`/api/groups/${id}/teachers`, { userId });
+    return unwrap(res);
+  },
+
+  removeTeacher: async (id: number, userId: string) => {
+    const res = await apiClient.delete(`/api/groups/${id}/teachers/${userId}`);
     return unwrap(res);
   },
 
