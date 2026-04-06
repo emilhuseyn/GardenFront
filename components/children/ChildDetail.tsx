@@ -274,13 +274,17 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
       description: `${child.firstName} ${child.lastName} sistemə əlavə edildi.`,
       tone: 'success',
     });
+
+    const isInactiveChild = child.status === 'Inactive';
     timelineEvents.push({
       id: `grp-${child.id}`,
       date: regDate,
       type: 'group',
-      title: 'Qrupa yerləşdirildi',
-      description: `${child.divisionName} / ${child.groupName} qrupunda aktiv edildi.`,
-      tone: 'neutral',
+      title: isInactiveChild ? 'Qrupdan ayrıldı' : 'Qrupa yerləşdirildi',
+      description: isInactiveChild
+        ? `${child.firstName} ${child.lastName} deaktiv edildi və ${child.divisionName} / ${child.groupName} qrupundan ayrıldı.`
+        : `${child.divisionName} / ${child.groupName} qrupunda aktiv edildi.`,
+      tone: isInactiveChild ? 'warning' : 'neutral',
     });
   }
 
