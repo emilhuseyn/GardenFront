@@ -20,7 +20,6 @@ import { applyTheme, applyFontSize, applyRadius, THEME_OPTIONS, type ThemeKey } 
 import { usersApi } from '@/lib/api/users';
 import { authApi } from '@/lib/api/auth';
 import { notificationsApi, type WhatsAppStatus, type DueAndOverdueAlertsResult } from '@/lib/api/notifications';
-import apiClient from '@/lib/api/client';
 import type { UserResponse, UserRole } from '@/types';
 
 const TABS = [
@@ -29,7 +28,6 @@ const TABS = [
   { id: 'security',      label: 'Təhlükəsizlik',   icon: Shield,  adminOnly: false },
   { id: 'appearance',    label: 'Görünüş',         icon: Palette, adminOnly: false },
   { id: 'notifications', label: 'Bildirişlər',     icon: Bell,    adminOnly: true  },
-  { id: 'system',        label: 'Sistem',          icon: Save,    adminOnly: true  },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -219,7 +217,6 @@ export default function SettingsPage() {
   const [alertErrorsOpen, setAlertErrorsOpen] = useState(false);
   const [qrCountdown, setQrCountdown] = useState(20);
   const [waDisconnecting, setWaDisconnecting] = useState(false);
-  const [seedingExcel, setSeedingExcel] = useState(false);
 
   const fetchWaStatus = async (showLoader = false) => {
     if (showLoader) setWaLoading(true);
@@ -326,18 +323,6 @@ export default function SettingsPage() {
       }
     } finally {
       setWaSending(false);
-    }
-  };
-  
-  const handleSeedExcel = async () => {
-    setSeedingExcel(true);
-    try {
-      await apiClient.post('/api/admins/seed-excel');
-      toast.success('Bütün məlumatlar sistemə uğurla yükləndi');
-    } catch {
-      toast.error('Məlumatların yüklənməsi zamanı xəta baş verdi');
-    } finally {
-      setSeedingExcel(false);
     }
   };
   // ────────────────────────────────────────────────────────────────────────
@@ -852,28 +837,6 @@ export default function SettingsPage() {
                     ⚠️ Mesaj göndərmək üçün əvvəlcə WhatsApp qoşulması tələb olunur
                   </p>
                 )}
-              </div>
-            </div>
-          )}
-          {activeTab === 'system' && (
-            <div className="space-y-6">
-              <h3 className="text-base font-bold text-gray-900 dark:text-gray-50 font-display">Sistem Əməliyyatları</h3>
-              <div className="rounded-xl border border-white-border dark:border-gray-700/60 p-4 space-y-3">
-                <div>
-                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">Excel-dən Məlumat Yüklənməsi</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Bu sistemə start vermək üçün Excel faylındakı bütün dataları avtomatik yükləyir.
-                    (Bu əməliyyat yalnız tələb olunduqda istifadə edilməlidir)
-                  </p>
-                </div>
-                <Button
-                  onClick={handleSeedExcel}
-                  loading={seedingExcel}
-                  variant="outline"
-                  className="bg-gray-50 hover:bg-gray-100"
-                >
-                  <RefreshCw size={14} /> Excel-dən quraşdır və yüklə
-                </Button>
               </div>
             </div>
           )}
