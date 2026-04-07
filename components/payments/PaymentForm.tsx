@@ -39,6 +39,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const [childMonthlyFeeById, setChildMonthlyFeeById] = useState<Record<number, number>>({});
   const [childrenLoading, setChildrenLoading] = useState(showChildSelector);
   const [selectedChildId, setSelectedChildId] = useState('');
+  const [currentChildMonthlyFee, setCurrentChildMonthlyFee] = useState(0);
   const [history, setHistory] = useState<Payment[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [cashboxes, setCashboxes] = useState<{ value: string; label: string }[]>([]);
@@ -148,6 +149,29 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
     };
   }, [effectiveChildId]);
 
+  useEffect(() => {
+    if (!effectiveChildId) {
+      setCurrentChildMonthlyFee(0);
+      return;
+    }
+
+    let active = true;
+
+    const loadChildFee = async () => {
+      try {
+        const detail = await childrenApi.getById(effectiveChildId);
+        if (active) setCurrentChildMonthlyFee(detail.monthlyFee ?? 0);
+      } catch {
+        if (active) setCurrentChildMonthlyFee(0);
+      }
+    };
+
+    void loadChildFee();
+    return () => {
+      active = false;
+    };
+  }, [effectiveChildId]);
+
   const currentPayment = history.find((p) => p.month === watchedMonth && p.year === watchedYear);
   const paidBefore = currentPayment?.paidAmount ?? 0;
   const remainingBefore = currentPayment?.remainingDebt ?? 0;
@@ -170,6 +194,17 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
       shouldTouch: false,
     });
   }, [currentPayment, setValue]);
+
+  useEffect(() => {
+    // When there is no record for the selected month, prefill with child's monthly fee.
+    if (!effectiveChildId || currentPayment || currentChildMonthlyFee <= 0) return;
+
+    setValue('amount', currentChildMonthlyFee, {
+      shouldValidate: true,
+      shouldDirty: false,
+      shouldTouch: false,
+    });
+  }, [effectiveChildId, currentPayment, currentChildMonthlyFee, setValue]);
 
   const plannedAmount = typeof watchedAmount === 'number' && Number.isFinite(watchedAmount) ? watchedAmount : 0;
   const remainingAfter = currentPayment ? Math.max(0, remainingBefore - plannedAmount) : null;
