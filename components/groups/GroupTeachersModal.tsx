@@ -182,7 +182,7 @@ export function GroupTeachersModal({ isOpen, onClose, group, allGroups, canManag
                         <span className="font-medium text-sm text-gray-900 dark:text-gray-100">
                           {teacher.fullName}
                         </span>
-                        <Badge variant={teacher.isActive ? 'success' : 'error'}>
+                        <Badge variant={teacher.isActive ? 'active' : 'inactive'}>
                           {teacher.isActive ? 'Aktiv' : 'Deaktiv'}
                         </Badge>
                       </div>

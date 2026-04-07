@@ -259,6 +259,7 @@ export default function GroupsPage() {
         userId: teacher.id,
         fullName: `${teacher.firstName} ${teacher.lastName}`,
         email: teacher.email,
+        isActive: teacher.isActive,
         assignedAt: new Date().toISOString(),
       };
 
