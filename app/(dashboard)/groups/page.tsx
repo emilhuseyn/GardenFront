@@ -555,13 +555,15 @@ export default function GroupsPage() {
                   </Button>
                 </Link>
                 {perms.groups.assignTeacher && (
-                  <button
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => openAssignTeacher(group)}
-                    className="p-2 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 text-gray-400 hover:text-amber-500 transition-colors"
-                    title="Müəllimləri idarə et"
+                    className="gap-1.5 text-gray-600 hover:text-amber-600 dark:text-gray-300 dark:hover:text-amber-400"
                   >
-                    <User size={14} />
-                  </button>
+                    <User size={13} /> Müəllimlər
+                  </Button>
                 )}
                 {perms.groups.edit && (
                   <button
@@ -707,12 +709,14 @@ export default function GroupsPage() {
         <Modal open={assignTeacherModal !== null} onOpenChange={(open) => !open && setAssignTeacherModal(null)}>
           <ModalContent size="md">
             <ModalHeader>
-              <ModalTitle>Müəllimləri idarə et</ModalTitle>
+              <ModalTitle>
+                Müəllim idarəetməsi{assignTeacherModal ? `: ${assignTeacherModal.group.name}` : ''}
+              </ModalTitle>
             </ModalHeader>
             {assignTeacherModal && (
               <div className="space-y-4">
                 <p className="text-sm text-gray-600">
-                  {assignTeacherModal.group.name} qrupu üçün müəllimləri siyahıdan idarə edin.
+                  Bu siyahıdan müəllimi aktiv/deaktiv edə, qrupa əlavə edə və ya başqa qrupdan bu qrupa köçürə bilərsiniz.
                 </p>
 
                 <Input
