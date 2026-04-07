@@ -206,11 +206,13 @@ export default function GroupsPage() {
   };
 
   const openAssignTeacher = (group: Group) => {
+    if (!perms.groups.assignTeacher) return;
     setAssignTeacherModal({ group, selectedTeacherId: '' });
     void loadGroupTeachers(group.id);
   };
 
   const onAssignTeacher = async () => {
+    if (!perms.groups.assignTeacher) return;
     if (!assignTeacherModal || !assignTeacherModal.selectedTeacherId) {
       toast.error('Müəllim seçin');
       return;
@@ -253,6 +255,7 @@ export default function GroupsPage() {
   };
 
   const onRemoveTeacher = async (groupId: number, userId: string) => {
+    if (!perms.groups.assignTeacher) return;
     setRemovingTeacherId(userId);
     try {
       await groupsApi.removeTeacher(groupId, userId);
@@ -499,7 +502,7 @@ export default function GroupsPage() {
                     <Users size={13} /> Uşaqlar <ChevronRight size={12} />
                   </Button>
                 </Link>
-                {perms.groups.edit && (
+                {perms.groups.assignTeacher && (
                   <button
                     onClick={() => openAssignTeacher(group)}
                     className="p-2 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 text-gray-400 hover:text-amber-500 transition-colors"
@@ -648,59 +651,61 @@ export default function GroupsPage() {
       </Modal>
 
       {/* Assign teacher modal */}
-      <Modal open={assignTeacherModal !== null} onOpenChange={(open) => !open && setAssignTeacherModal(null)}>
-        <ModalContent size="sm">
-          <ModalHeader>
-            <ModalTitle>Müəllimləri idarə et</ModalTitle>
-          </ModalHeader>
-          {assignTeacherModal && (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600">{assignTeacherModal.group.name} qrupuna müəllim əlavə edin və ya çıxarın</p>
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-gray-500">Cari müəllimlər</p>
-                {teachersByGroupLoading[assignTeacherModal.group.id] ? (
-                  <div className="space-y-2">
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                  </div>
-                ) : (teachersByGroup[assignTeacherModal.group.id]?.length ?? 0) === 0 ? (
-                  <p className="text-xs text-gray-400">Bu qrupda hələ müəllim yoxdur</p>
-                ) : (
-                  <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                    {(teachersByGroup[assignTeacherModal.group.id] ?? []).map((teacher) => (
-                      <div key={teacher.userId} className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-2 py-1.5">
-                        <div className="min-w-0">
-                          <p className="text-sm text-gray-700 dark:text-gray-200 truncate">{teacher.fullName}</p>
-                          <p className="text-xs text-gray-400 truncate">{teacher.email}</p>
+      {perms.groups.assignTeacher && (
+        <Modal open={assignTeacherModal !== null} onOpenChange={(open) => !open && setAssignTeacherModal(null)}>
+          <ModalContent size="sm">
+            <ModalHeader>
+              <ModalTitle>Müəllimləri idarə et</ModalTitle>
+            </ModalHeader>
+            {assignTeacherModal && (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">{assignTeacherModal.group.name} qrupuna müəllim əlavə edin və ya çıxarın</p>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-gray-500">Cari müəllimlər</p>
+                  {teachersByGroupLoading[assignTeacherModal.group.id] ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-8 w-full" />
+                      <Skeleton className="h-8 w-full" />
+                    </div>
+                  ) : (teachersByGroup[assignTeacherModal.group.id]?.length ?? 0) === 0 ? (
+                    <p className="text-xs text-gray-400">Bu qrupda hələ müəllim yoxdur</p>
+                  ) : (
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                      {(teachersByGroup[assignTeacherModal.group.id] ?? []).map((teacher) => (
+                        <div key={teacher.userId} className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-2 py-1.5">
+                          <div className="min-w-0">
+                            <p className="text-sm text-gray-700 dark:text-gray-200 truncate">{teacher.fullName}</p>
+                            <p className="text-xs text-gray-400 truncate">{teacher.email}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            loading={removingTeacherId === teacher.userId}
+                            onClick={() => onRemoveTeacher(assignTeacherModal.group.id, teacher.userId)}
+                          >
+                            Çıxar
+                          </Button>
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          loading={removingTeacherId === teacher.userId}
-                          onClick={() => onRemoveTeacher(assignTeacherModal.group.id, teacher.userId)}
-                        >
-                          Çıxar
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Select
+                  label="Yeni müəllim"
+                  options={[{ value: '', label: 'Müəllim seçin' }, ...teacherOptions]}
+                  value={assignTeacherModal.selectedTeacherId}
+                  onChange={(e) => setAssignTeacherModal({ ...assignTeacherModal, selectedTeacherId: e.target.value })}
+                />
               </div>
-              <Select
-                label="Yeni müəllim"
-                options={[{ value: '', label: 'Müəllim seçin' }, ...teacherOptions]}
-                value={assignTeacherModal.selectedTeacherId}
-                onChange={(e) => setAssignTeacherModal({ ...assignTeacherModal, selectedTeacherId: e.target.value })}
-              />
-            </div>
-          )}
-          <ModalFooter>
-            <Button type="button" variant="secondary" onClick={() => setAssignTeacherModal(null)}>Ləğv et</Button>
-            <Button type="button" loading={assignLoading} onClick={onAssignTeacher}>Əlavə et</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+            )}
+            <ModalFooter>
+              <Button type="button" variant="secondary" onClick={() => setAssignTeacherModal(null)}>Ləğv et</Button>
+              <Button type="button" loading={assignLoading} onClick={onAssignTeacher}>Əlavə et</Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      )}
     </div>
   );
 }
