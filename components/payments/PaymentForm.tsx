@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -24,6 +24,54 @@ const MONTH_OPTIONS = [
   { value: '11', label: 'Noyabr' }, { value: '12', label: 'Dekabr' },
 ];
 
+interface ChildOption {
+  value: string;
+  label: string;
+  searchKey: string;
+}
+
+function normalizeSearch(value: string) {
+  return value
+    .toLocaleLowerCase('az')
+    .replace(/ə/g, 'e')
+    .replace(/ı/g, 'i')
+    .replace(/ö/g, 'o')
+    .replace(/ü/g, 'u')
+    .replace(/ş/g, 's')
+    .replace(/ç/g, 'c')
+    .replace(/ğ/g, 'g')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function fuzzyMatch(target: string, query: string) {
+  const normalizedTarget = normalizeSearch(target);
+  const normalizedQuery = normalizeSearch(query);
+
+  if (!normalizedQuery) return true;
+  if (normalizedTarget.includes(normalizedQuery)) return true;
+
+  const tokens = normalizedQuery.split(' ').filter(Boolean);
+  if (tokens.length > 1 && tokens.every((token) => normalizedTarget.includes(token))) {
+    return true;
+  }
+
+  const compactTarget = normalizedTarget.replace(/\s+/g, '');
+  const compactQuery = normalizedQuery.replace(/\s+/g, '');
+  let idx = 0;
+
+  for (const ch of compactQuery) {
+    idx = compactTarget.indexOf(ch, idx);
+    if (idx === -1) return false;
+    idx += 1;
+  }
+
+  return true;
+}
+
 interface PaymentFormProps {
   childId?: number;
   childName?: string;
@@ -35,10 +83,11 @@ interface PaymentFormProps {
 
 export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, onSuccess, onCancel }: PaymentFormProps) {
   const showChildSelector = !childId || childId === 0;
-  const [childOptions, setChildOptions] = useState<{ value: string; label: string }[]>([]);
+  const [childOptions, setChildOptions] = useState<ChildOption[]>([]);
   const [childMonthlyFeeById, setChildMonthlyFeeById] = useState<Record<number, number>>({});
   const [childrenLoading, setChildrenLoading] = useState(showChildSelector);
   const [selectedChildId, setSelectedChildId] = useState('');
+  const [childSearch, setChildSearch] = useState('');
   const [currentChildMonthlyFee, setCurrentChildMonthlyFee] = useState(0);
   const [history, setHistory] = useState<Payment[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -107,6 +156,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
           allChildren.map((c) => ({
             value: String(c.id),
             label: `${c.firstName} ${c.lastName} - ${c.groupName}${c.status === 'Inactive' ? ' (Deaktiv)' : ''}`,
+            searchKey: `${c.firstName} ${c.lastName} ${c.lastName} ${c.firstName} ${c.groupName}`,
           }))
         );
       })
@@ -209,6 +259,17 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const plannedAmount = typeof watchedAmount === 'number' && Number.isFinite(watchedAmount) ? watchedAmount : 0;
   const remainingAfter = currentPayment ? Math.max(0, remainingBefore - plannedAmount) : null;
   const overpayAmount = currentPayment ? Math.max(0, plannedAmount - remainingBefore) : 0;
+
+  const filteredChildOptions = useMemo(() => {
+    if (!childSearch.trim()) {
+      return childOptions;
+    }
+    return childOptions.filter((option) => fuzzyMatch(option.searchKey, childSearch));
+  }, [childOptions, childSearch]);
+
+  const childSelectOptions = useMemo(() => {
+    return filteredChildOptions.map((option) => ({ value: option.value, label: option.label }));
+  }, [filteredChildOptions]);
 
   const onSubmit = async (data: PaymentFormValues) => {
     try {
@@ -314,29 +375,40 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
         </div>
       )}
       {showChildSelector && (
-        <Select
-          label="Uşaq *"
-          placeholder={childrenLoading ? 'Yüklənir...' : 'Uşaq seçin...'}
-          options={childOptions}
-          disabled={childrenLoading}
-          value={selectedChildId}
-          onChange={(e) => {
-            const val = e.target.value;
-            setSelectedChildId(val);
-            const numericChildId = Number(val);
-            setValue('childId', numericChildId, { shouldValidate: true });
+        <div className="space-y-2">
+          <Input
+            label="Uşaq axtarışı"
+            placeholder="Ad və ya soyad yazın..."
+            value={childSearch}
+            onChange={(e) => setChildSearch(e.target.value)}
+          />
+          <Select
+            label="Uşaq *"
+            placeholder={childrenLoading ? 'Yüklənir...' : 'Uşaq seçin...'}
+            options={childSelectOptions}
+            disabled={childrenLoading}
+            value={selectedChildId}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSelectedChildId(val);
+              const numericChildId = Number(val);
+              setValue('childId', numericChildId, { shouldValidate: true });
 
-            const monthlyFee = childMonthlyFeeById[numericChildId];
-            if (typeof monthlyFee === 'number' && Number.isFinite(monthlyFee) && monthlyFee > 0) {
-              setValue('amount', monthlyFee, {
-                shouldValidate: true,
-                shouldDirty: false,
-                shouldTouch: false,
-              });
-            }
-          }}
-          error={errors.childId?.message}
-        />
+              const monthlyFee = childMonthlyFeeById[numericChildId];
+              if (typeof monthlyFee === 'number' && Number.isFinite(monthlyFee) && monthlyFee > 0) {
+                setValue('amount', monthlyFee, {
+                  shouldValidate: true,
+                  shouldDirty: false,
+                  shouldTouch: false,
+                });
+              }
+            }}
+            error={errors.childId?.message}
+          />
+          {!childrenLoading && childSearch.trim() && childSelectOptions.length === 0 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">Axtarışa uyğun uşaq tapılmadı.</p>
+          )}
+        </div>
       )}
       <div className="grid grid-cols-2 gap-3">
         <Select
