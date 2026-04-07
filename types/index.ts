@@ -9,7 +9,6 @@ export interface User {
   role: UserRole;
   isActive: boolean;
   avatarUrl?: string;
-  phoneNumber?: string;
   // Computed display name
   name: string;
 }
@@ -313,7 +312,6 @@ export interface UserResponse {
   firstName: string;
   lastName: string;
   email: string;
-  phoneNumber?: string;
   role: UserRole;
   isActive: boolean;
   createdAt?: string;

@@ -63,7 +63,6 @@ export default function SettingsPage() {
     firstName: safeStr(user?.firstName),
     lastName:  safeStr(user?.lastName),
     email:     safeStr(user?.email),
-    phone:     safeStr(user?.phoneNumber),
   });
   const [profileSaving, setProfileSaving] = useState(false);
 
@@ -73,7 +72,6 @@ export default function SettingsPage() {
       firstName: safeStr(user?.firstName),
       lastName:  safeStr(user?.lastName),
       email:     safeStr(user?.email),
-      phone:     safeStr(user?.phoneNumber),
     }));
   }, [user]);
 
@@ -83,19 +81,16 @@ export default function SettingsPage() {
     if (!user) return;
     setProfileSaving(true);
     try {
-      const trimmedPhone = profileForm.phone.trim();
       const updated = await authApi.updateProfile({
-        firstName:   profileForm.firstName,
-        lastName:    profileForm.lastName,
-        email:       profileForm.email,
-        ...(trimmedPhone ? { phoneNumber: trimmedPhone } : {}),
+        firstName: profileForm.firstName,
+        lastName:  profileForm.lastName,
+        email:     profileForm.email,
       });
       updateUser({
-        firstName:   updated.firstName,
-        lastName:    updated.lastName,
-        email:       updated.email,
-        name:        `${updated.firstName} ${updated.lastName}`,
-        phoneNumber: updated.phoneNumber ?? '',
+        firstName: updated.firstName,
+        lastName:  updated.lastName,
+        email:     updated.email,
+        name:      `${updated.firstName} ${updated.lastName}`,
       });
       toast.success('Profil yadda saxlanıldı');
     } catch (err: unknown) {
@@ -124,8 +119,7 @@ export default function SettingsPage() {
       const matchSearch =
         !userSearch ||
         fullName.includes(userSearch.toLowerCase()) ||
-        u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
-        (u.phoneNumber ?? '').includes(userSearch);
+        u.email.toLowerCase().includes(userSearch.toLowerCase());
       const matchRole   = userRoleFilter   === 'all' || u.role      === userRoleFilter;
       const matchStatus = userStatusFilter === 'all' || (userStatusFilter === 'active' ? u.isActive : !u.isActive);
       return matchSearch && matchRole && matchStatus;
@@ -424,12 +418,6 @@ export default function SettingsPage() {
                     value={ROLE_LABELS[user?.role ?? '']}
                     disabled
                   />
-                  <Input
-                    label="Telefon"
-                    value={profileForm.phone}
-                    onChange={(e) => setProfileForm((p) => ({ ...p, phone: e.target.value }))}
-                    placeholder="+994..."
-                  />
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -438,12 +426,6 @@ export default function SettingsPage() {
                     <Input label="E-poçt" value={user?.email ?? ''} disabled />
                     <Input label="Vəzifə" value={ROLE_LABELS[user?.role ?? '']} disabled />
                   </div>
-                  <Input
-                    label="Telefon"
-                    value={profileForm.phone}
-                    onChange={(e) => setProfileForm((p) => ({ ...p, phone: e.target.value }))}
-                    placeholder="+994..."
-                  />
                 </div>
               )}
 
@@ -523,7 +505,6 @@ export default function SettingsPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{u.firstName} {u.lastName}</p>
                       <p className="text-xs text-gray-400 truncate">{u.email}</p>
-                      <p className="text-xs text-gray-400 truncate">{u.phoneNumber || '-'}</p>
                       {u.createdAt && (
                         <p className="text-xs text-gray-400 truncate">
                           <span className="text-gray-400">Əlavə olunma tarixi: </span>

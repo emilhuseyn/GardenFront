@@ -79,13 +79,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     authApi.me().then((me) => {
       updateUser({
         id:          me.id,
-        firstName:   me.firstName,
-        lastName:    me.lastName,
-        email:       me.email,
-        role:        me.role as import('@/types').UserRole,
-        isActive:    me.isActive,
-        name:        me.name,
-        phoneNumber: me.phoneNumber,
+        firstName: me.firstName,
+        lastName:  me.lastName,
+        email:     me.email,
+        role:      me.role as import('@/types').UserRole,
+        isActive:  me.isActive,
+        name:      me.name,
       });
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps

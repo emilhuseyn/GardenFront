@@ -30,8 +30,7 @@ export const authApi = {
       name:        `${firstName} ${lastName}`.trim(),
       email:       raw.email as string,
       role:        raw.role as import('@/types').UserRole,
-      isActive:    raw.isActive as boolean,
-      phoneNumber: (raw.phoneNumber ?? '') as string,
+      isActive: raw.isActive as boolean,
     };
   },
 
@@ -40,8 +39,8 @@ export const authApi = {
     return unwrap(res);
   },
 
-  updateProfile: async (data: { firstName: string; lastName: string; email: string; phoneNumber?: string }) => {
+  updateProfile: async (data: { firstName: string; lastName: string; email: string }) => {
     const res = await apiClient.put('/api/auths/profile', data);
-    return unwrap<{ firstName: string; lastName: string; email: string; phoneNumber?: string }>(res);
+    return unwrap<{ firstName: string; lastName: string; email: string }>(res);
   },
 };
