@@ -10,9 +10,10 @@ import type { CashboxTransferHistory } from '@/types';
 interface TransferHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenCashboxBalance?: (cashboxId: number) => void;
 }
 
-export function TransferHistoryModal({ isOpen, onClose }: TransferHistoryModalProps) {
+export function TransferHistoryModal({ isOpen, onClose, onOpenCashboxBalance }: TransferHistoryModalProps) {
   const [transfers, setTransfers] = useState<CashboxTransferHistory[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,13 +80,35 @@ export function TransferHistoryModal({ isOpen, onClose }: TransferHistoryModalPr
                     
                     <div className="flex flex-col min-w-0 pr-4">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[120px] sm:max-w-none">
-                          {t.fromCashboxName}
-                        </span>
+                        {onOpenCashboxBalance ? (
+                          <button
+                            type="button"
+                            onClick={() => onOpenCashboxBalance(t.fromCashboxId)}
+                            className="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[120px] sm:max-w-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            title="Balans idarəetməsinə keç"
+                          >
+                            {t.fromCashboxName}
+                          </button>
+                        ) : (
+                          <span className="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[120px] sm:max-w-none">
+                            {t.fromCashboxName}
+                          </span>
+                        )}
                         <ArrowRight className="w-4 h-4 text-gray-400 shrink-0" />
-                        <span className="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[120px] sm:max-w-none">
-                          {t.toCashboxName}
-                        </span>
+                        {onOpenCashboxBalance ? (
+                          <button
+                            type="button"
+                            onClick={() => onOpenCashboxBalance(t.toCashboxId)}
+                            className="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[120px] sm:max-w-none hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            title="Balans idarəetməsinə keç"
+                          >
+                            {t.toCashboxName}
+                          </button>
+                        ) : (
+                          <span className="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[120px] sm:max-w-none">
+                            {t.toCashboxName}
+                          </span>
+                        )}
                       </div>
                       
                       <div className="flex flex-row items-center gap-3 text-xs text-gray-500 dark:text-gray-400">

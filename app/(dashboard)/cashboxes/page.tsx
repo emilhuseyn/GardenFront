@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Plus, Wallet, Search } from 'lucide-react';
+import { Plus, Wallet, Search, ArrowLeftRight, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore, getPermissions } from '@/lib/stores/authStore';
 import { cashboxesApi } from '@/lib/api/cashboxes';
@@ -13,6 +13,8 @@ import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from '@/com
 import { EmptyState } from '@/components/ui/EmptyState';
 import { CashboxesTable } from '@/components/cashboxes/CashboxesTable';
 import { CashboxForm } from '@/components/cashboxes/CashboxForm';
+import { TransferModal } from '@/components/cashboxes/TransferModal';
+import { TransferHistoryModal } from '@/components/cashboxes/TransferHistoryModal';
 import { useRouter } from 'next/navigation';
 import { AZ_MONTHS, formatCurrency, formatDate, formatMonthYear } from '@/lib/utils/format';
 
@@ -26,6 +28,8 @@ export default function CashboxesPage() {
   const [search, setSearch] = useState('');
   
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedCashbox, setSelectedCashbox] = useState<Cashbox | undefined>(undefined);
   const [isBalanceOpen, setIsBalanceOpen] = useState(false);
   const [balanceCashbox, setBalanceCashbox] = useState<Cashbox | null>(null);
@@ -87,6 +91,22 @@ export default function CashboxesPage() {
     setOperationDateInput(new Date().toISOString().slice(0, 16));
     setBalanceError(null);
     setIsBalanceOpen(true);
+  };
+
+  const handleOpenBalanceFromHistory = async (cashboxId: number) => {
+    try {
+      setIsHistoryOpen(false);
+      const existing = cashboxes.find((cb) => cb.id === cashboxId);
+      if (existing) {
+        handleOpenBalance(existing);
+        return;
+      }
+
+      const cashbox = await cashboxesApi.getById(cashboxId);
+      handleOpenBalance(cashbox);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Kassa məlumatı tapılmadı');
+    }
   };
 
   useEffect(() => {
@@ -332,12 +352,26 @@ export default function CashboxesPage() {
         title="Kassalar" 
         description="Məktəbəqədər müəssisənin kassa və bank hesablarının idarə edilməsi"
         actions={
-          perms.cashboxes.create && (
-            <Button onClick={() => handleOpenForm()} className="gap-2">
-              <Plus size={18} />
-              Yenisini Yarat
-            </Button>
-          )
+          <div className="flex gap-2">
+            {perms.cashboxes.view && (
+              <Button variant="ghost" onClick={() => setIsHistoryOpen(true)} className="gap-2">
+                <History size={18} />
+                Tarixçə
+              </Button>
+            )}
+            {perms.cashboxes.edit && (
+              <Button variant="secondary" onClick={() => setIsTransferOpen(true)} className="gap-2">
+                <ArrowLeftRight size={18} />
+                Köçürmə
+              </Button>
+            )}
+            {perms.cashboxes.create && (
+              <Button onClick={() => handleOpenForm()} className="gap-2">
+                <Plus size={18} />
+                Yenisini Yarat
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -584,6 +618,19 @@ export default function CashboxesPage() {
           handleCloseForm();
           loadData();
         }}
+      />
+
+      <TransferModal
+        isOpen={isTransferOpen}
+        onClose={() => setIsTransferOpen(false)}
+        cashboxes={cashboxes}
+        onSuccess={loadData}
+      />
+
+      <TransferHistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        onOpenCashboxBalance={perms.cashboxes.edit ? handleOpenBalanceFromHistory : undefined}
       />
     </div>
   );
