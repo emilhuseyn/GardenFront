@@ -36,6 +36,7 @@ interface PaymentFormProps {
 export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, onSuccess, onCancel }: PaymentFormProps) {
   const showChildSelector = !childId || childId === 0;
   const [childOptions, setChildOptions] = useState<{ value: string; label: string }[]>([]);
+  const [childMonthlyFeeById, setChildMonthlyFeeById] = useState<Record<number, number>>({});
   const [childrenLoading, setChildrenLoading] = useState(showChildSelector);
   const [selectedChildId, setSelectedChildId] = useState('');
   const [history, setHistory] = useState<Payment[]>([]);
@@ -68,7 +69,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
     cashboxesApi.getAll()
       .then((res) => {
         // filter mapped cashboxes
-        const actCashboxes: Cashbox[] = res.filter((c: any) => c.isActive !== false);
+        const actCashboxes: Cashbox[] = res.filter((c) => c.isActive !== false);
         setCashboxes(
           actCashboxes.map((c) => ({
             value: String(c.id),
@@ -92,6 +93,13 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
       .then(([activeRes, inactiveRes]) => {
         const allChildren = Array.from(
           new Map([...activeRes.items, ...inactiveRes.items].map((child) => [child.id, child])).values()
+        );
+
+        setChildMonthlyFeeById(
+          allChildren.reduce<Record<number, number>>((acc, child) => {
+            acc[child.id] = child.monthlyFee;
+            return acc;
+          }, {})
         );
 
         setChildOptions(
@@ -146,9 +154,17 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const monthTotal = currentPayment?.finalAmount ?? currentPayment?.originalAmount ?? 0;
 
   useEffect(() => {
-    // Prefill amount with the selected month's remaining debt to avoid accidental overpayment.
-    if (!currentPayment || currentPayment.remainingDebt <= 0) return;
-    setValue('amount', currentPayment.remainingDebt, {
+    // If there is an existing monthly record, prefill with that month's total amount.
+    if (!currentPayment) return;
+
+    const suggestedAmount = currentPayment.finalAmount > 0
+      ? currentPayment.finalAmount
+      : currentPayment.originalAmount > 0
+        ? currentPayment.originalAmount
+        : currentPayment.remainingDebt;
+
+    if (suggestedAmount <= 0) return;
+    setValue('amount', suggestedAmount, {
       shouldValidate: true,
       shouldDirty: false,
       shouldTouch: false,
@@ -272,7 +288,17 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
           onChange={(e) => {
             const val = e.target.value;
             setSelectedChildId(val);
-            setValue('childId', Number(val), { shouldValidate: true });
+            const numericChildId = Number(val);
+            setValue('childId', numericChildId, { shouldValidate: true });
+
+            const monthlyFee = childMonthlyFeeById[numericChildId];
+            if (typeof monthlyFee === 'number' && Number.isFinite(monthlyFee) && monthlyFee > 0) {
+              setValue('amount', monthlyFee, {
+                shouldValidate: true,
+                shouldDirty: false,
+                shouldTouch: false,
+              });
+            }
           }}
           error={errors.childId?.message}
         />
