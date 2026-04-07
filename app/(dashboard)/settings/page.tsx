@@ -98,8 +98,8 @@ export default function SettingsPage() {
         phoneNumber: updated.phoneNumber ?? '',
       });
       toast.success('Profil yadda saxlanıldı');
-    } catch {
-      toast.error('Xəta baş verdi');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Xəta baş verdi');
     } finally {
       setProfileSaving(false);
     }
@@ -157,8 +157,8 @@ export default function SettingsPage() {
     try {
       const list = await usersApi.getAll();
       setUsers(list);
-    } catch {
-      toast.error('İstifadəçilər yüklənmədi');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'İstifadəçilər yüklənmədi');
     }
   };
 
