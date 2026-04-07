@@ -52,6 +52,16 @@ export const groupsApi = {
     return unwrap(res);
   },
 
+  moveTeacher: async (fromGroupId: number, userId: string, toGroupId: number) => {
+    const res = await apiClient.post(`/api/groupses/${fromGroupId}/teachers/${userId}/move`, { toGroupId });
+    return unwrap(res);
+  },
+
+  toggleTeacherActive: async (groupId: number, userId: string) => {
+    const res = await apiClient.patch(`/api/groupses/${groupId}/teachers/${userId}/toggle-active`);
+    return unwrap<boolean>(res);
+  },
+
   delete: async (id: number) => {
     const res = await apiClient.delete(`/api/groupses/${id}`);
     return unwrap(res);

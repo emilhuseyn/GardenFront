@@ -53,6 +53,7 @@ export interface GroupTeacher {
   userId: string;
   fullName: string;
   email: string;
+  isActive: boolean;
   assignedAt: string;
 }
 
@@ -218,6 +219,17 @@ export interface CashboxOperation {
   note?: string;
   operationDate: string;
   operationType?: 'Income' | 'Expense' | string;
+}
+
+export interface CashboxTransferHistory {
+  id: number;
+  fromCashboxId: number;
+  fromCashboxName: string;
+  toCashboxId: number;
+  toCashboxName: string;
+  amount: number;
+  note?: string;
+  transferDate: string;
 }
 
 export interface Payment {

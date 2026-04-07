@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
-import { Plus, Users, ChevronRight, Trash2, Pencil, User, Search, X, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Users, ChevronRight, Trash2, Pencil, User, Search, X, ArrowUpDown, ChevronUp, ChevronDown, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils/constants';
 import { groupsApi, divisionsApi } from '@/lib/api/groups';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { usersApi } from '@/lib/api/users';
+import { GroupTeachersModal } from '@/components/groups/GroupTeachersModal';
 import { useAuthStore, getPermissions } from '@/lib/stores/authStore';
 import type { Group, Division, UserResponse, GroupTeacher } from '@/types';
 
@@ -61,6 +62,7 @@ export default function GroupsPage() {
   const [deleteModal, setDelete]       = useState<number | null>(null);
   const [editModal, setEditModal]      = useState<Group | null>(null);
   const [assignTeacherModal, setAssignTeacherModal] = useState<{ group: Group } | null>(null);
+  const [teachersListModal, setTeachersListModal] = useState<Group | null>(null);
   const [teacherSearch, setTeacherSearch] = useState('');
   const [assigningTeacherId, setAssigningTeacherId] = useState<string | null>(null);
   const [statusUpdatingTeacherId, setStatusUpdatingTeacherId] = useState<string | null>(null);
@@ -554,6 +556,16 @@ export default function GroupsPage() {
                     <Users size={13} /> Uşaqlar <ChevronRight size={12} />
                   </Button>
                 </Link>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setTeachersListModal(group)}
+                  className="gap-1.5 text-gray-600 hover:text-violet-600 dark:text-gray-300 dark:hover:text-violet-400"
+                  title="Müəllimlər siyahısı"
+                >
+                  <GraduationCap size={13} />
+                </Button>
                 {perms.groups.assignTeacher && (
                   <Button
                     type="button"
@@ -816,6 +828,24 @@ export default function GroupsPage() {
             </ModalFooter>
           </ModalContent>
         </Modal>
+      )}
+
+      {teachersListModal && (
+        <GroupTeachersModal
+          isOpen={true}
+          onClose={() => setTeachersListModal(null)}
+          group={teachersListModal}
+          allGroups={groups}
+          canManage={!!perms.groups.assignTeacher}
+          onChanged={async () => {
+            const updated = await groupsApi.getAll().catch(() => groups);
+            setGroups(updated);
+            if (teachersListModal) {
+              const refreshed = await groupsApi.getTeachers(teachersListModal.id).catch(() => []);
+              setTeachersByGroup((prev) => ({ ...prev, [teachersListModal.id]: refreshed }));
+            }
+          }}
+        />
       )}
     </div>
   );

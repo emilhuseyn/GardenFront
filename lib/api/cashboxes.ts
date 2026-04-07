@@ -4,6 +4,7 @@ import type {
   CashboxMonthlyBalance,
   CashboxOperation,
   CashboxOperationRequest,
+  CashboxTransferHistory,
   SetOpeningBalanceRequest,
 } from '@/types';
 
@@ -72,5 +73,24 @@ export const cashboxesApi = {
   getOperations: async (id: number, params?: { month?: number; year?: number }) => {
     const res = await apiClient.get(`${CASHBOX_BASE}/${id}/operations`, { params });
     return unwrap<CashboxOperation[]>(res);
+  },
+
+  // ── Kassalar arası köçürmə ───────────────────────────────────────────────
+
+  transfer: async (data: { fromCashboxId: number; toCashboxId: number; amount: number; note?: string }) => {
+    const res = await apiClient.post(`${CASHBOX_BASE}/transfer`, data);
+    return unwrap<{
+      fromCashboxName: string;
+      toCashboxName: string;
+      amount: number;
+      fromCashboxBalanceAfter: number;
+      toCashboxBalanceAfter: number;
+    }>(res);
+  },
+
+  getTransferHistory: async (cashboxId?: number) => {
+    const params = cashboxId ? { cashboxId } : {};
+    const res = await apiClient.get(`${CASHBOX_BASE}/transfers`, { params });
+    return unwrap<CashboxTransferHistory[]>(res);
   },
 };
