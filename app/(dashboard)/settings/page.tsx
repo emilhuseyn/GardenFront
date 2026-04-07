@@ -83,18 +83,19 @@ export default function SettingsPage() {
     if (!user) return;
     setProfileSaving(true);
     try {
+      const trimmedPhone = profileForm.phone.trim();
       const updated = await authApi.updateProfile({
         firstName:   profileForm.firstName,
         lastName:    profileForm.lastName,
         email:       profileForm.email,
-        phoneNumber: profileForm.phone,
+        ...(trimmedPhone ? { phoneNumber: trimmedPhone } : {}),
       });
       updateUser({
         firstName:   updated.firstName,
         lastName:    updated.lastName,
         email:       updated.email,
         name:        `${updated.firstName} ${updated.lastName}`,
-        phoneNumber: updated.phoneNumber,
+        phoneNumber: updated.phoneNumber ?? '',
       });
       toast.success('Profil yadda saxlanıldı');
     } catch {

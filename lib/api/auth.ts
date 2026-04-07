@@ -1,5 +1,5 @@
 import apiClient, { unwrap } from './client';
-import type { LoginResponse, User } from '@/types';
+import type { LoginResponse } from '@/types';
 
 export const authApi = {
   login: async (email: string, password: string) => {
@@ -40,8 +40,8 @@ export const authApi = {
     return unwrap(res);
   },
 
-  updateProfile: async (data: { firstName: string; lastName: string; email: string; phoneNumber: string }) => {
+  updateProfile: async (data: { firstName: string; lastName: string; email: string; phoneNumber?: string }) => {
     const res = await apiClient.put('/api/auths/profile', data);
-    return unwrap<{ firstName: string; lastName: string; email: string; phoneNumber: string }>(res);
+    return unwrap<{ firstName: string; lastName: string; email: string; phoneNumber?: string }>(res);
   },
 };
