@@ -133,6 +133,7 @@ export function CashboxForm({ isOpen, onClose, cashbox, onSuccess }: CashboxForm
               { value: 'Cash', label: 'Nağd Kassa' },
               { value: 'Cashless', label: 'Pos Terminal (Nağdsız)' },
               { value: 'CardAccount', label: 'Kart Hesabı' },
+              { value: 'DebitCard', label: 'Debet Kart' },
             ]}
           />
         </div>

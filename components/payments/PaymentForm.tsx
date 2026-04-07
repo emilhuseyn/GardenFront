@@ -72,7 +72,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
         setCashboxes(
           actCashboxes.map((c) => ({
             value: String(c.id),
-            label: `${c.name} (${c.type === 'Cash' ? 'Nağd' : c.type === 'Cashless' ? 'Pos Terminal' : c.type === 'CardAccount' ? 'Kart Hesabı' : 'Digər'})`,
+            label: `${c.name} (${c.type === 'Cash' ? 'Nağd' : c.type === 'Cashless' ? 'Pos Terminal' : c.type === 'CardAccount' ? 'Kart Hesabı' : c.type === 'DebitCard' ? 'Debet Kart' : 'Digər'})`,
           }))
         );
         if (actCashboxes.length > 0) {

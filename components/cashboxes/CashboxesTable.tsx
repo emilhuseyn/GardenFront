@@ -55,7 +55,7 @@ export function CashboxesTable({ data, onEdit, onToggleStatus, onManageBalance, 
               </td>
               <td className="py-3 px-4">
                 <Badge variant={box.type === 'Cash' ? 'green' : 'blue'}>
-                  {box.type === 'Cash' ? 'Nağd Kassa' : box.type === 'Cashless' ? 'Pos Terminal' : 'Kart Hesabı'}
+                  {box.type === 'Cash' ? 'Nağd Kassa' : box.type === 'Cashless' ? 'Pos Terminal' : box.type === 'CardAccount' ? 'Kart Hesabı' : 'Debet Kart'}
                 </Badge>
               </td>
               <td className="py-3 px-4">

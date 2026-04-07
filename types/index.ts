@@ -178,7 +178,7 @@ export type PaymentStatus = 0 | 1 | 2 | 'Paid' | 'PartiallyPaid' | 'Debt'; // AP
 export type DiscountType = 0 | 1 | 2;  // 0=None, 1=Percentage, 2=Fixed
 
 // ─── Cashbox ──────────────────────────────────────────────────────────────────
-export type CashboxType = 'Cash' | 'Cashless' | 'CardAccount';
+export type CashboxType = 'Cash' | 'Cashless' | 'CardAccount' | 'DebitCard';
 
 export interface Cashbox {
   id: number;
