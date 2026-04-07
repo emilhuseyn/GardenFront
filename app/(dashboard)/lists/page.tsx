@@ -36,6 +36,8 @@ interface GroupDebtRow {
 interface ListRow extends DebtorInfo {
   parentFullName: string;
   status: ChildStatus;
+  paymentDay: number;
+  monthlyFee: number;
 }
 
 function fmtMonths(months: number[]) {
@@ -107,6 +109,7 @@ export default function ListsPage() {
   const [divisionFilter, setDivisionFilter] = useState('all');
   const [groupFilter, setGroupFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [paymentDayFilter, setPaymentDayFilter] = useState('all');
   const [sortMode, setSortMode] = useState<SortMode>('debt-desc');
   const [groupSortMode, setGroupSortMode] = useState<GroupSortMode>('debt-desc');
 
@@ -184,6 +187,8 @@ export default function ListsPage() {
             divisionName: child.divisionName,
             parentPhone: child.parentPhone,
             status: child.status,
+            paymentDay: child.paymentDay,
+            monthlyFee: child.monthlyFee,
             totalDebt: debtInfo?.totalDebt ?? child.totalDebt ?? 0,
             unpaidMonths: debtInfo?.unpaidMonths ?? [],
           };
@@ -222,6 +227,17 @@ export default function ListsPage() {
     [rows]
   );
 
+  const paymentDayOptions = useMemo(
+    () => [
+      { value: 'all', label: 'Bütün ödəniş günləri' },
+      ...Array.from(new Set(rows.map((r) => r.paymentDay)))
+        .filter((day) => Number.isFinite(day) && day > 0)
+        .sort((a, b) => a - b)
+        .map((day) => ({ value: String(day), label: `${day}-ci gün` })),
+    ],
+    [rows]
+  );
+
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
 
@@ -230,6 +246,7 @@ export default function ListsPage() {
       if (groupFilter !== 'all' && r.groupName !== groupFilter) return false;
       if (statusFilter === 'active' && r.status !== 'Active') return false;
       if (statusFilter === 'inactive' && r.status !== 'Inactive') return false;
+      if (paymentDayFilter !== 'all' && String(r.paymentDay) !== paymentDayFilter) return false;
       if (!q) return true;
 
       return (
@@ -254,7 +271,7 @@ export default function ListsPage() {
           return b.totalDebt - a.totalDebt;
       }
     });
-  }, [rows, divisionFilter, groupFilter, statusFilter, search, sortMode]);
+  }, [rows, divisionFilter, groupFilter, statusFilter, paymentDayFilter, search, sortMode]);
 
   const groupedRows = useMemo(() => {
     const map = new Map<string, GroupDebtRow>();
@@ -311,6 +328,10 @@ export default function ListsPage() {
 
     if (statusFilter !== 'all') {
       parts.push(statusFilter === 'active' ? 'status_aktiv' : 'status_deaktiv');
+    }
+
+    if (paymentDayFilter !== 'all') {
+      parts.push(`odenis_gunu_${paymentDayFilter}`);
     }
 
     if (search.trim()) {
@@ -444,6 +465,12 @@ export default function ListsPage() {
               className="w-44 shrink-0"
             />
             <Select
+              value={paymentDayFilter}
+              onChange={(e) => setPaymentDayFilter(e.target.value)}
+              options={paymentDayOptions}
+              className="w-52 shrink-0"
+            />
+            <Select
               value={viewMode}
               onChange={(e) => setViewMode(e.target.value as ViewMode)}
               options={[
@@ -482,7 +509,7 @@ export default function ListsPage() {
           </div>
         </div>
 
-        {(search || divisionFilter !== 'all' || groupFilter !== 'all' || statusFilter !== 'all') && (
+        {(search || divisionFilter !== 'all' || groupFilter !== 'all' || statusFilter !== 'all' || paymentDayFilter !== 'all') && (
           <div className="flex items-center gap-2 flex-wrap text-xs">
             <span className="text-gray-400">Aktiv filter:</span>
             {search && (
@@ -505,12 +532,18 @@ export default function ListsPage() {
                 Status: {statusFilter === 'active' ? 'Aktiv' : 'Deaktiv'} ×
               </button>
             )}
+            {paymentDayFilter !== 'all' && (
+              <button onClick={() => setPaymentDayFilter('all')} className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
+                Ödəniş günü: {paymentDayFilter} ×
+              </button>
+            )}
             <button
               onClick={() => {
                 setSearch('');
                 setDivisionFilter('all');
                 setGroupFilter('all');
                 setStatusFilter('all');
+                setPaymentDayFilter('all');
               }}
               className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 hover:bg-rose-100"
             >
@@ -544,6 +577,8 @@ export default function ListsPage() {
                     <th className="text-left px-4 py-3 text-gray-500 hidden lg:table-cell">Valideyn əlaqə nömrəsi</th>
                     <th className="text-left px-4 py-3 text-gray-500 hidden xl:table-cell">Bölmə</th>
                     <th className="text-left px-4 py-3 text-gray-500">Qrup</th>
+                    <th className="text-left px-4 py-3 text-gray-500 hidden lg:table-cell">Ödəniş günü</th>
+                    <th className="text-left px-4 py-3 text-gray-500 hidden xl:table-cell">Aylıq ödəniş</th>
                     <th className="text-left px-4 py-3 text-gray-500">Qalıq borc</th>
                     <th className="text-left px-4 py-3 text-gray-500 hidden 2xl:table-cell">Ödənilməmiş aylar</th>
                   </tr>
@@ -566,6 +601,8 @@ export default function ListsPage() {
                         <Badge variant="blue" size="sm">{r.divisionName}</Badge>
                       </td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{r.groupName}</td>
+                      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 hidden lg:table-cell">{r.paymentDay || '-'}</td>
+                      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 hidden xl:table-cell">{formatCurrency(r.monthlyFee || 0)}</td>
                       <td className="px-4 py-3.5 font-semibold text-rose-600">{formatCurrency(r.totalDebt)}</td>
                       <td className="px-4 py-3.5 text-gray-500 hidden 2xl:table-cell">{fmtMonths(r.unpaidMonths) || '-'}</td>
                     </tr>
