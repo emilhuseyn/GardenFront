@@ -91,13 +91,8 @@ export function AttendanceGrid() {
           new Map([...activeResult.items, ...inactiveResult.items].map((child) => [child.id, child])).values()
         );
         const entryMap = new Map(daily.entries.map((e) => [e.childId, e]));
-        const eligibleChildren = children.filter((child) => {
-          if (!child.registrationDate) return true;
-          const registeredOn = child.registrationDate.slice(0, 10);
-          return dateStr >= registeredOn;
-        });
 
-        const mapped: AttendanceRowData[] = eligibleChildren.map((child) => {
+        const mapped: AttendanceRowData[] = children.map((child) => {
           const entry = entryMap.get(child.id);
           const sched = scheduleMap[child.scheduleType] ?? scheduleMap.FullDay;
           const parseTimeMins = (t: string) => {
