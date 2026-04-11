@@ -3,15 +3,10 @@ import { z } from 'zod';
 const phoneRegex = /^\+994\d{9}$/;
 
 export const childSchema = z.object({
-  personId: z.preprocess(
-    (value) => {
-      if (value === '' || value === null || typeof value === 'undefined') return undefined;
-      return Number(value);
-    },
-    z.number({ invalid_type_error: 'İVMS ID rəqəm olmalıdır' })
-      .int('İVMS ID tam ədəd olmalıdır')
-      .min(1, 'İVMS ID minimum 1 ola bilər')
-  ).optional(),
+  personId: z.number()
+    .int('İVMS ID tam ədəd olmalıdır')
+    .min(1, 'İVMS ID minimum 1 ola bilər')
+    .optional(),
   firstName: z.string().min(2, 'Ən azı 2 hərf olmalıdır').max(50, 'Ən çox 50 hərf ola bilər'),
   lastName: z.string().min(2, 'Ən azı 2 hərf olmalıdır').max(50, 'Ən çox 50 hərf ola bilər'),
   dateOfBirth: z.string().min(1, 'Bu sahə mütləqdir'),
