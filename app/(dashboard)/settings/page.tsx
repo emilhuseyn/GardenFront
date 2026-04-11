@@ -21,7 +21,6 @@ import { applyTheme, applyFontSize, applyRadius, THEME_OPTIONS, type ThemeKey } 
 import { usersApi } from '@/lib/api/users';
 import { authApi } from '@/lib/api/auth';
 import { notificationsApi, type WhatsAppStatus, type DueAndOverdueAlertsResult } from '@/lib/api/notifications';
-import { adminsApi } from '@/lib/api/admins';
 import { attendanceApi } from '@/lib/api/attendance';
 import type { UserResponse, UserRole } from '@/types';
 
@@ -215,7 +214,6 @@ export default function SettingsPage() {
   const [alertErrorsOpen, setAlertErrorsOpen] = useState(false);
   const [qrCountdown, setQrCountdown] = useState(20);
   const [waDisconnecting, setWaDisconnecting] = useState(false);
-  const [seedExcelLoading, setSeedExcelLoading] = useState(false);
   const [hikvisionSyncLoading, setHikvisionSyncLoading] = useState(false);
   const [hikvisionSyncDate, setHikvisionSyncDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
 
@@ -324,18 +322,6 @@ export default function SettingsPage() {
       }
     } finally {
       setWaSending(false);
-    }
-  };
-
-  const handleSeedExcel = async () => {
-    setSeedExcelLoading(true);
-    try {
-      const result = await adminsApi.seedExcel();
-      toast.success(result.message || 'Excel seed uğurla icra olundu');
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Excel seed zamanı xəta baş verdi');
-    } finally {
-      setSeedExcelLoading(false);
     }
   };
 
@@ -859,18 +845,6 @@ export default function SettingsPage() {
                     ⚠️ Mesaj göndərmək üçün əvvəlcə WhatsApp qoşulması tələb olunur
                   </p>
                 )}
-              </div>
-
-              <div className="rounded-xl border border-white-border dark:border-gray-700/60 p-4 space-y-3">
-                <div>
-                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">Excel Data Seeder</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Endpoint: http://localhost:5034/api/admins/seed-excel
-                  </p>
-                </div>
-                <Button loading={seedExcelLoading} onClick={handleSeedExcel}>
-                  <RefreshCw size={14} /> Seed Excel Data
-                </Button>
               </div>
 
               <div className="rounded-xl border border-white-border dark:border-gray-700/60 p-4 space-y-3">
