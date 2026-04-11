@@ -185,7 +185,7 @@ export default function EditChildPage() {
                 step={1}
                 placeholder="Məs: 48"
                 error={errors.personId?.message}
-                hint="Hikvision employeeNoString dəyəri (ixtiyari)"
+                hint="Hikvision personİd dəyəri (davamiyyət üçün)"
               />
 
               {/* DOB picker */}
