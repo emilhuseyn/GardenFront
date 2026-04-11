@@ -85,6 +85,7 @@ export type ScheduleType = 'FullDay' | 'HalfDay';
 
 export interface Child {
   id: number;
+  personId?: number | null;
   firstName: string;
   lastName: string;
   dateOfBirth: string;
@@ -108,6 +109,7 @@ export interface Child {
 }
 
 export interface ChildFormData {
+  personId?: number | null;
   firstName: string;
   lastName: string;
   dateOfBirth: string;

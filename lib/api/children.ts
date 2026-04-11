@@ -44,6 +44,19 @@ export const childrenApi = {
     return unwrap<Child[]>(res);
   },
 
+  findByPersonId: async (personId: number) => {
+    let page = 1;
+    const pageSize = 200;
+
+    while (true) {
+      const data = await childrenApi.getAll({ page, pageSize }, { silentError: true });
+      const found = data.items.find((child) => child.personId === personId);
+      if (found) return found;
+      if (!data.hasNextPage) return null;
+      page += 1;
+    }
+  },
+
   create: async (data: ChildFormData) => {
     const res = await apiClient.post('/api/childrens', data);
     return unwrap<Child>(res);

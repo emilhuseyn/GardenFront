@@ -90,7 +90,22 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
 
   const onSubmit = async (data: ChildFormValues) => {
     try {
-      await childrenApi.create(data);
+      const normalizedPersonId = typeof data.personId === 'number' && Number.isFinite(data.personId)
+        ? data.personId
+        : undefined;
+
+      if (normalizedPersonId !== undefined) {
+        const existing = await childrenApi.findByPersonId(normalizedPersonId);
+        if (existing) {
+          toast.error(`Bu İVMS ID artıq ${existing.firstName} ${existing.lastName} üçün istifadə olunur`);
+          return;
+        }
+      }
+
+      await childrenApi.create({
+        ...data,
+        personId: normalizedPersonId,
+      });
       setDone(true);
       toast.success('Uşaq uğurla əlavə edildi!');
       setTimeout(() => onSuccess?.(), 1200);
@@ -172,6 +187,19 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
                 <Input {...register('firstName')} label="Ad *" placeholder="Aysel" error={errors.firstName?.message} />
                 <Input {...register('lastName')} label="Soyad *" placeholder="Əliyeva" error={errors.lastName?.message} />
               </div>
+
+              <Input
+                {...register('personId', {
+                  setValueAs: (value) => value === '' ? undefined : Number(value),
+                })}
+                label="İVMS ID"
+                type="number"
+                min={1}
+                step={1}
+                placeholder="Məs: 48"
+                error={errors.personId?.message}
+                hint="Hikvision employeeNoString dəyəri (ixtiyari)"
+              />
 
               {/* DOB picker */}
               <div>

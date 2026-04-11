@@ -78,6 +78,7 @@ export default function EditChildPage() {
       const matchedGroup = g.find((gr) => gr.name === c.groupName);
 
       reset({
+        personId: c.personId ?? undefined,
         firstName:      c.firstName,
         lastName:       c.lastName,
         dateOfBirth:    c.dateOfBirth?.split('T')[0] ?? '',
@@ -106,8 +107,21 @@ export default function EditChildPage() {
     try {
       const toIsoDate = (value: string) => `${value}T00:00:00Z`;
 
+      const normalizedPersonId = typeof data.personId === 'number' && Number.isFinite(data.personId)
+        ? data.personId
+        : undefined;
+
+      if (normalizedPersonId !== undefined) {
+        const existing = await childrenApi.findByPersonId(normalizedPersonId);
+        if (existing && existing.id !== numId) {
+          toast.error(`Bu İVMS ID artıq ${existing.firstName} ${existing.lastName} üçün istifadə olunur`);
+          return;
+        }
+      }
+
       await childrenApi.update(numId, {
         ...data,
+        personId: normalizedPersonId,
         ...(registrationDate ? { registrationDate: toIsoDate(registrationDate) } : {}),
         ...(child?.status === 'Inactive' && deactivationDate ? { deactivationDate: toIsoDate(deactivationDate) } : {}),
       });
@@ -160,6 +174,19 @@ export default function EditChildPage() {
                 <Input {...register('firstName')} label="Ad *" error={errors.firstName?.message} />
                 <Input {...register('lastName')} label="Soyad *" error={errors.lastName?.message} />
               </div>
+
+              <Input
+                {...register('personId', {
+                  setValueAs: (value) => value === '' ? undefined : Number(value),
+                })}
+                label="İVMS ID"
+                type="number"
+                min={1}
+                step={1}
+                placeholder="Məs: 48"
+                error={errors.personId?.message}
+                hint="Hikvision employeeNoString dəyəri (ixtiyari)"
+              />
 
               {/* DOB picker */}
               <div>
