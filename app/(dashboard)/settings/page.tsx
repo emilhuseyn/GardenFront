@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import { Save, User, Shield, Palette, Plus, Users, Check, Bell, Send, Smartphone, RefreshCw, LogOut, Search, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { format } from 'date-fns';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -21,6 +22,7 @@ import { usersApi } from '@/lib/api/users';
 import { authApi } from '@/lib/api/auth';
 import { notificationsApi, type WhatsAppStatus, type DueAndOverdueAlertsResult } from '@/lib/api/notifications';
 import { adminsApi } from '@/lib/api/admins';
+import { attendanceApi } from '@/lib/api/attendance';
 import type { UserResponse, UserRole } from '@/types';
 
 const TABS = [
@@ -214,6 +216,8 @@ export default function SettingsPage() {
   const [qrCountdown, setQrCountdown] = useState(20);
   const [waDisconnecting, setWaDisconnecting] = useState(false);
   const [seedExcelLoading, setSeedExcelLoading] = useState(false);
+  const [hikvisionSyncLoading, setHikvisionSyncLoading] = useState(false);
+  const [hikvisionSyncDate, setHikvisionSyncDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
 
   const fetchWaStatus = async (showLoader = false) => {
     if (showLoader) setWaLoading(true);
@@ -332,6 +336,28 @@ export default function SettingsPage() {
       toast.error(err instanceof Error ? err.message : 'Excel seed zamanı xəta baş verdi');
     } finally {
       setSeedExcelLoading(false);
+    }
+  };
+
+  const handleHikvisionSync = async () => {
+    if (!hikvisionSyncDate) {
+      toast.error('Tarix seçin');
+      return;
+    }
+
+    setHikvisionSyncLoading(true);
+    try {
+      const result = await attendanceApi.hikvisionSync(hikvisionSyncDate);
+      const suffix = result.jobId ? ` (job: ${result.jobId})` : '';
+      toast.success(`Sinxronizasiya növbəyə alındı${suffix}`);
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 4000);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Sinxronizasiya zamanı xəta baş verdi');
+    } finally {
+      setHikvisionSyncLoading(false);
     }
   };
   // ────────────────────────────────────────────────────────────────────────
@@ -845,6 +871,26 @@ export default function SettingsPage() {
                 <Button loading={seedExcelLoading} onClick={handleSeedExcel}>
                   <RefreshCw size={14} /> Seed Excel Data
                 </Button>
+              </div>
+
+              <div className="rounded-xl border border-white-border dark:border-gray-700/60 p-4 space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">Hikvision Sync</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Endpoint: http://localhost:5034/api/attendance/hikvision-sync?date=YYYY-MM-DD
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="date"
+                    value={hikvisionSyncDate}
+                    onChange={(e) => setHikvisionSyncDate(e.target.value)}
+                    className="h-10 px-3 text-sm border border-white-border rounded-lg bg-white dark:bg-[#1e2130] dark:border-gray-700/60"
+                  />
+                  <Button loading={hikvisionSyncLoading} onClick={handleHikvisionSync}>
+                    <RefreshCw size={14} /> Kameradan yüklə
+                  </Button>
+                </div>
               </div>
             </div>
           )}
