@@ -378,7 +378,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
         <div className="space-y-2">
           <Input
             label="Uşaq axtarışı"
-            placeholder="Ad və ya soyad yazın..."
+             placeholder="Ad və ya soyadı yazın..."
             value={childSearch}
             onChange={(e) => setChildSearch(e.target.value)}
           />
