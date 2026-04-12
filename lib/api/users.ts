@@ -28,7 +28,7 @@ export const usersApi = {
   },
 
   updateRole: async (id: string, role: UserRole) => {
-    const res = await apiClient.patch(`/api/users/${id}/roles`, { role });
+    const res = await apiClient.patch(`/api/userses/${id}/roles`, { role });
     return unwrap(res);
   },
 
