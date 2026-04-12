@@ -106,6 +106,7 @@ export default function SettingsPage() {
   const [createUserModal, setCreateUserModal] = useState(false);
   const [removeCandidate, setRemoveCandidate] = useState<UserResponse | null>(null);
   const [removeLoading, setRemoveLoading] = useState(false);
+  const [roleChangingId, setRoleChangingId] = useState<string | null>(null);
 
   // ── Users filter / sort state ───────────────────────────────────────────
   const [userSearch, setUserSearch]       = useState('');
@@ -529,22 +530,60 @@ export default function SettingsPage() {
                   <div key={u.id} className="flex items-center gap-3 p-3 rounded-xl border border-white-border dark:border-gray-700/60 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
                     <Avatar name={`${u.firstName} ${u.lastName}`} size="sm" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{u.firstName} {u.lastName}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{u.firstName} {u.lastName}</p>
+                        <Badge variant={u.isActive ? 'green' : 'gray'} size="xs">
+                          {u.isActive ? 'Aktiv' : 'Deaktiv'}
+                        </Badge>
+                      </div>
                       <p className="text-xs text-gray-400 truncate">{u.email}</p>
                       {u.createdAt && (
                         <p className="text-xs text-gray-400 truncate">
-                          <span className="text-gray-400">Əlavə olunma tarixi: </span>
                           {new Date(u.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                           {' '}
                           {new Date(u.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       )}
                     </div>
-                    <Badge variant={u.isActive ? 'green' : 'gray'} size="xs">
-                      {ROLE_LABELS[u.role] ?? u.role}
-                    </Badge>
+
+                    {/* Inline role selector */}
+                    {u.id !== user?.id ? (
+                      <div className="relative shrink-0">
+                        <select
+                          value={u.role}
+                          disabled={roleChangingId === u.id}
+                          onChange={async (e) => {
+                            const newRole = e.target.value as UserRole;
+                            setRoleChangingId(u.id);
+                            try {
+                              await usersApi.updateRole(u.id, newRole);
+                              await loadUsers();
+                              toast.success(`Rol dəyişdirildi: ${ROLE_LABELS[newRole]}`);
+                            } catch (err: unknown) {
+                              toast.error(err instanceof Error ? err.message : 'Rol dəyişdirilmədi');
+                            } finally {
+                              setRoleChangingId(null);
+                            }
+                          }}
+                          className={cn(
+                            'appearance-none pl-2.5 pr-7 py-1.5 text-xs rounded-lg border font-medium transition-all outline-none cursor-pointer',
+                            'border-primary/30 bg-primary/5 text-primary dark:bg-primary/10',
+                            'hover:border-primary/60 focus:ring-2 focus:ring-primary/20',
+                            roleChangingId === u.id && 'opacity-50 cursor-wait'
+                          )}
+                        >
+                          {ROLE_OPTIONS.map((r) => (
+                            <option key={r.value} value={r.value}>{r.label}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={11} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-primary" />
+                      </div>
+                    ) : (
+                      <Badge variant="green" size="xs">{ROLE_LABELS[u.role] ?? u.role}</Badge>
+                    )}
+
                     {u.id !== user?.id && (
-                      <div className="ml-1 flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {u.isActive ? (
                           <Button
                             size="xs"
