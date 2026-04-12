@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -12,7 +12,7 @@ import { paymentsApi } from '@/lib/api/payments';
 import { childrenApi } from '@/lib/api/children';
 import { cashboxesApi } from '@/lib/api/cashboxes';
 import { formatCurrency } from '@/lib/utils/format';
-import { DollarSign, ReceiptText, Trash2 } from 'lucide-react';
+import { DollarSign, ReceiptText, Trash2, Search, X, ChevronDown, User } from 'lucide-react';
 import type { Payment, Cashbox } from '@/types';
 
 const MONTH_OPTIONS = [
@@ -87,7 +87,10 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const [childMonthlyFeeById, setChildMonthlyFeeById] = useState<Record<number, number>>({});
   const [childrenLoading, setChildrenLoading] = useState(showChildSelector);
   const [selectedChildId, setSelectedChildId] = useState('');
+  const [selectedChildLabel, setSelectedChildLabel] = useState('');
   const [childSearch, setChildSearch] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const comboboxRef = useRef<HTMLDivElement>(null);
   const [currentChildMonthlyFee, setCurrentChildMonthlyFee] = useState(0);
   const [history, setHistory] = useState<Payment[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -96,6 +99,16 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [receiptLoading, setReceiptLoading] = useState(false);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (comboboxRef.current && !comboboxRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const { register, handleSubmit, setValue, control, formState: { errors, isSubmitting } } = useForm<PaymentFormValues>({
     mode: 'onChange',
@@ -375,38 +388,129 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
         </div>
       )}
       {showChildSelector && (
-        <div className="space-y-2">
-          <Input
-            label="Uşaq axtarışı (ad/soyad)"
-            placeholder="Uşağın adını və ya soyadını yazın..."
-            value={childSearch}
-            onChange={(e) => setChildSearch(e.target.value)}
-          />
-          <Select
-            label="Uşaq *"
-            placeholder={childrenLoading ? 'Yüklənir...' : 'Uşaq seçin...'}
-            options={childSelectOptions}
-            disabled={childrenLoading}
-            value={selectedChildId}
-            onChange={(e) => {
-              const val = e.target.value;
-              setSelectedChildId(val);
-              const numericChildId = Number(val);
-              setValue('childId', numericChildId, { shouldValidate: true });
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Uşaq <span className="text-accent-rose">*</span>
+          </label>
 
-              const monthlyFee = childMonthlyFeeById[numericChildId];
-              if (typeof monthlyFee === 'number' && Number.isFinite(monthlyFee) && monthlyFee > 0) {
-                setValue('amount', monthlyFee, {
-                  shouldValidate: true,
-                  shouldDirty: false,
-                  shouldTouch: false,
-                });
-              }
-            }}
-            error={errors.childId?.message}
-          />
-          {!childrenLoading && childSearch.trim() && childSelectOptions.length === 0 && (
-            <p className="text-xs text-amber-600 dark:text-amber-400">Axtarışa uyğun uşaq tapılmadı.</p>
+          {/* Selected child card */}
+          {selectedChildId && selectedChildLabel ? (
+            <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 dark:bg-primary/10 px-3 py-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <User size={15} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+                  {selectedChildLabel.split(' - ')[0]}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  {selectedChildLabel.split(' - ').slice(1).join(' - ')}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedChildId('');
+                  setSelectedChildLabel('');
+                  setChildSearch('');
+                  setValue('childId', 0, { shouldValidate: false });
+                }}
+                className="rounded-full p-1 text-gray-400 hover:bg-rose-50 hover:text-accent-rose transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            /* Combobox */
+            <div ref={comboboxRef} className="relative">
+              <div
+                className={`flex items-center gap-2 rounded-xl border bg-white dark:bg-[#1e2130] px-3 py-2.5 transition-all ${
+                  dropdownOpen
+                    ? 'border-primary ring-2 ring-primary/20'
+                    : 'border-white-border dark:border-gray-700/60 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}
+                onClick={() => { if (!childrenLoading) setDropdownOpen(true); }}
+              >
+                <Search size={15} className="shrink-0 text-gray-400" />
+                <input
+                  type="text"
+                  className="flex-1 bg-transparent text-sm text-gray-800 dark:text-gray-100 placeholder:text-gray-400 outline-none"
+                  placeholder={childrenLoading ? 'Yüklənir...' : 'Adı və ya soyadı yazın...'}
+                  value={childSearch}
+                  disabled={childrenLoading}
+                  onChange={(e) => {
+                    setChildSearch(e.target.value);
+                    setDropdownOpen(true);
+                  }}
+                  onFocus={() => { if (!childrenLoading) setDropdownOpen(true); }}
+                />
+                {childSearch ? (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setChildSearch(''); }}
+                    className="shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                ) : (
+                  <ChevronDown size={14} className={`shrink-0 text-gray-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+                )}
+              </div>
+
+              {/* Dropdown list */}
+              {dropdownOpen && (
+                <div className="absolute z-50 mt-1 w-full rounded-xl border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#1e2130] shadow-lg overflow-hidden">
+                  {childSelectOptions.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-gray-400 text-center">
+                      {childrenLoading ? 'Yüklənir...' : 'Uşaq tapılmadı'}
+                    </div>
+                  ) : (
+                    <ul className="max-h-52 overflow-y-auto py-1">
+                      {childSelectOptions.map((opt) => {
+                        const parts = opt.label.split(' - ');
+                        const name = parts[0];
+                        const group = parts.slice(1).join(' - ');
+                        const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+                        return (
+                          <li key={opt.value}>
+                            <button
+                              type="button"
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                const val = opt.value;
+                                const numericChildId = Number(val);
+                                setSelectedChildId(val);
+                                setSelectedChildLabel(opt.label);
+                                setChildSearch('');
+                                setDropdownOpen(false);
+                                setValue('childId', numericChildId, { shouldValidate: true });
+                                const monthlyFee = childMonthlyFeeById[numericChildId];
+                                if (typeof monthlyFee === 'number' && Number.isFinite(monthlyFee) && monthlyFee > 0) {
+                                  setValue('amount', monthlyFee, { shouldValidate: true, shouldDirty: false, shouldTouch: false });
+                                }
+                              }}
+                            >
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+                                {initials}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{name}</p>
+                                {group && <p className="text-xs text-gray-400 truncate">{group}</p>}
+                              </div>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {errors.childId && (
+            <p className="text-xs text-accent-rose">⚠ {errors.childId.message}</p>
           )}
         </div>
       )}
