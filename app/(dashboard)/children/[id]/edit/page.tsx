@@ -107,11 +107,11 @@ export default function EditChildPage() {
     try {
       const toIsoDate = (value: string) => `${value}T00:00:00Z`;
 
-      const normalizedPersonId = typeof data.personId === 'number' && Number.isFinite(data.personId)
+      const normalizedPersonId = typeof data.personId === 'number' && Number.isFinite(data.personId) && data.personId > 0
         ? data.personId
-        : undefined;
+        : null;
 
-      if (normalizedPersonId !== undefined) {
+      if (normalizedPersonId !== null) {
         const existing = await childrenApi.findByPersonId(normalizedPersonId);
         if (existing && existing.id !== numId) {
           toast.error(`Bu İVMS ID artıq ${existing.firstName} ${existing.lastName} üçün istifadə olunur`);
