@@ -89,7 +89,7 @@ export function SmartAlertCenter() {
         const prevFromStr = format(subDays(today, 27), 'yyyy-MM-dd');
         const prevToStr = format(subDays(today, 14), 'yyyy-MM-dd');
 
-        // Pull 28-day attendance history per child for trend and lateness analysis
+        // Pull 28-day attendance history per child for trend analysis
         const attendanceResults = await Promise.all(
           sampleChildren.map(async (child) => {
             try {
@@ -137,18 +137,6 @@ export function SmartAlertCenter() {
               score += 10;
               reasons.push(`Davamiyyət düşüşü: -${toPercent(drop)}% (14 gün)`);
             }
-          }
-
-          const lateCount = recentWindow.filter((e) => !!e.isLate).length;
-          if (lateCount >= 4) {
-            score += 20;
-            reasons.push(`Tez-tez gecikmə: ${lateCount} dəfə (14 gün)`);
-          } else if (lateCount >= 2) {
-            score += 12;
-            reasons.push(`Tez-tez gecikmə: ${lateCount} dəfə (14 gün)`);
-          } else if (lateCount === 1) {
-            score += 6;
-            reasons.push('Son 14 gündə gecikmə qeydə alınıb');
           }
 
           score = Math.min(100, Math.round(score));

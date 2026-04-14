@@ -1,7 +1,7 @@
 ﻿'use client';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Save, Users, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Save, Users, CheckCircle, XCircle } from 'lucide-react';
 import { format, addDays, subDays, isToday } from 'date-fns';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
@@ -35,7 +35,7 @@ export function AttendanceGrid() {
   const [saving, setSaving] = useState(false);
   const [loadingRows, setLoadingRows] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'' | 'present' | 'late' | 'absent' | 'unmarked'>('');
+  const [statusFilter, setStatusFilter] = useState<'' | 'present' | 'absent' | 'not_counted' | 'unmarked'>('');
   const [sortBy, setSortBy] = useState('name_asc');
   const [bulkCheckInTime, setBulkCheckInTime] = useState(() => getBakuTimeHHmm());
   const [scheduleMap, setScheduleMap] = useState<Record<string, { startTime: string; endTime: string }>>({
@@ -46,15 +46,15 @@ export function AttendanceGrid() {
   const SORT_OPTIONS = [
     { value: 'name_asc', label: 'Ad (A-Z)' },
     { value: 'name_desc', label: 'Ad (Z-A)' },
-    { value: 'status', label: 'Status (gəlmə/gecikmə/gəlməyən)' },
+    { value: 'status', label: 'Status (gəldi/gəlmədi/sayılmır)' },
     { value: 'group_asc', label: 'Qrup (A-Z)' },
   ];
 
   const STATUS_FILTER_OPTIONS = [
     { value: '', label: 'Bütün statuslar' },
     { value: 'present', label: 'Gəldilər' },
-    { value: 'late', label: 'Gecikmə' },
     { value: 'absent', label: 'Gəlmədilər' },
+    { value: 'not_counted', label: 'Sayılmır' },
     { value: 'unmarked', label: 'Qeyd edilməmiş' },
   ];
 
@@ -106,10 +106,8 @@ export function AttendanceGrid() {
               status = 'not_counted';
             } else if (entry.status === 2 || entry.status === 3) {
               status = 'absent';
-            } else if (entry.arrivalTime && sched) {
-              status = parseTimeMins(entry.arrivalTime) > parseTimeMins(sched.startTime) + 15 ? 'late' : 'present';
             } else {
-              status = entry.isLate ? 'late' : 'present';
+              status = 'present';
             }
           }
 
@@ -160,10 +158,8 @@ export function AttendanceGrid() {
           ...(field === 'status' && !value ? { checkIn: undefined, checkOut: undefined, isEarlyLeave: false } : {}),
         };
 
-        if (field === 'checkIn' && value && r.scheduleStartTime && updated.status !== 'absent') {
-          const arrMins = parseTime(value);
-          const startMins = parseTime(r.scheduleStartTime);
-          updated.status = arrMins > startMins + 15 ? 'late' : 'present';
+        if (field === 'checkIn' && value && updated.status !== 'absent' && updated.status !== 'not_counted') {
+          updated.status = 'present';
         }
 
         if (field === 'checkOut' && r.scheduleEndTime) {
@@ -243,8 +239,8 @@ export function AttendanceGrid() {
         case 'status': {
           const getStatusOrder = (status: AttendanceStatus | null): number => {
             if (status === 'present') return 0;
-            if (status === 'late') return 1;
-            if (status === 'absent') return 2;
+            if (status === 'absent') return 1;
+            if (status === 'not_counted') return 2;
             return 3;
           };
 
@@ -272,7 +268,7 @@ export function AttendanceGrid() {
       const toTimeOnly = (t?: string) => (t ? (t.length === 5 ? `${t}:00` : t) : undefined);
 
       const toStatus = (s: AttendanceStatus): 1 | 2 | 4 => {
-        if (s === 'present' || s === 'late') return 1;
+        if (s === 'present') return 1;
         if (s === 'not_counted') return 4;
         return 2; // absent
       };
@@ -283,7 +279,7 @@ export function AttendanceGrid() {
           childId: Number(r.id),
           date: dateStr,
           status: toStatus(r.status),
-          isLate: r.status === 'late',
+          isLate: false,
           arrivalTime: toTimeOnly(r.checkIn),
           departureTime: toTimeOnly(r.checkOut),
         }));
@@ -297,7 +293,6 @@ export function AttendanceGrid() {
   };
 
   const presentCount    = rows.filter((r) => r.status === 'present').length;
-  const lateCount       = rows.filter((r) => r.status === 'late').length;
   const absentCount     = rows.filter((r) => r.status === 'absent').length;
   const notCountedCount = rows.filter((r) => r.status === 'not_counted').length;
   const totalCount      = rows.length - notCountedCount;
@@ -448,7 +443,7 @@ export function AttendanceGrid() {
             />
             <Select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as '' | 'present' | 'late' | 'absent' | 'unmarked')}
+              onChange={(e) => setStatusFilter(e.target.value as '' | 'present' | 'absent' | 'not_counted' | 'unmarked')}
               options={STATUS_FILTER_OPTIONS}
               className="w-full md:w-44"
             />
@@ -471,10 +466,6 @@ export function AttendanceGrid() {
             <CheckCircle size={14} className="text-green-500" />
             <span className="text-xs font-semibold text-green-700 dark:text-green-400">{presentCount} gəldi</span>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50/80 dark:bg-amber-900/10 rounded-lg border border-amber-100/50 dark:border-amber-900/30">
-            <Clock size={14} className="text-amber-500" />
-            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">{lateCount} gecikmə</span>
-          </div>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50/80 dark:bg-rose-900/10 rounded-lg border border-rose-100/50 dark:border-rose-900/30">
             <XCircle size={14} className="text-rose-500" />
             <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">{absentCount} gəlmədi</span>
@@ -487,7 +478,7 @@ export function AttendanceGrid() {
           {totalCount > 0 && (
             <div className="sm:ml-auto flex items-center gap-2 px-3 py-1.5 bg-blue-50/80 dark:bg-blue-900/10 rounded-lg border border-blue-100/50 dark:border-blue-900/30">
               <span className="text-xs font-bold text-accent-blue dark:text-blue-400">
-                {Math.round(((presentCount + lateCount) / totalCount) * 100)}% davamiyyət
+                {Math.round((presentCount / totalCount) * 100)}% davamiyyət
               </span>
             </div>
           )}

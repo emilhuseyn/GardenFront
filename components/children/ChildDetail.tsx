@@ -344,21 +344,22 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
     const hasNote = Boolean(a.notes?.trim());
     const isPresent    = a.status === 1;
     const isNotCounted = a.status === 4;
-    if (!isPresent || a.isLate || hasNote) {
+    const hasEarlyLeave = Boolean(a.isEarlyLeave);
+    if (!isPresent || hasEarlyLeave || hasNote) {
       const attendanceTitle = isNotCounted
         ? 'Davamiyyət: Sayılmır'
         : !isPresent
         ? 'Davamiyyət: Gəlmədi'
-        : a.isLate
-          ? 'Davamiyyət: Gecikmə'
+        : hasEarlyLeave
+          ? 'Davamiyyət: Tez çıxıb'
           : 'Davamiyyət qeyd edildi';
 
       const attendanceDescription = isNotCounted
         ? 'Bu gün statistikaya daxil edilmir (bayram və ya xüsusi gün).'
         : !isPresent
         ? 'Uşaq həmin gün dərsə gəlməyib.'
-        : a.isLate
-          ? `Gəliş vaxtı: ${a.arrivalTime || '-'}${a.departureTime ? ` • Çıxış: ${a.departureTime}` : ''}`
+        : hasEarlyLeave
+          ? `Gəliş: ${a.arrivalTime || '-'}${a.departureTime ? ` • Çıxış: ${a.departureTime} (tez çıxış)` : ''}`
           : `Gəliş: ${a.arrivalTime || '-'}${a.departureTime ? ` • Çıxış: ${a.departureTime}` : ''}`;
 
       timelineEvents.push({
@@ -367,7 +368,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
         type: 'attendance',
         title: attendanceTitle,
         description: attendanceDescription,
-        tone: isNotCounted ? 'neutral' : !isPresent ? 'warning' : 'success',
+        tone: isNotCounted ? 'neutral' : !isPresent || hasEarlyLeave ? 'warning' : 'success',
       });
 
       if (hasNote) {

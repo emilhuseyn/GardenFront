@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { TimeInput } from '@/components/attendance/TimeInput';
 import { cn } from '@/lib/utils/constants';
 
-export type AttendanceStatus = 'present' | 'absent' | 'late' | 'not_counted' | null;
+export type AttendanceStatus = 'present' | 'absent' | 'not_counted' | null;
 
 export interface AttendanceRowData {
   id: string;
@@ -31,7 +31,6 @@ interface AttendanceRowProps {
 
 const STATUS_BUTTONS: { value: AttendanceStatus; label: string; activeClass: string }[] = [
   { value: 'present',     label: 'Gəldi',      activeClass: 'bg-green-400 text-white border-green-400'    },
-  { value: 'late',        label: 'Gecikmə',    activeClass: 'bg-accent-amber text-white border-amber-400' },
   { value: 'absent',      label: 'Gəlmədi',    activeClass: 'bg-accent-rose text-white border-rose-400'   },
   { value: 'not_counted', label: 'Sayılmır',   activeClass: 'bg-gray-400 text-white border-gray-400'      },
 ];
@@ -89,7 +88,7 @@ export function AttendanceRow({ row, index, onChange, onToggleEarlyLeave }: Atte
               </button>
             ))}
           </div>
-          {(row.status === 'present' || row.status === 'late') && (
+          {row.status === 'present' && (
             <button
               onClick={() => onToggleEarlyLeave?.(row.id)}
               className={cn(
@@ -128,7 +127,7 @@ export function AttendanceRow({ row, index, onChange, onToggleEarlyLeave }: Atte
         {row.status ? (
           <div className="flex flex-col gap-1">
             <Badge variant={row.status === 'not_counted' ? 'gray' : row.status} size="sm" dot>
-              {row.status === 'present' ? 'Gəldi' : row.status === 'late' ? 'Gecikmə' : row.status === 'not_counted' ? 'Sayılmır' : 'Gəlmədi'}
+              {row.status === 'present' ? 'Gəldi' : row.status === 'not_counted' ? 'Sayılmır' : 'Gəlmədi'}
             </Badge>
             {row.isEarlyLeave && (
               <Badge variant="violet" size="sm">Tez çıxdı</Badge>

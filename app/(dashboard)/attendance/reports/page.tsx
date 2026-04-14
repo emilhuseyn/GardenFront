@@ -36,11 +36,11 @@ export default function AttendanceReportsPage() {
   const [dailyReport, setDailyReport] = useState<DailyAttendance | null>(null);
   const [dailyLoading, setDailyLoading] = useState(false);
   const [dailySearch, setDailySearch] = useState('');
-  const [dailyStatusFilter, setDailyStatusFilter] = useState<'all' | 'present' | 'late' | 'absent'>('all');
+  const [dailyStatusFilter, setDailyStatusFilter] = useState<'all' | 'present' | 'absent' | 'not_counted'>('all');
   const [dailySort, setDailySort] = useState<'name-asc' | 'name-desc' | 'arrival-asc' | 'arrival-desc'>('name-asc');
   const [monthlySearch, setMonthlySearch] = useState('');
   const [monthlyStatusFilter, setMonthlyStatusFilter] = useState<'all' | 'strong' | 'risk' | 'critical'>('all');
-  const [monthlySort, setMonthlySort] = useState<'pct-desc' | 'pct-asc' | 'name-asc' | 'absent-desc' | 'late-desc'>('pct-desc');
+  const [monthlySort, setMonthlySort] = useState<'pct-desc' | 'pct-asc' | 'name-asc' | 'absent-desc'>('pct-desc');
   const [groupCompareDivision, setGroupCompareDivision] = useState('all');
   const [groupCompareSort, setGroupCompareSort] = useState<'pct-desc' | 'pct-asc' | 'name-asc' | 'division-asc'>('pct-desc');
 
@@ -76,7 +76,7 @@ export default function AttendanceReportsPage() {
             return { groupId: g.id, groupName: g.name, divisionName: g.divisionName, avgPct: 0 };
           }
           const avgPct = Math.round(
-            r.children.reduce((s, c) => s + (c.presentDays / r.totalWorkDays) * 100, 0) / r.children.length
+            r.children.reduce((s, c) => s + ((c.presentDays + c.lateDays) / r.totalWorkDays) * 100, 0) / r.children.length
           );
           return { groupId: g.id, groupName: g.name, divisionName: g.divisionName, avgPct };
         });
@@ -104,12 +104,11 @@ export default function AttendanceReportsPage() {
 
   const exportCSV = () => {
     if (!report) return;
-    const headers = ['Ad Soyad', 'Gəldi', 'Gəlmədi', 'Gecikdi', 'Tez getdi', 'Davamiyyət (%)'];
+    const headers = ['Ad Soyad', 'Gəldi', 'Gəlmədi', 'Tez getdi', 'Davamiyyət (%)'];
     const rows = monthlyRows.map((c) => [
       c.childFullName,
-      c.presentDays,
+      c.presentEffective,
       c.absentDays,
-      c.lateDays,
       c.earlyLeaveDays,
       c.pct,
     ]);
@@ -128,7 +127,7 @@ export default function AttendanceReportsPage() {
     const headers = ['Ad Soyad', 'Status', 'Gəliş', 'Çıxış'];
     const rows = dailyRows.map((e) => [
       e.childFullName ?? '',
-      e.status === 1 ? (e.isLate ? 'Gecikdi' : 'Gəldi') : 'Gəlmədi',
+      getDailyStatusLabel(e.status),
       e.arrivalTime ?? '',
       e.departureTime ?? '',
     ]);
@@ -148,10 +147,23 @@ export default function AttendanceReportsPage() {
   ];
   const monthOptions = MONTHS.map((m) => ({ value: String(m.value), label: m.label }));
 
+  const getDailyStatusLabel = (status: number) => {
+    if (status === 1) return 'Gəldi';
+    if (status === 4) return 'Sayılmır';
+    return 'Gəlmədi';
+  };
+
+  const getDailyStatusClass = (status: number) => {
+    if (status === 1) return 'bg-green-100 text-green-700';
+    if (status === 4) return 'bg-gray-100 text-gray-700';
+    return 'bg-rose-100 text-rose-700';
+  };
+
   const monthlyRows = (report?.children ?? [])
     .map((c) => ({
       ...c,
-      pct: report?.totalWorkDays ? Math.round((c.presentDays / report.totalWorkDays) * 100) : 0,
+      presentEffective: c.presentDays + c.lateDays,
+      pct: report?.totalWorkDays ? Math.round(((c.presentDays + c.lateDays) / report.totalWorkDays) * 100) : 0,
     }))
     .filter((c) => {
       if (monthlySearch && !c.childFullName.toLowerCase().includes(monthlySearch.toLowerCase())) return false;
@@ -166,7 +178,6 @@ export default function AttendanceReportsPage() {
         case 'pct-asc': return a.pct - b.pct;
         case 'name-asc': return a.childFullName.localeCompare(b.childFullName, 'az');
         case 'absent-desc': return b.absentDays - a.absentDays;
-        case 'late-desc': return b.lateDays - a.lateDays;
         default: return 0;
       }
     });
@@ -174,9 +185,9 @@ export default function AttendanceReportsPage() {
   const dailyRows = [...(dailyReport?.entries ?? [])]
     .filter((e) => {
       if (dailySearch && !(e.childFullName ?? '').toLowerCase().includes(dailySearch.toLowerCase())) return false;
-      if (dailyStatusFilter === 'present' && (e.status !== 1 || e.isLate)) return false;
-      if (dailyStatusFilter === 'late' && !(e.status === 1 && e.isLate)) return false;
-      if (dailyStatusFilter === 'absent' && e.status === 1) return false;
+      if (dailyStatusFilter === 'present' && e.status !== 1) return false;
+      if (dailyStatusFilter === 'absent' && (e.status === 1 || e.status === 4)) return false;
+      if (dailyStatusFilter === 'not_counted' && e.status !== 4) return false;
       return true;
     })
     .sort((a, b) => {
@@ -210,11 +221,15 @@ export default function AttendanceReportsPage() {
     value: c.pct,
   }));
 
+  const dailyPresentCount = (dailyReport?.entries ?? []).filter((e) => e.status === 1).length;
+  const dailyNotCountedCount = (dailyReport?.entries ?? []).filter((e) => e.status === 4).length;
+  const dailyAbsentCount = (dailyReport?.entries ?? []).filter((e) => e.status !== 1 && e.status !== 4).length;
+
   const avgPresent =
     monthlyRows.length > 0
-      ? Math.round(monthlyRows.reduce((s, c) => s + c.presentDays, 0) / monthlyRows.length)
+      ? Math.round(monthlyRows.reduce((s, c) => s + c.presentEffective, 0) / monthlyRows.length)
       : 0;
-  const totalLate = monthlyRows.reduce((s, c) => s + c.lateDays, 0);
+  const totalEarlyLeave = monthlyRows.reduce((s, c) => s + c.earlyLeaveDays, 0);
   const frequentAbsent = monthlyRows.filter((c) => c.absentDays > 5).length;
 
   const divisionStats = Object.values(
@@ -290,8 +305,8 @@ export default function AttendanceReportsPage() {
                 options={[
                   { value: 'all', label: 'Bütün statuslar' },
                   { value: 'present', label: 'Gəldi' },
-                  { value: 'late', label: 'Gecikdi' },
                   { value: 'absent', label: 'Gəlmədi' },
+                  { value: 'not_counted', label: 'Sayılmır' },
                 ]}
                 className="w-44"
               />
@@ -319,7 +334,7 @@ export default function AttendanceReportsPage() {
                 )}
                 {dailyStatusFilter !== 'all' && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-                    Status: {dailyStatusFilter === 'present' ? 'Gəldi' : dailyStatusFilter === 'late' ? 'Gecikdi' : 'Gəlmədi'}
+                    Status: {dailyStatusFilter === 'present' ? 'Gəldi' : dailyStatusFilter === 'absent' ? 'Gəlmədi' : 'Sayılmır'}
                     <button onClick={() => setDailyStatusFilter('all')} className="hover:opacity-70"><X size={10} /></button>
                   </span>
                 )}
@@ -342,9 +357,9 @@ export default function AttendanceReportsPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: 'Cəmi uşaq', value: dailyReport?.totalChildren ?? 0, color: 'text-accent-blue', bg: 'bg-blue-50' },
-                { label: 'Gəldi', value: dailyReport?.presentCount ?? 0, color: 'text-green-600', bg: 'bg-green-50' },
-                { label: 'Gəlmədi', value: dailyReport?.absentCount ?? 0, color: 'text-accent-rose', bg: 'bg-rose-50' },
-                { label: 'Gecikdi', value: dailyReport?.lateCount ?? 0, color: 'text-accent-amber', bg: 'bg-amber-50' },
+                { label: 'Gəldi', value: dailyPresentCount, color: 'text-green-600', bg: 'bg-green-50' },
+                { label: 'Gəlmədi', value: dailyAbsentCount, color: 'text-accent-rose', bg: 'bg-rose-50' },
+                { label: 'Sayılmır', value: dailyNotCountedCount, color: 'text-gray-600', bg: 'bg-gray-100' },
               ].map((s, i) => (
                 <div key={i} className={`rounded-2xl p-4 border border-white-border ${s.bg}`}>
                   <p className="text-xs text-gray-500">{s.label}</p>
@@ -374,8 +389,8 @@ export default function AttendanceReportsPage() {
                       <tr key={e.childId} className={`border-b border-white-border ${i % 2 === 0 ? '' : 'bg-gray-50/30'}`}>
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">{e.childFullName}</td>
                         <td className="px-4 py-3 text-center">
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${e.status === 1 ? (e.isLate ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700') : 'bg-rose-100 text-rose-700'}`}>
-                            {e.status === 1 ? (e.isLate ? 'Gecikdi' : 'Gəldi') : 'Gəlmədi'}
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${getDailyStatusClass(e.status)}`}>
+                            {getDailyStatusLabel(e.status)}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center text-sm text-gray-500 hidden sm:table-cell">{e.arrivalTime ?? '-'}</td>
@@ -447,7 +462,6 @@ export default function AttendanceReportsPage() {
               { value: 'pct-asc', label: 'Faiz aşağıdan yuxarı' },
               { value: 'name-asc', label: 'Ad A-Z' },
               { value: 'absent-desc', label: 'Ən çox gəlməyənlər' },
-              { value: 'late-desc', label: 'Ən çox gecikənlər' },
             ]}
             className="w-56"
           />
@@ -497,7 +511,7 @@ export default function AttendanceReportsPage() {
           {[
             { label: 'İş günləri', value: report?.totalWorkDays ?? 0, color: 'text-accent-blue', bg: 'bg-blue-50' },
             { label: 'Ort. gəliş (gün)', value: avgPresent, color: 'text-green-600', bg: 'bg-green-50' },
-            { label: 'Cəmi gecikmə', value: totalLate, color: 'text-accent-amber', bg: 'bg-amber-50' },
+            { label: 'Cəmi tez çıxıb', value: totalEarlyLeave, color: 'text-violet-600', bg: 'bg-violet-50' },
             { label: '5+ gün gəlmədi', value: frequentAbsent, color: 'text-accent-rose', bg: 'bg-rose-50' },
           ].map((s, i) => (
             <div key={i} className={`rounded-2xl p-4 border border-white-border ${s.bg}`}>
@@ -551,7 +565,6 @@ export default function AttendanceReportsPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Ad Soyad</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Gəldi</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Gəlmədi</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Gecikdi</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Tez getdi</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">%</th>
                 </tr>
@@ -565,9 +578,8 @@ export default function AttendanceReportsPage() {
                       className={`border-b border-white-border ${i % 2 === 0 ? '' : 'bg-gray-50/30'}`}
                     >
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{c.childFullName}</td>
-                      <td className="px-4 py-3 text-center text-sm text-green-600 font-medium">{c.presentDays}</td>
+                      <td className="px-4 py-3 text-center text-sm text-green-600 font-medium">{c.presentEffective}</td>
                       <td className="px-4 py-3 text-center text-sm text-rose-500">{c.absentDays}</td>
-                      <td className="px-4 py-3 text-center text-sm text-amber-500 hidden sm:table-cell">{c.lateDays}</td>
                       <td className="px-4 py-3 text-center text-sm text-gray-400 hidden sm:table-cell">{c.earlyLeaveDays}</td>
                       <td className="px-4 py-3 text-center">
                         <span

@@ -13,14 +13,12 @@ type WeekdayCell = {
   groupId: number;
   weekday: number;
   total: number;
-  late: number;
   absent: number;
 };
 
 type WeekdaySummary = {
   weekday: number;
   total: number;
-  late: number;
   absent: number;
 };
 
@@ -30,7 +28,6 @@ type GroupRow = {
   cells: Array<{
     weekday: number;
     issueRate: number;
-    lateRate: number;
     absentRate: number;
     sampleSize: number;
   }>;
@@ -113,13 +110,11 @@ export function AttendanceHeatmapPro({ groups, month, year, selectedGroupId = nu
                 groupId: group.id,
                 weekday,
                 total: 0,
-                late: 0,
                 absent: 0,
               };
 
               const total = Math.max(daily.totalChildren, daily.entries.length);
               prev.total += total;
-              prev.late += daily.lateCount;
               prev.absent += daily.absentCount;
               cellMap.set(key, prev);
             } catch {
@@ -135,17 +130,14 @@ export function AttendanceHeatmapPro({ groups, month, year, selectedGroupId = nu
             groupId: group.id,
             weekday,
             total: 0,
-            late: 0,
             absent: 0,
           };
-          const issueRate = safeRate(raw.late + raw.absent, raw.total);
-          const lateRate = safeRate(raw.late, raw.total);
+          const issueRate = safeRate(raw.absent, raw.total);
           const absentRate = safeRate(raw.absent, raw.total);
 
           return {
             weekday,
             issueRate,
-            lateRate,
             absentRate,
             sampleSize: raw.total,
           };
@@ -161,10 +153,9 @@ export function AttendanceHeatmapPro({ groups, month, year, selectedGroupId = nu
       const summary: WeekdaySummary[] = DAY_ORDER.map((weekday) => {
         const buckets = byGroup.map((g) => g.cells.find((c) => c.weekday === weekday)).filter(Boolean);
         const total = buckets.reduce((sum, c) => sum + (c?.sampleSize ?? 0), 0);
-        const late = buckets.reduce((sum, c) => sum + Math.round(((c?.lateRate ?? 0) / 100) * (c?.sampleSize ?? 0)), 0);
         const absent = buckets.reduce((sum, c) => sum + Math.round(((c?.absentRate ?? 0) / 100) * (c?.sampleSize ?? 0)), 0);
 
-        return { weekday, total, late, absent };
+        return { weekday, total, absent };
       });
 
       if (!cancelled) {
@@ -185,23 +176,17 @@ export function AttendanceHeatmapPro({ groups, month, year, selectedGroupId = nu
 
     const withRates = weekdaySummary.map((d) => ({
       ...d,
-      issueRate: safeRate(d.late + d.absent, d.total),
-      lateRate: safeRate(d.late, d.total),
+      issueRate: safeRate(d.absent, d.total),
       absentRate: safeRate(d.absent, d.total),
     }));
 
     const worstIssueDay = [...withRates].sort((a, b) => b.issueRate - a.issueRate)[0];
-    const worstLateDay = [...withRates].sort((a, b) => b.lateRate - a.lateRate)[0];
     const avgIssue = withRates.reduce((sum, d) => sum + d.issueRate, 0) / Math.max(withRates.length, 1);
 
     const notes: string[] = [];
 
     if (worstIssueDay && worstIssueDay.weekday === 1 && worstIssueDay.issueRate >= avgIssue + 6) {
-      notes.push(`Bazar ertəsi sindromu: həftə ortalamasından ${Math.round(worstIssueDay.issueRate - avgIssue)}% daha çox gecikmə/gəlməmə var.`);
-    }
-
-    if (worstLateDay && worstLateDay.lateRate >= 12) {
-      notes.push(`${DAY_LABELS[worstLateDay.weekday]} günləri gecikmə pik edir (${Math.round(worstLateDay.lateRate)}%).`);
+      notes.push(`Bazar ertəsi sindromu: həftə ortalamasından ${Math.round(worstIssueDay.issueRate - avgIssue)}% daha çox gəlməmə var.`);
     }
 
     if (notes.length === 0 && worstIssueDay) {
@@ -221,7 +206,7 @@ export function AttendanceHeatmapPro({ groups, month, year, selectedGroupId = nu
 
   const riskyWeekdays = useMemo(() => {
     return weekdaySummary
-      .map((d) => ({ weekday: d.weekday, issueRate: safeRate(d.late + d.absent, d.total) }))
+      .map((d) => ({ weekday: d.weekday, issueRate: safeRate(d.absent, d.total) }))
       .filter((d) => d.issueRate >= 24)
       .sort((a, b) => b.issueRate - a.issueRate);
   }, [weekdaySummary]);
@@ -275,10 +260,10 @@ export function AttendanceHeatmapPro({ groups, month, year, selectedGroupId = nu
                           'rounded-lg border px-1 py-2 text-center transition-all hover:scale-[1.02]',
                           cellTone(cell.issueRate)
                         )}
-                        title={`Risk səviyyəsi: ${Math.round(cell.issueRate)}% | Gecikmə: ${Math.round(cell.lateRate)}% | Gəlməmə: ${Math.round(cell.absentRate)}%`}
+                        title={`Risk səviyyəsi: ${Math.round(cell.issueRate)}% | Gəlməmə: ${Math.round(cell.absentRate)}%`}
                       >
                         <div className="text-xs font-bold">{Math.round(cell.issueRate)}%</div>
-                        <div className="text-[10px] opacity-80">Gec {Math.round(cell.lateRate)} / Gəlm {Math.round(cell.absentRate)}</div>
+                        <div className="text-[10px] opacity-80">Gəlməmə {Math.round(cell.absentRate)}%</div>
                       </div>
                     ))}
                   </div>

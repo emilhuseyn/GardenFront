@@ -61,10 +61,10 @@ export const PAYMENT_STATUS_LABELS: Record<number, string> = {
 };
 
 export const ATTENDANCE_STATUS_LABELS: Record<string, string> = {
-  present: 'Vaxtında',
+  present: 'Gəldi',
   absent: 'Gəlmədi',
-  late: 'Gecikmə',
-  early_leave: 'Tez getdi',
+  not_counted: 'Sayılmır',
+  early_leave: 'Tez çıxıb',
   not_marked: 'Qeyd edilməyib',
 };
 
