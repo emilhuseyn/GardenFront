@@ -99,6 +99,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [receiptLoading, setReceiptLoading] = useState(false);
+  const [lastRecordedPaymentId, setLastRecordedPaymentId] = useState<number | null>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -287,33 +288,8 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const onSubmit = async (data: PaymentFormValues) => {
     try {
       const recorded = await paymentsApi.record(data);
-
-      try {
-        const receipt = await paymentsApi.downloadReceipt(recorded.id);
-        const receiptUrl = URL.createObjectURL(receipt.blob);
-
-        toast.success('Ödəniş uğurla qeyd edildi', {
-          action: {
-            label: 'Çeki göstər',
-            onClick: () => {
-              const opened = window.open(receiptUrl, '_blank', 'noopener,noreferrer');
-              if (!opened) {
-                const a = document.createElement('a');
-                a.href = receiptUrl;
-                a.target = '_blank';
-                a.rel = 'noopener noreferrer';
-                a.click();
-              }
-            },
-          },
-        });
-
-        window.setTimeout(() => URL.revokeObjectURL(receiptUrl), 300000);
-      } catch {
-        toast.success('Ödəniş qeyd edildi, amma çek yüklənmədi');
-      }
-
-      onSuccess?.();
+      setLastRecordedPaymentId(recorded.id);
+      toast.success('Ödəniş uğurla qeyd edildi');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Xəta baş verdi';
       toast.error(message);
@@ -611,10 +587,24 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
         </div>
       )}
       <div className="flex gap-2 pt-2">
-        <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>
-          Ləğv et
+        <Button
+          type="button"
+          variant="secondary"
+          className="flex-1"
+          onClick={() => lastRecordedPaymentId ? onSuccess?.() : onCancel?.()}
+        >
+          {lastRecordedPaymentId ? 'Bağla' : 'Ləğv et'}
         </Button>
-        <Button type="submit" className="flex-1" loading={isSubmitting}>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={!lastRecordedPaymentId}
+          loading={receiptLoading}
+          onClick={() => lastRecordedPaymentId && handleShowReceipt(lastRecordedPaymentId)}
+        >
+          <ReceiptText size={14} /> Çeki göstər
+        </Button>
+        <Button type="submit" className="flex-1" loading={isSubmitting} disabled={!!lastRecordedPaymentId}>
           <DollarSign size={14} /> Qeyd et
         </Button>
       </div>

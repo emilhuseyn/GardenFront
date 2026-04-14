@@ -17,7 +17,7 @@ export const childSchema = z.object({
   parentFullName: z.string().min(3, 'Ən azı 3 hərf olmalıdır'),
   secondParentFullName: z.string().min(3, 'Ən azı 3 hərf olmalıdır').optional().or(z.literal('')),
   parentPhone: z.string().regex(phoneRegex, 'Düzgün telefon nömrəsi daxil edin (+994XXXXXXXXX)'),
-  secondParentPhone: z.string().regex(phoneRegex, 'Düzgün telefon nömrəsi daxil edin (+994XXXXXXXXX)').optional().or(z.literal('')),
+  secondParentPhone: z.string().regex(phoneRegex, 'Düzgün telefon nömrəsi daxil edin (+994XXXXXXXXX)').or(z.literal('')).optional(),
   parentEmail: z.string().email('Düzgün e-poçt daxil edin').optional().or(z.literal('')),
 });
 
