@@ -295,14 +295,16 @@ export default function EditChildPage() {
               <Input
                 {...register('parentPhone')}
                 label="Telefon nömrəsi *"
-                placeholder="+994501234567"
+                placeholder="+447700900123"
                 error={errors.parentPhone?.message}
+                hint="Beynəlxalq format: +994501234567 və ya +447700900123"
               />
               <Input
                 {...register('secondParentPhone')}
                 label="Əlavə telefon"
-                placeholder="+994501234567"
+                placeholder="+447700900123"
                 error={errors.secondParentPhone?.message}
+                hint="İstəyə bağlı: beynəlxalq format"
               />
               <Input
                 {...register('parentEmail')}

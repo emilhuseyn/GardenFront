@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-const phoneRegex = /^\+994\d{9}$/;
+const phoneRegex = /^\+[1-9]\d{6,14}$/;
+const phoneErrorMessage = 'Düzgün telefon nömrəsi daxil edin (məs: +994501234567 və ya +447700900123)';
 
 export const childSchema = z.object({
   personId: z.number()
@@ -16,8 +17,8 @@ export const childSchema = z.object({
   paymentDay: z.number().min(1, 'Ödəniş günü seçin').max(28, 'Maksimum 28 ola bilər'),
   parentFullName: z.string().min(3, 'Ən azı 3 hərf olmalıdır'),
   secondParentFullName: z.string().min(3, 'Ən azı 3 hərf olmalıdır').optional().or(z.literal('')),
-  parentPhone: z.string().regex(phoneRegex, 'Düzgün telefon nömrəsi daxil edin (+994XXXXXXXXX)'),
-  secondParentPhone: z.string().regex(phoneRegex, 'Düzgün telefon nömrəsi daxil edin (+994XXXXXXXXX)').or(z.literal('')).optional(),
+  parentPhone: z.string().regex(phoneRegex, phoneErrorMessage),
+  secondParentPhone: z.string().regex(phoneRegex, phoneErrorMessage).or(z.literal('')).optional(),
   parentEmail: z.string().email('Düzgün e-poçt daxil edin').optional().or(z.literal('')),
 });
 

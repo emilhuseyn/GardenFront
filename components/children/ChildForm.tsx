@@ -310,18 +310,18 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
                 <Input
                   {...register('parentPhone')}
                   label="Telefon *"
-                  placeholder="+994501234567"
+                  placeholder="+447700900123"
                   error={errors.parentPhone?.message}
-                  hint="+994XXXXXXXXX formatında daxil edin"
+                  hint="Beynəlxalq formatda daxil edin (məs: +994501234567 və ya +447700900123)"
                 />
               </div>
               <div>
                 <Input
                   {...register('secondParentPhone')}
                   label="Əlavə telefon"
-                  placeholder="+994501234567"
+                  placeholder="+447700900123"
                   error={errors.secondParentPhone?.message}
-                  hint="İstəyə bağlı: +994XXXXXXXXX"
+                  hint="İstəyə bağlı: beynəlxalq format (məs: +994501234567 və ya +447700900123)"
                 />
               </div>
               <Input {...register('parentEmail')} label="E-poçt" type="email" placeholder="email@example.com" error={errors.parentEmail?.message} />
