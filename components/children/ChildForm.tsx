@@ -312,7 +312,7 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
                   label="Telefon *"
                   placeholder="+447700900123"
                   error={errors.parentPhone?.message}
-                  hint="Beynəlxalq formatda daxil edin (məs: +994501234567 və ya +447700900123)"
+                  hint="Beynəlxalq formatda daxil edin (məs: +994501234567 və ya +447700900123). Boşluq və tire qəbul olunur."
                 />
               </div>
               <div>
@@ -321,7 +321,7 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
                   label="Əlavə telefon"
                   placeholder="+447700900123"
                   error={errors.secondParentPhone?.message}
-                  hint="İstəyə bağlı: beynəlxalq format (məs: +994501234567 və ya +447700900123)"
+                  hint="İstəyə bağlı: beynəlxalq format (boşluq və tire qəbul olunur)"
                 />
               </div>
               <Input {...register('parentEmail')} label="E-poçt" type="email" placeholder="email@example.com" error={errors.parentEmail?.message} />

@@ -297,14 +297,14 @@ export default function EditChildPage() {
                 label="Telefon nömrəsi *"
                 placeholder="+447700900123"
                 error={errors.parentPhone?.message}
-                hint="Beynəlxalq format: +994501234567 və ya +447700900123"
+                hint="Beynəlxalq format: +994501234567 və ya +447700900123 (boşluq və tire qəbul olunur)"
               />
               <Input
                 {...register('secondParentPhone')}
                 label="Əlavə telefon"
                 placeholder="+447700900123"
                 error={errors.secondParentPhone?.message}
-                hint="İstəyə bağlı: beynəlxalq format"
+                hint="İstəyə bağlı: beynəlxalq format (boşluq və tire qəbul olunur)"
               />
               <Input
                 {...register('parentEmail')}

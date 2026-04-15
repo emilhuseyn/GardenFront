@@ -3,6 +3,27 @@ import { z } from 'zod';
 const phoneRegex = /^\+[1-9]\d{6,14}$/;
 const phoneErrorMessage = 'Düzgün telefon nömrəsi daxil edin (məs: +994501234567 və ya +447700900123)';
 
+const normalizePhone = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+
+  const compact = trimmed.replace(/[\s()-]/g, '');
+  if (!compact.startsWith('+')) return compact;
+
+  return `+${compact.slice(1).replace(/\D/g, '')}`;
+};
+
+const internationalPhoneSchema = z
+  .string()
+  .transform(normalizePhone)
+  .refine((value) => phoneRegex.test(value), phoneErrorMessage);
+
+const optionalInternationalPhoneSchema = z
+  .string()
+  .transform(normalizePhone)
+  .refine((value) => value === '' || phoneRegex.test(value), phoneErrorMessage)
+  .optional();
+
 export const childSchema = z.object({
   personId: z.number()
     .int('İVMS ID tam ədəd olmalıdır')
@@ -17,8 +38,8 @@ export const childSchema = z.object({
   paymentDay: z.number().min(1, 'Ödəniş günü seçin').max(28, 'Maksimum 28 ola bilər'),
   parentFullName: z.string().min(3, 'Ən azı 3 hərf olmalıdır'),
   secondParentFullName: z.string().min(3, 'Ən azı 3 hərf olmalıdır').optional().or(z.literal('')),
-  parentPhone: z.string().regex(phoneRegex, phoneErrorMessage),
-  secondParentPhone: z.string().regex(phoneRegex, phoneErrorMessage).or(z.literal('')).optional(),
+  parentPhone: internationalPhoneSchema,
+  secondParentPhone: optionalInternationalPhoneSchema,
   parentEmail: z.string().email('Düzgün e-poçt daxil edin').optional().or(z.literal('')),
 });
 
