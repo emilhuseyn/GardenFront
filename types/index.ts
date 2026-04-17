@@ -139,6 +139,8 @@ export interface AttendanceEntry {
   arrivalTime?: string;
   departureTime?: string;
   recordSource?: 'manual' | 'faceid' | 'auto';
+  recordedByName?: string;
+  recordedAt?: string;
   notes?: string;
 }
 
