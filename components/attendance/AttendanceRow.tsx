@@ -25,7 +25,8 @@ export interface AttendanceRowData {
   isEarlyLeave?: boolean;
   recordSource?: RecordSource;
   recordedByName?: string;
-  date?: string; // 'yyyy-MM-dd'
+  date?: string;       // 'yyyy-MM-dd'
+  recordedAt?: string; // ISO datetime — when the user saved this record
 }
 
 interface AttendanceRowProps {
@@ -108,13 +109,20 @@ function StatusInfoPopover({ row, onClose }: { row: AttendanceRowData; onClose: 
       {/* Body */}
       <div className="px-4 py-3 space-y-2.5">
 
-        {/* Date */}
+        {/* Date + recorded time */}
         {row.date && (
           <div className="flex items-center gap-2.5">
             <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-700/60 flex items-center justify-center shrink-0">
               <CalendarDays size={12} className="text-gray-500 dark:text-gray-400" />
             </div>
-            <span className="text-xs text-gray-600 dark:text-gray-300">{formatDate(row.date)}</span>
+            <div>
+              <span className="text-xs text-gray-600 dark:text-gray-300 block">{formatDate(row.date)}</span>
+              {row.recordedAt && (
+                <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                  saat {new Date(row.recordedAt).toLocaleTimeString('az-AZ', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Baku' })}
+                </span>
+              )}
+            </div>
           </div>
         )}
 

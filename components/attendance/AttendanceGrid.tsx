@@ -133,6 +133,7 @@ export function AttendanceGrid() {
             isEarlyLeave,
             recordSource: entry ? (src ?? 'manual') : undefined,
             recordedByName: entry?.recordedByName ?? undefined,
+            recordedAt: entry?.recordedAt ?? undefined,
             date: dateStr,
           };
         });
