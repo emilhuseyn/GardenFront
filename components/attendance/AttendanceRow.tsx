@@ -1,12 +1,14 @@
 'use client';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { ScanFace, PenLine, Clock } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { TimeInput } from '@/components/attendance/TimeInput';
 import { cn } from '@/lib/utils/constants';
 
 export type AttendanceStatus = 'present' | 'absent' | 'not_counted' | null;
+export type RecordSource = 'manual' | 'faceid' | 'auto';
 
 export interface AttendanceRowData {
   id: string;
@@ -20,6 +22,7 @@ export interface AttendanceRowData {
   checkOut?: string;
   status: AttendanceStatus;
   isEarlyLeave?: boolean;
+  recordSource?: RecordSource;
 }
 
 interface AttendanceRowProps {
@@ -131,6 +134,21 @@ export function AttendanceRow({ row, index, onChange, onToggleEarlyLeave }: Atte
             </Badge>
             {row.isEarlyLeave && (
               <Badge variant="violet" size="sm">Tez çıxdı</Badge>
+            )}
+            {row.recordSource === 'faceid' && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800/40 w-fit">
+                <ScanFace size={10} /> FaceID
+              </span>
+            )}
+            {row.recordSource === 'manual' && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-500 border border-gray-200 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700/40 w-fit">
+                <PenLine size={10} /> Əllə
+              </span>
+            )}
+            {row.recordSource === 'auto' && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-600 border border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/40 w-fit">
+                <Clock size={10} /> Avto
+              </span>
             )}
           </div>
         ) : (

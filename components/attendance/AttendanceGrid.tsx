@@ -117,6 +117,8 @@ export function AttendanceGrid() {
             parseTimeMins(entry.departureTime) < parseTimeMins(sched.endTime) - 30
           );
 
+          const src = entry?.recordSource as 'manual' | 'faceid' | 'auto' | undefined;
+
           return {
             id: String(child.id),
             firstName: child.firstName,
@@ -129,6 +131,7 @@ export function AttendanceGrid() {
             checkOut: entry?.departureTime,
             status,
             isEarlyLeave,
+            recordSource: entry ? (src ?? 'manual') : undefined,
           };
         });
 
