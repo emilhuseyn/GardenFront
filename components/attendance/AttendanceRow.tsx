@@ -118,27 +118,23 @@ function StatusInfoPopover({ row, onClose }: { row: AttendanceRowData; onClose: 
           </div>
         )}
 
-        {/* Check-in + Check-out side by side */}
-        {(row.checkIn || row.checkOut) && (
+        {/* Check-in + Check-out — always shown for non-absent */}
+        {row.status !== 'absent' && row.status !== 'not_counted' && (
           <div className="flex items-center gap-2">
-            {row.checkIn && (
-              <div className="flex items-center gap-1.5 flex-1 bg-green-50 dark:bg-green-900/20 rounded-xl px-2.5 py-2 border border-green-100 dark:border-green-800/30">
-                <LogIn size={11} className="text-green-500 shrink-0" />
-                <div>
-                  <span className="text-[9px] text-green-600/70 dark:text-green-400/70 block leading-none">Giriş</span>
-                  <span className="text-xs font-bold text-green-700 dark:text-green-300">{row.checkIn}</span>
-                </div>
+            <div className="flex items-center gap-1.5 flex-1 bg-green-50 dark:bg-green-900/20 rounded-xl px-2.5 py-2 border border-green-100 dark:border-green-800/30">
+              <LogIn size={11} className="text-green-500 shrink-0" />
+              <div>
+                <span className="text-[9px] text-green-600/70 dark:text-green-400/70 block leading-none">Giriş</span>
+                <span className="text-xs font-bold text-green-700 dark:text-green-300">{row.checkIn ?? '—'}</span>
               </div>
-            )}
-            {row.checkOut && (
-              <div className="flex items-center gap-1.5 flex-1 bg-rose-50 dark:bg-rose-900/20 rounded-xl px-2.5 py-2 border border-rose-100 dark:border-rose-800/30">
-                <LogOut size={11} className="text-rose-400 shrink-0" />
-                <div>
-                  <span className="text-[9px] text-rose-500/70 dark:text-rose-400/70 block leading-none">Çıxış</span>
-                  <span className="text-xs font-bold text-rose-600 dark:text-rose-300">{row.checkOut}</span>
-                </div>
+            </div>
+            <div className="flex items-center gap-1.5 flex-1 bg-rose-50 dark:bg-rose-900/20 rounded-xl px-2.5 py-2 border border-rose-100 dark:border-rose-800/30">
+              <LogOut size={11} className="text-rose-400 shrink-0" />
+              <div>
+                <span className="text-[9px] text-rose-500/70 dark:text-rose-400/70 block leading-none">Çıxış</span>
+                <span className="text-xs font-bold text-rose-600 dark:text-rose-300">{row.checkOut ?? '—'}</span>
               </div>
-            )}
+            </div>
           </div>
         )}
 
