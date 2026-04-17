@@ -138,6 +138,7 @@ export interface AttendanceEntry {
   isEarlyLeave?: boolean;
   arrivalTime?: string;
   departureTime?: string;
+  recordSource?: 'manual' | 'faceid' | 'auto';
   notes?: string;
 }
 
