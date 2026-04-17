@@ -41,10 +41,16 @@ const STATUS_BUTTONS: { value: AttendanceStatus; label: string; activeClass: str
   { value: 'not_counted', label: 'Sayılmır', activeClass: 'bg-gray-400 text-white border-gray-400'    },
 ];
 
+const AZ_MONTHS = [
+  'Yanvar','Fevral','Mart','Aprel','May','İyun',
+  'İyul','Avqust','Sentyabr','Oktyabr','Noyabr','Dekabr',
+];
+
 function formatDate(dateStr?: string) {
   if (!dateStr) return null;
   try {
-    return new Intl.DateTimeFormat('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(dateStr));
+    const d = new Date(dateStr + 'T00:00:00');
+    return `${d.getDate()} ${AZ_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
   } catch {
     return dateStr;
   }
@@ -112,29 +118,27 @@ function StatusInfoPopover({ row, onClose }: { row: AttendanceRowData; onClose: 
           </div>
         )}
 
-        {/* Check-in */}
-        {row.checkIn && (
-          <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center shrink-0">
-              <LogIn size={12} className="text-green-500" />
-            </div>
-            <div>
-              <span className="text-[10px] text-gray-400 block leading-none mb-0.5">Giriş</span>
-              <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{row.checkIn}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Check-out */}
-        {row.checkOut && (
-          <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 rounded-lg bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center shrink-0">
-              <LogOut size={12} className="text-rose-400" />
-            </div>
-            <div>
-              <span className="text-[10px] text-gray-400 block leading-none mb-0.5">Çıxış</span>
-              <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{row.checkOut}</span>
-            </div>
+        {/* Check-in + Check-out side by side */}
+        {(row.checkIn || row.checkOut) && (
+          <div className="flex items-center gap-2">
+            {row.checkIn && (
+              <div className="flex items-center gap-1.5 flex-1 bg-green-50 dark:bg-green-900/20 rounded-xl px-2.5 py-2 border border-green-100 dark:border-green-800/30">
+                <LogIn size={11} className="text-green-500 shrink-0" />
+                <div>
+                  <span className="text-[9px] text-green-600/70 dark:text-green-400/70 block leading-none">Giriş</span>
+                  <span className="text-xs font-bold text-green-700 dark:text-green-300">{row.checkIn}</span>
+                </div>
+              </div>
+            )}
+            {row.checkOut && (
+              <div className="flex items-center gap-1.5 flex-1 bg-rose-50 dark:bg-rose-900/20 rounded-xl px-2.5 py-2 border border-rose-100 dark:border-rose-800/30">
+                <LogOut size={11} className="text-rose-400 shrink-0" />
+                <div>
+                  <span className="text-[9px] text-rose-500/70 dark:text-rose-400/70 block leading-none">Çıxış</span>
+                  <span className="text-xs font-bold text-rose-600 dark:text-rose-300">{row.checkOut}</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
