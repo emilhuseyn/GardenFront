@@ -23,6 +23,7 @@ export interface AttendanceRowData {
   status: AttendanceStatus;
   isEarlyLeave?: boolean;
   recordSource?: RecordSource;
+  recordedByName?: string;
 }
 
 interface AttendanceRowProps {
@@ -141,8 +142,12 @@ export function AttendanceRow({ row, index, onChange, onToggleEarlyLeave }: Atte
               </span>
             )}
             {row.recordSource === 'manual' && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-500 border border-gray-200 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700/40 w-fit">
-                <PenLine size={10} /> Əllə
+              <span
+                title={row.recordedByName ? `Qeyd edən: ${row.recordedByName}` : 'Əllə doldurulub'}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-500 border border-gray-200 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700/40 w-fit cursor-default"
+              >
+                <PenLine size={10} />
+                {row.recordedByName ? row.recordedByName : 'Əllə'}
               </span>
             )}
             {row.recordSource === 'auto' && (
