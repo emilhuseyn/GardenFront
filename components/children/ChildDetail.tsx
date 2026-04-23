@@ -764,7 +764,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                               <div>{AZ_MONTHS[p.month - 1]} {p.year}</div>
                               {p.paymentDate && (
                                 <div className="text-xs text-gray-400 dark:text-gray-500 font-normal mt-0.5">
-                                  {formatDate(p.paymentDate, "dd.MM.yyyy")}
+                                  {formatDate(p.paymentDate, "d MMMM yyyy 'saat' HH:mm")}
                                 </div>
                               )}
                           </td>
