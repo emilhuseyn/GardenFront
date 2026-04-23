@@ -615,7 +615,14 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
       </div>
 
       <div className="relative">
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">Məbləğ (₼) *</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+          Məbləğ (₼) *
+          {currentChildDiscount > 0 && (
+            <span className="ml-1.5 inline-flex items-center rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-600 border border-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20">
+              Endirimli
+            </span>
+          )}
+        </label>
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">₼</span>
           <input
