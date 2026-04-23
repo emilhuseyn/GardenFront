@@ -150,13 +150,36 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
 
   useEffect(() => {
     if (!showChildSelector) return;
-    Promise.all([
-      childrenApi.getAll({ status: 'Active', pageSize: 200 }),
-      childrenApi.getAll({ status: 'Inactive', pageSize: 200 }),
-    ])
-      .then(([activeRes, inactiveRes]) => {
+    let active = true;
+    setChildrenLoading(true);
+
+    const fetchAllPages = async (status: 'Active' | 'Inactive') => {
+      const pageSize = 200;
+      const firstPage = await childrenApi.getAll({ status, page: 1, pageSize }, { silentError: true });
+      let allItems = [...firstPage.items];
+      const totalPages = Math.max(firstPage.totalPages || 1, 1);
+
+      if (firstPage.hasNextPage || totalPages > 1) {
+        for (let page = 2; page <= totalPages; page += 1) {
+          const nextPage = await childrenApi.getAll({ status, page, pageSize }, { silentError: true });
+          allItems = allItems.concat(nextPage.items);
+        }
+      }
+
+      return allItems;
+    };
+
+    const run = async () => {
+      try {
+        const [activeChildren, inactiveChildren] = await Promise.all([
+          fetchAllPages('Active'),
+          fetchAllPages('Inactive'),
+        ]);
+
+        if (!active) return;
+
         const allChildren = Array.from(
-          new Map([...activeRes.items, ...inactiveRes.items].map((child) => [child.id, child])).values()
+          new Map([...activeChildren, ...inactiveChildren].map((child) => [child.id, child])).values()
         );
 
         setChildMonthlyFeeById(
@@ -173,9 +196,20 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
             searchKey: `${c.firstName} ${c.lastName} ${c.lastName} ${c.firstName} ${c.groupName}`,
           }))
         );
-      })
-      .catch(() => {})
-      .finally(() => setChildrenLoading(false));
+      } catch {
+        if (active) {
+          setChildOptions([]);
+          setChildMonthlyFeeById({});
+        }
+      } finally {
+        if (active) setChildrenLoading(false);
+      }
+    };
+
+    void run();
+    return () => {
+      active = false;
+    };
   }, [showChildSelector]);
 
   const watchedChildId = useWatch({ control, name: 'childId' });
