@@ -61,12 +61,37 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
       setRows([]);
 
       try {
+        const fetchChildrenByStatus = async (status: 'Active' | 'Inactive') => {
+          // Prefer backend "return all" behavior when pageSize <= 0.
+          const allAtOnce = await childrenApi.getAll({ status, groupId: groupId ?? undefined, pageSize: 0 });
+          const totalPages = Math.max(allAtOnce.totalPages || 1, 1);
+
+          if (!allAtOnce.hasNextPage && totalPages <= 1) {
+            return allAtOnce.items;
+          }
+
+          // Fallback for backends that still paginate despite pageSize 0.
+          const pageSize = 200;
+          const firstPage = await childrenApi.getAll({ status, groupId: groupId ?? undefined, page: 1, pageSize });
+          let allItems = [...firstPage.items];
+          const fallbackTotalPages = Math.max(firstPage.totalPages || 1, 1);
+
+          if (firstPage.hasNextPage || fallbackTotalPages > 1) {
+            for (let page = 2; page <= fallbackTotalPages; page += 1) {
+              const nextPage = await childrenApi.getAll({ status, groupId: groupId ?? undefined, page, pageSize });
+              allItems = allItems.concat(nextPage.items);
+            }
+          }
+
+          return allItems;
+        };
+
         const [activeResult, inactiveResult] = await Promise.all([
-          childrenApi.getAll({ status: 'Active', pageSize: 50, groupId: groupId ?? undefined }),
-          childrenApi.getAll({ status: 'Inactive', pageSize: 50, groupId: groupId ?? undefined }),
+          fetchChildrenByStatus('Active'),
+          fetchChildrenByStatus('Inactive'),
         ]);
         const children = Array.from(
-          new Map([...activeResult.items, ...inactiveResult.items].map((child) => [child.id, child])).values()
+          new Map([...activeResult, ...inactiveResult].map((child) => [child.id, child])).values()
         );
         const paymentHistories = await Promise.all(
           children.map((c) => paymentsApi.getChildHistory(c.id).catch(() => [] as Payment[]))
