@@ -184,7 +184,7 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
 
   const statusFiltered =
     statusFilter === 'has-debt'    ? searchFiltered.filter((r) => Object.values(r.payments).some((c) => c === 'unpaid')) :
-    statusFilter === 'has-partial' ? searchFiltered.filter((r) => Object.values(r.payments).some((c) => c === 'partial')) :
+    statusFilter === 'has-partial' ? searchFiltered.filter((r) => Object.values(r.payments).some((c) => c === 'partial' || c === 'unpaid')) :
     statusFilter === 'full'        ? searchFiltered.filter((r) => !Object.values(r.payments).some((c) => c === 'unpaid' || c === 'partial')) :
     searchFiltered;
 
