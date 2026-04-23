@@ -434,13 +434,13 @@ export default function ChildrenPage() {
             <button
               onClick={() => setSched('')}
               className={cn(
-                'flex-1 flex items-center justify-center px-1.5 rounded-lg text-[12px] font-medium transition-all',
+                'flex-[1.35] flex items-center justify-center px-1.5 rounded-lg text-[11px] leading-tight font-medium transition-all',
                 schedFilter === ''
                   ? 'bg-white text-gray-800 shadow-sm border border-gray-200 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50 dark:text-gray-400 dark:hover:text-gray-300'
               )}
             >
-              Bütün
+              Bütün qrafiklər
             </button>
             <button
               onClick={() => setSched('FullDay')}
