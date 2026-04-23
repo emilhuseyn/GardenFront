@@ -274,6 +274,11 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const remainingAfter = currentPayment ? Math.max(0, remainingBefore - plannedAmount) : null;
   const overpayAmount = currentPayment ? Math.max(0, plannedAmount - remainingBefore) : 0;
 
+  useEffect(() => {
+    // Re-enable submit when user switches child or period for a new payment.
+    setLastRecordedPaymentId(null);
+  }, [effectiveChildId, watchedMonth, watchedYear]);
+
   const filteredChildOptions = useMemo(() => {
     if (!childSearch.trim()) {
       return childOptions;
@@ -386,6 +391,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
               <button
                 type="button"
                 onClick={() => {
+                  setLastRecordedPaymentId(null);
                   setSelectedChildId('');
                   setSelectedChildLabel('');
                   setChildSearch('');
@@ -456,6 +462,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
                                 e.preventDefault();
                                 const val = opt.value;
                                 const numericChildId = Number(val);
+                                setLastRecordedPaymentId(null);
                                 setSelectedChildId(val);
                                 setSelectedChildLabel(opt.label);
                                 setChildSearch('');
