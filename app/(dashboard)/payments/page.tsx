@@ -51,6 +51,7 @@ export default function PaymentsPage() {
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [paymentSearch, setPaymentSearch] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<'all' | 'has-debt' | 'has-partial' | 'full'>('all');
+  const [paymentDiscount, setPaymentDiscount] = useState<'all' | 'has_discount' | 'no_discount'>('all');
   const [paymentSort, setPaymentSort] = useState<'name' | 'fee'>('name');
   const [debtorSearch, setDebtorSearch] = useState('');
   const [debtorSort, setDebtorSort] = useState<'debt-desc' | 'debt-asc' | 'months-desc' | 'months-asc' | 'name-asc'>('debt-desc');
@@ -296,6 +297,16 @@ export default function PaymentsPage() {
                 options={groups}
                 className="w-52"
               />
+              <Select
+                value={paymentDiscount}
+                onChange={(e) => setPaymentDiscount(e.target.value as 'all' | 'has_discount' | 'no_discount')}
+                options={[
+                  { value: 'all', label: 'Bütün (Endirim)' },
+                  { value: 'has_discount', label: 'Endirimli' },
+                  { value: 'no_discount', label: 'Endirimsiz' }
+                ]}
+                className="w-44"
+              />
               <select
                 value={paymentSort}
                 onChange={(e) => setPaymentSort(e.target.value as 'name' | 'fee')}
@@ -332,7 +343,7 @@ export default function PaymentsPage() {
                 Borcu olanlar: ən azı 1 ay ödənilməyib. Qismən ödəniş edənlər: ən azı 1 ay tam bağlanmayıb. Tam ödəniş edənlər: heç bir açıq borc yoxdur.
               </p>
             </div>
-            {(paymentSearch || selectedGroupId !== null || paymentStatus !== 'all' || paymentStatus === 'all') && (
+            {(paymentSearch || selectedGroupId !== null || paymentStatus !== 'all' || paymentDiscount !== 'all') && (
               <div className="flex flex-wrap gap-1.5">
                 <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">Seçilənlər:</span>
                 {paymentSearch && (
@@ -347,12 +358,20 @@ export default function PaymentsPage() {
                     <button onClick={() => setSelectedGroupId(null)} className="hover:opacity-70"><X size={10} /></button>
                   </span>
                 )}
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-                  Status: {paymentStatus === 'all' ? 'Bütün uşaqlar' : paymentStatus === 'has-debt' ? 'Borcu olanlar' : paymentStatus === 'has-partial' ? 'Qismən ödəniş edənlər' : 'Tam ödəniş edənlər'}
-                  <button onClick={() => setPaymentStatus('all')} className="hover:opacity-70"><X size={10} /></button>
-                </span>
+                {paymentStatus !== 'all' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                    Status: {paymentStatus === 'has-debt' ? 'Borcu olanlar' : paymentStatus === 'has-partial' ? 'Qismən ödəniş edənlər' : 'Tam ödəniş edənlər'}
+                    <button onClick={() => setPaymentStatus('all')} className="hover:opacity-70"><X size={10} /></button>
+                  </span>
+                )}
+                {paymentDiscount !== 'all' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
+                    Endirim: {paymentDiscount === 'has_discount' ? 'Endirimli' : 'Endirimsiz'}
+                    <button onClick={() => setPaymentDiscount('all')} className="hover:opacity-70"><X size={10} /></button>
+                  </span>
+                )}
                 <button
-                  onClick={() => { setPaymentSearch(''); setSelectedGroupId(null); setPaymentStatus('all'); }}
+                  onClick={() => { setPaymentSearch(''); setSelectedGroupId(null); setPaymentStatus('all'); setPaymentDiscount('all'); }}
                   className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 underline"
                 >
                   Hamısını sıfırla
@@ -366,6 +385,7 @@ export default function PaymentsPage() {
               groupId={selectedGroupId}
               search={paymentSearch}
               statusFilter={paymentStatus}
+              discountFilter={paymentDiscount}
               sortBy={paymentSort}
             />
           </div>

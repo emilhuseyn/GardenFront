@@ -23,6 +23,7 @@ type ViewMode = 'all' | 'grouped';
 type SortMode = 'debt-desc' | 'debt-asc' | 'name-asc' | 'name-desc';
 type GroupSortMode = 'debt-desc' | 'debt-asc' | 'count-desc' | 'count-asc' | 'name-asc';
 type StatusFilter = 'all' | 'active' | 'inactive';
+type DiscountFilter = 'all' | 'has_discount' | 'no_discount';
 
 interface GroupDebtRow {
   key: string;
@@ -39,6 +40,7 @@ interface ListRow extends DebtorInfo {
   paymentDay: number;
   monthlyFee: number;
   scheduleType: string;
+  discountPercentage?: number | null;
 }
 
 function fmtMonths(months: number[]) {
@@ -110,6 +112,7 @@ export default function ListsPage() {
   const [divisionFilter, setDivisionFilter] = useState('all');
   const [groupFilter, setGroupFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [discountFilter, setDiscountFilter] = useState<DiscountFilter>('all');
   const [paymentDayFilter, setPaymentDayFilter] = useState('all');
   const [scheduleFilter, setScheduleFilter] = useState<'all' | 'FullDay' | 'HalfDay'>('all');
   const [sortMode, setSortMode] = useState<SortMode>('debt-desc');
@@ -194,6 +197,7 @@ export default function ListsPage() {
             totalDebt: debtInfo?.totalDebt ?? child.totalDebt ?? 0,
             unpaidMonths: debtInfo?.unpaidMonths ?? [],
             scheduleType: child.scheduleType ?? 'FullDay',
+            discountPercentage: child.discountPercentage,
           };
         });
 
@@ -251,6 +255,8 @@ export default function ListsPage() {
       if (statusFilter === 'inactive' && r.status !== 'Inactive') return false;
       if (paymentDayFilter !== 'all' && String(r.paymentDay) !== paymentDayFilter) return false;
       if (scheduleFilter !== 'all' && r.scheduleType !== scheduleFilter) return false;
+      if (discountFilter === 'has_discount' && (!r.discountPercentage || r.discountPercentage <= 0)) return false;
+      if (discountFilter === 'no_discount' && r.discountPercentage && r.discountPercentage > 0) return false;
       if (!q) return true;
 
       return (
@@ -275,7 +281,7 @@ export default function ListsPage() {
           return b.totalDebt - a.totalDebt;
       }
     });
-  }, [rows, divisionFilter, groupFilter, statusFilter, paymentDayFilter, scheduleFilter, search, sortMode]);
+  }, [rows, divisionFilter, groupFilter, statusFilter, paymentDayFilter, scheduleFilter, discountFilter, search, sortMode]);
 
   const baseForScheduleCounts = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -285,6 +291,8 @@ export default function ListsPage() {
       if (statusFilter === 'active' && r.status !== 'Active') return false;
       if (statusFilter === 'inactive' && r.status !== 'Inactive') return false;
       if (paymentDayFilter !== 'all' && String(r.paymentDay) !== paymentDayFilter) return false;
+      if (discountFilter === 'has_discount' && (!r.discountPercentage || r.discountPercentage <= 0)) return false;
+      if (discountFilter === 'no_discount' && r.discountPercentage && r.discountPercentage > 0) return false;
       if (!q) return true;
 
       return (
@@ -295,7 +303,7 @@ export default function ListsPage() {
         || r.divisionName.toLowerCase().includes(q)
       );
     });
-  }, [rows, divisionFilter, groupFilter, statusFilter, paymentDayFilter, search]);
+  }, [rows, divisionFilter, groupFilter, statusFilter, paymentDayFilter, discountFilter, search]);
 
   const groupedRows = useMemo(() => {
     const map = new Map<string, GroupDebtRow>();
@@ -358,6 +366,10 @@ export default function ListsPage() {
 
     if (paymentDayFilter !== 'all') {
       parts.push(`odenis_gunu_${paymentDayFilter}`);
+    }
+
+    if (discountFilter !== 'all') {
+      parts.push(discountFilter === 'has_discount' ? 'endirimli' : 'endirimsiz');
     }
 
     if (search.trim()) {
@@ -496,6 +508,16 @@ export default function ListsPage() {
               options={paymentDayOptions}
               className="w-52 shrink-0"
             />
+            <Select
+              value={discountFilter}
+              onChange={(e) => setDiscountFilter(e.target.value as DiscountFilter)}
+              options={[
+                { value: 'all', label: 'Bütün (Endirim)' },
+                { value: 'has_discount', label: 'Endirimli' },
+                { value: 'no_discount', label: 'Endirimsiz' },
+              ]}
+              className="w-44 shrink-0"
+            />
             <div className="flex bg-gray-50 dark:bg-gray-800/40 p-1 rounded-xl border border-gray-100 dark:border-gray-700/50 min-h-[42px] shrink-0 w-[280px]">
               <button
                 onClick={() => setScheduleFilter('all')}
@@ -614,6 +636,11 @@ export default function ListsPage() {
                 {scheduleFilter === 'FullDay' ? 'Tam günlük' : 'Yarım günlük'} ×
               </button>
             )}
+            {discountFilter !== 'all' && (
+              <button onClick={() => setDiscountFilter('all')} className="px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 hover:bg-teal-100">
+                {discountFilter === 'has_discount' ? 'Endirimli' : 'Endirimsiz'} ×
+              </button>
+            )}
             <button
               onClick={() => {
                 setSearch('');
@@ -622,6 +649,7 @@ export default function ListsPage() {
                 setStatusFilter('all');
                 setPaymentDayFilter('all');
                 setScheduleFilter('all');
+                setDiscountFilter('all');
               }}
               className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 hover:bg-rose-100"
             >
@@ -657,6 +685,7 @@ export default function ListsPage() {
                     <th className="text-left px-4 py-3 text-gray-500">Qrup</th>
                     <th className="text-left px-4 py-3 text-gray-500 hidden lg:table-cell">Ödəniş günü</th>
                     <th className="text-left px-4 py-3 text-gray-500 hidden xl:table-cell">Aylıq ödəniş</th>
+                    <th className="text-left px-4 py-3 text-gray-500 hidden xl:table-cell">Endirim</th>
                     <th className="text-left px-4 py-3 text-gray-500">Qalıq borc</th>
                     <th className="text-left px-4 py-3 text-gray-500 hidden 2xl:table-cell">Ödənilməmiş aylar</th>
                   </tr>
@@ -681,6 +710,15 @@ export default function ListsPage() {
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{r.groupName}</td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 hidden lg:table-cell">{r.paymentDay || '-'}</td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 hidden xl:table-cell">{formatCurrency(r.monthlyFee || 0)}</td>
+                      <td className="px-4 py-3.5 hidden xl:table-cell">
+                        {r.discountPercentage && r.discountPercentage > 0 ? (
+                          <Badge variant="teal" size="sm">
+                            %{r.discountPercentage} Endirim
+                          </Badge>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-500">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3.5 font-semibold text-rose-600">{formatCurrency(r.totalDebt)}</td>
                       <td className="px-4 py-3.5 text-gray-500 hidden 2xl:table-cell">{fmtMonths(r.unpaidMonths) || '-'}</td>
                     </tr>

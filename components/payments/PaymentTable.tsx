@@ -23,6 +23,7 @@ interface ChildPayRow {
   childStatus: ChildStatus;
   groupName: string;
   monthlyFee: number;
+  discountPercentage?: number | null;
   payments: Record<number, PaymentCell>;
   amounts: Record<number, { paid: number; remaining: number }>;
   cashboxNames: Record<number, string | undefined>;
@@ -43,11 +44,12 @@ interface PaymentTableProps {
   groupId?: number | null;
   search?: string;
   statusFilter?: 'all' | 'has-debt' | 'has-partial' | 'full';
+  discountFilter?: 'all' | 'has_discount' | 'no_discount';
   sortBy?: 'name' | 'fee';
   onInitialLoadDone?: () => void;
 }
 
-export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', statusFilter = 'all', sortBy = 'name', onInitialLoadDone }: PaymentTableProps) {
+export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', statusFilter = 'all', discountFilter = 'all', sortBy = 'name', onInitialLoadDone }: PaymentTableProps) {
   const router = useRouter();
   const [rows, setRows] = useState<ChildPayRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,6 +125,7 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
             childStatus: child.status,
             groupName: child.groupName,
             monthlyFee: child.monthlyFee,
+            discountPercentage: child.discountPercentage,
             payments,
             amounts,
             cashboxNames,
@@ -182,11 +185,17 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
       )
     : rows;
 
+  const discountFiltered = searchFiltered.filter((r) => {
+    if (discountFilter === 'has_discount') return r.discountPercentage && r.discountPercentage > 0;
+    if (discountFilter === 'no_discount') return !r.discountPercentage || r.discountPercentage <= 0;
+    return true;
+  });
+
   const statusFiltered =
-    statusFilter === 'has-debt'    ? searchFiltered.filter((r) => Object.values(r.payments).some((c) => c === 'unpaid')) :
-    statusFilter === 'has-partial' ? searchFiltered.filter((r) => Object.values(r.payments).some((c) => c === 'partial' || c === 'unpaid')) :
-    statusFilter === 'full'        ? searchFiltered.filter((r) => !Object.values(r.payments).some((c) => c === 'unpaid' || c === 'partial')) :
-    searchFiltered;
+    statusFilter === 'has-debt'    ? discountFiltered.filter((r) => Object.values(r.payments).some((c) => c === 'unpaid')) :
+    statusFilter === 'has-partial' ? discountFiltered.filter((r) => Object.values(r.payments).some((c) => c === 'partial' || c === 'unpaid')) :
+    statusFilter === 'full'        ? discountFiltered.filter((r) => !Object.values(r.payments).some((c) => c === 'unpaid' || c === 'partial')) :
+    discountFiltered;
 
   const filteredRows = [...statusFiltered].sort((a, b) =>
     sortBy === 'fee'
@@ -255,6 +264,13 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
                 <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 font-mono-nums">
                   {formatCurrency(row.monthlyFee)}
                 </span>
+                {row.discountPercentage && row.discountPercentage > 0 ? (
+                  <div className="mt-1">
+                    <Badge variant="teal" size="xs" className="inline-block">
+                      %{row.discountPercentage}
+                    </Badge>
+                  </div>
+                ) : null}
               </td>
               {MONTHS_SHORT.map((_, mi) => {
                 const cell = row.payments[mi];

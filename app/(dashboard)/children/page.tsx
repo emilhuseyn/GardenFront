@@ -40,6 +40,12 @@ const INSIGHT_OPTIONS = [
   { value: 'recent_30_days', label: 'Son 30 gündə qeydiyyat' },
 ];
 
+const DISCOUNT_OPTIONS = [
+  { value: '', label: 'Bütün (Endirim)' },
+  { value: 'has_discount', label: 'Endirimi olanlar' },
+  { value: 'no_discount', label: 'Endirimi olmayanlar' },
+];
+
 const SORT_OPTIONS = [
   { value: 'name_asc', label: 'Ad (A-Z)' },
   { value: 'name_desc', label: 'Ad (Z-A)' },
@@ -57,6 +63,7 @@ export default function ChildrenPage() {
   const [groupFilter, setGroupFilter] = useState('');
   const [statusFilter, setStatus]   = useState('');
   const [schedFilter, setSched]     = useState('');
+  const [discountFilter, setDiscountFilter] = useState('');
   const [ageMin, setAgeMin]         = useState('');
   const [ageMax, setAgeMax]         = useState('');
   const [feeMin, setFeeMin]         = useState('');
@@ -257,6 +264,7 @@ export default function ChildrenPage() {
     setGroupFilter('');
     setStatus('');
     setSched('');
+    setDiscountFilter('');
     setAgeMin('');
     setAgeMax('');
     setFeeMin('');
@@ -286,6 +294,8 @@ export default function ChildrenPage() {
       if (statusFilter && child.status !== statusFilter) return false;
       if (schedFilter === 'FullDay' && child.scheduleType !== 'FullDay') return false;
       if (schedFilter === 'HalfDay' && child.scheduleType !== 'HalfDay') return false;
+      if (discountFilter === 'has_discount' && (!child.discountPercentage || child.discountPercentage <= 0)) return false;
+      if (discountFilter === 'no_discount' && child.discountPercentage && child.discountPercentage > 0) return false;
       if (minAge !== undefined && Number.isFinite(minAge) && childAge < minAge) return false;
       if (maxAge !== undefined && Number.isFinite(maxAge) && childAge > maxAge) return false;
       if (minFee !== undefined && Number.isFinite(minFee) && child.monthlyFee < minFee) return false;
@@ -332,6 +342,7 @@ export default function ChildrenPage() {
     groupFilter,
     statusFilter,
     schedFilter,
+    discountFilter,
     ageMin,
     ageMax,
     feeMin,
@@ -360,6 +371,8 @@ export default function ChildrenPage() {
       if (groupFilter && !equalsNormalizedText(child.groupName, groupFilter)) return false;
       if (statusFilter && child.status !== statusFilter) return false;
       // Do not apply schedFilter here so counts show remaining available options
+      if (discountFilter === 'has_discount' && (!child.discountPercentage || child.discountPercentage <= 0)) return false;
+      if (discountFilter === 'no_discount' && child.discountPercentage && child.discountPercentage > 0) return false;
       if (minAge !== undefined && Number.isFinite(minAge) && childAge < minAge) return false;
       if (maxAge !== undefined && Number.isFinite(maxAge) && childAge > maxAge) return false;
       if (minFee !== undefined && Number.isFinite(minFee) && child.monthlyFee < minFee) return false;
@@ -371,7 +384,7 @@ export default function ChildrenPage() {
       }
       return true;
     });
-  }, [children, divFilter, divisions, groupFilter, statusFilter, ageMin, ageMax, feeMin, feeMax, insightFilter]);
+  }, [children, divFilter, divisions, groupFilter, statusFilter, discountFilter, ageMin, ageMax, feeMin, feeMax, insightFilter]);
 
   const activeCount   = summary?.activeCount ?? processedChildren.filter((c) => c.status === 'Active').length;
   const inactiveCount = summary?.inactiveCount ?? processedChildren.filter((c) => c.status !== 'Active').length;
@@ -430,6 +443,7 @@ export default function ChildrenPage() {
           <Select value={divFilter} onChange={(e) => setDivFilter(e.target.value)} options={divisionOptions} />
           <Select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} options={groupOptions} />
           <Select value={statusFilter} onChange={(e) => setStatus(e.target.value)} options={STATUS_OPTIONS} />
+          <Select value={discountFilter} onChange={(e) => setDiscountFilter(e.target.value)} options={DISCOUNT_OPTIONS} />
           <div className="flex bg-gray-50 dark:bg-gray-800/40 p-1 rounded-xl border border-gray-100 dark:border-gray-700/50 min-h-[42px]">
             <button
               onClick={() => setSched('')}
@@ -505,7 +519,7 @@ export default function ChildrenPage() {
           />
           <Select value={insightFilter} onChange={(e) => setInsightFilter(e.target.value)} options={INSIGHT_OPTIONS} />
         </div>
-        {(divFilter || groupFilter || statusFilter || schedFilter || ageMin || ageMax || feeMin || feeMax || insightFilter || sortBy !== 'name_asc') && (
+        {(divFilter || groupFilter || statusFilter || schedFilter || discountFilter || ageMin || ageMax || feeMin || feeMax || insightFilter || sortBy !== 'name_asc') && (
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white-border dark:border-gray-700/60">
             <span className="text-xs text-gray-400">Aktiv filter:</span>
             {divFilter && (
@@ -526,6 +540,11 @@ export default function ChildrenPage() {
             {schedFilter && (
               <button onClick={() => setSched('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-amber-50 text-amber-700 rounded-full hover:bg-amber-100">
                 {schedFilter === 'FullDay' ? 'Tam günlük' : 'Yarım günlük'} ×
+              </button>
+            )}
+            {discountFilter && (
+              <button onClick={() => setDiscountFilter('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-teal-50 text-teal-700 rounded-full hover:bg-teal-100">
+                {discountFilter === 'has_discount' ? 'Endirimli' : 'Endirimsiz'} ×
               </button>
             )}
             {sortBy !== 'name_asc' && (

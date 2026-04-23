@@ -121,6 +121,11 @@ export function ChildCard({ child, index = 0, onToggleStatus, onDelete }: ChildC
             <Clock size={9} />
             {SCHEDULE_LABELS[child.scheduleType]}
           </Badge>
+          {child.discountPercentage && child.discountPercentage > 0 ? (
+            <Badge variant="teal" size="pill">
+              %{child.discountPercentage} Endirim
+            </Badge>
+          ) : null}
         </div>
 
         {/* Group */}
