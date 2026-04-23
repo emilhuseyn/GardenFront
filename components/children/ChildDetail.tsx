@@ -740,36 +740,52 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
         )}
 
         {activeTab === 'payments' && (
-          <div className="space-y-2">
-            {payments.length === 0 && (
+          <div className="bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-2xl overflow-hidden shadow-sm">
+            {payments.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-8">Ödəniş tapılmadı.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-gray-50/80 dark:bg-gray-800/40 border-b border-gray-100 dark:border-gray-700/60">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide text-xs">Ay / İl</th>
+                      <th className="px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide text-xs">Məbləğ</th>
+                      <th className="px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide text-xs hidden sm:table-cell">Ödənilib</th>
+                      <th className="px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide text-xs hidden sm:table-cell">Qalıq</th>
+                      <th className="px-4 py-3 font-semibold text-gray-500 uppercase tracking-wide text-xs">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                    {payments.map((p) => {
+                      const { statusLabel, statusVariant } = getPaymentMeta(p.status);
+                      return (
+                        <tr key={p.id} className="group hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors">
+                          <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">
+                            {AZ_MONTHS[p.month - 1]} {p.year}
+                          </td>
+                          <td className="px-4 py-3 font-semibold text-gray-900 dark:text-gray-50">
+                            {formatCurrency(p.finalAmount)}
+                          </td>
+                          <td className="px-4 py-3 text-green-600 dark:text-green-400 font-medium hidden sm:table-cell">
+                            {formatCurrency(p.paidAmount)}
+                          </td>
+                          <td className="px-4 py-3 text-rose-500 dark:text-rose-400 font-medium hidden sm:table-cell">
+                            <span className={p.remainingDebt > 0 ? '' : 'text-gray-400 dark:text-gray-500 font-normal'}>
+                              {formatCurrency(p.remainingDebt)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant={statusVariant as 'paid' | 'partial' | 'unpaid'} size="sm" className="whitespace-nowrap">
+                              {statusLabel}
+                            </Badge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
-            {payments.map((p) => {
-              const { isPaid, statusLabel, statusVariant } = getPaymentMeta(p.status);
-              return (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between p-3.5 bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-xl"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                      {AZ_MONTHS[p.month - 1]} {p.year}
-                    </p>
-                    {p.paidAmount > 0 && !isPaid && (
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        Ödənilib: {formatCurrency(p.paidAmount)} / Qalıq: {formatCurrency(p.remainingDebt)}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-50">{formatCurrency(p.finalAmount)}</span>
-                    <Badge variant={statusVariant as 'paid' | 'partial' | 'unpaid'} size="sm">
-                      {statusLabel}
-                    </Badge>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         )}
 
