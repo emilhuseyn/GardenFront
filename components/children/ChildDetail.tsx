@@ -761,7 +761,12 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                       return (
                         <tr key={p.id} className="group hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors">
                           <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">
-                            {AZ_MONTHS[p.month - 1]} {p.year}
+                              <div>{AZ_MONTHS[p.month - 1]} {p.year}</div>
+                              {p.paymentDate && (
+                                <div className="text-xs text-gray-400 dark:text-gray-500 font-normal mt-0.5">
+                                  {formatDate(p.paymentDate, "dd.MM.yyyy")}
+                                </div>
+                              )}
                           </td>
                           <td className="px-4 py-3 font-semibold text-gray-900 dark:text-gray-50">
                             {formatCurrency(p.finalAmount)}

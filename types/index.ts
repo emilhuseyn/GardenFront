@@ -252,19 +252,7 @@ export interface Payment {
   cashboxId?: number;
   cashboxName?: string;
   cashboxType?: CashboxType;
-  notes?: string;
-}
-
-export interface PaymentFormData {
-  childId: number;
-  month: number;
-  year: number;
-  amount: number;
-  cashboxId: number;
-  notes?: string;
-}
-
-export interface DebtorInfo {
+    paymentDate?: string;
   childId: number;
   childFullName: string;
   groupName: string;
