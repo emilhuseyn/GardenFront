@@ -258,6 +258,25 @@ export default function ChildrenPage() {
       .map((g) => ({ value: g.name, label: g.name })),
   ];
 
+  const selectedGroupIdForNewChild = useMemo(() => {
+    if (!groupFilter) return null;
+
+    const matches = groups.filter((g) => equalsNormalizedText(g.name, groupFilter));
+    if (!matches.length) return null;
+
+    if (divFilter) {
+      const divisionId = Number(divFilter);
+      const inDivision = matches.find((g) => g.divisionId === divisionId);
+      if (inDivision) return inDivision.id;
+    }
+
+    return matches[0].id;
+  }, [groupFilter, groups, divFilter]);
+
+  const newChildHref = selectedGroupIdForNewChild
+    ? `/children/new?groupId=${selectedGroupIdForNewChild}`
+    : '/children/new';
+
   const clearAllFilters = () => {
     setSearch('');
     setDivFilter('');
@@ -399,7 +418,7 @@ export default function ChildrenPage() {
         title="Uşaqlar"
         description="Qeydiyyatda olan bütün uşaqların siyahısı"
         actions={
-          <Link href="/children/new">
+          <Link href={newChildHref}>
             <Button>
               <Plus size={16} /> Uşaq əlavə et
             </Button>

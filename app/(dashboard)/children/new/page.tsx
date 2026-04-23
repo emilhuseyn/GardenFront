@@ -1,11 +1,16 @@
 'use client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ChildForm } from '@/components/children/ChildForm';
 
 export default function NewChildPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const groupIdParam = searchParams.get('groupId');
+  const parsedGroupId = groupIdParam ? Number(groupIdParam) : NaN;
+  const defaultGroupId = Number.isFinite(parsedGroupId) && parsedGroupId > 0 ? parsedGroupId : undefined;
+
   return (
     <div className="max-w-xl mx-auto">
       <button
@@ -18,6 +23,7 @@ export default function NewChildPage() {
         <h2 className="text-lg font-bold text-gray-900 font-display mb-1">Yeni uşaq əlavə et</h2>
         <p className="text-sm text-gray-400 mb-6">Aşağıdakı formu doldurun</p>
         <ChildForm
+          defaultGroupId={defaultGroupId}
           onSuccess={() => router.push('/children')}
           onCancel={() => router.back()}
         />
