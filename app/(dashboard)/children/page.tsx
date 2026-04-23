@@ -170,7 +170,7 @@ export default function ChildrenPage() {
   }, []);
 
   useEffect(() => {
-    const cacheKey = `children_cache_${debouncedSearch.trim()}_${divFilter}_${statusFilter}_${schedFilter}`;
+    const cacheKey = `children_cache_${debouncedSearch.trim()}_${divFilter}_${statusFilter}`;
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) {
       try {
@@ -190,7 +190,6 @@ export default function ChildrenPage() {
         } else {
           const baseFilters: ChildFilters = {
             divisionId:   divFilter ? Number(divFilter) : undefined,
-            scheduleType: schedFilter !== '' ? (schedFilter as 'FullDay' | 'HalfDay') : undefined,
           };
 
           const fetchAllPages = async (filters: ChildFilters) => {
@@ -238,7 +237,7 @@ export default function ChildrenPage() {
       }
     };
     run();
-  }, [debouncedSearch, divFilter, statusFilter, schedFilter]);
+  }, [debouncedSearch, divFilter, statusFilter]);
 
   const divisionOptions = [
     { value: '', label: 'Bütün bölmələr' },
@@ -341,13 +340,45 @@ export default function ChildrenPage() {
     sortBy,
   ]);
 
+  const baseForScheduleCounts = useMemo(() => {
+    const selectedDivisionName = divFilter
+      ? divisions.find((d) => String(d.id) === divFilter)?.name
+      : undefined;
+
+    const minAge = ageMin.trim() !== '' ? Number(ageMin) : undefined;
+    const maxAge = ageMax.trim() !== '' ? Number(ageMax) : undefined;
+    const minFee = feeMin.trim() !== '' ? Number(feeMin) : undefined;
+    const maxFee = feeMax.trim() !== '' ? Number(feeMax) : undefined;
+    const now = new Date();
+    const recentCutoff = new Date(now);
+    recentCutoff.setDate(now.getDate() - 30);
+
+    return children.filter((child) => {
+      const childAge = getAge(child.dateOfBirth);
+
+      if (selectedDivisionName && !equalsNormalizedText(child.divisionName, selectedDivisionName)) return false;
+      if (groupFilter && !equalsNormalizedText(child.groupName, groupFilter)) return false;
+      if (statusFilter && child.status !== statusFilter) return false;
+      // Do not apply schedFilter here so counts show remaining available options
+      if (minAge !== undefined && Number.isFinite(minAge) && childAge < minAge) return false;
+      if (maxAge !== undefined && Number.isFinite(maxAge) && childAge > maxAge) return false;
+      if (minFee !== undefined && Number.isFinite(minFee) && child.monthlyFee < minFee) return false;
+      if (maxFee !== undefined && Number.isFinite(maxFee) && child.monthlyFee > maxFee) return false;
+      if (insightFilter === 'recent_30_days') {
+        if (!child.registrationDate) return false;
+        const registrationDate = new Date(child.registrationDate);
+        if (Number.isNaN(registrationDate.getTime()) || registrationDate < recentCutoff) return false;
+      }
+      return true;
+    });
+  }, [children, divFilter, divisions, groupFilter, statusFilter, ageMin, ageMax, feeMin, feeMax, insightFilter]);
+
   const activeCount   = summary?.activeCount ?? processedChildren.filter((c) => c.status === 'Active').length;
   const inactiveCount = summary?.inactiveCount ?? processedChildren.filter((c) => c.status !== 'Active').length;
   const totalShown    = summary ? summary.activeCount + summary.inactiveCount : processedChildren.length;
 
-  // Schedule counts from the full children list (unaffected by schedule filter)
-  const fullDayCount = children.filter((c) => c.scheduleType === 'FullDay').length;
-  const halfDayCount = children.filter((c) => c.scheduleType === 'HalfDay').length;
+  const fullDayCount = baseForScheduleCounts.filter((c) => c.scheduleType === 'FullDay').length;
+  const halfDayCount = baseForScheduleCounts.filter((c) => c.scheduleType === 'HalfDay').length;
 
   return (
     <div className="space-y-6">
@@ -399,40 +430,48 @@ export default function ChildrenPage() {
           <Select value={divFilter} onChange={(e) => setDivFilter(e.target.value)} options={divisionOptions} />
           <Select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} options={groupOptions} />
           <Select value={statusFilter} onChange={(e) => setStatus(e.target.value)} options={STATUS_OPTIONS} />
-          <div className="flex flex-col gap-1.5">
-            <Select value={schedFilter} onChange={(e) => setSched(e.target.value)} options={SCHEDULE_OPTIONS} />
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => setSched(schedFilter === 'FullDay' ? '' : 'FullDay')}
-                className={cn(
-                  'flex-1 flex items-center justify-between px-2 py-1 rounded-lg text-[11px] font-medium border transition-all',
-                  schedFilter === 'FullDay'
-                    ? 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/50'
-                    : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-amber-300 hover:text-amber-600 dark:bg-gray-800/40 dark:border-gray-700/50 dark:text-gray-400'
-                )}
-              >
-                <span>Tam günlük</span>
-                <span className={cn(
-                  'ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold',
-                  schedFilter === 'FullDay' ? 'bg-amber-200 text-amber-800 dark:bg-amber-800/40 dark:text-amber-200' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-                )}>{fullDayCount}</span>
-              </button>
-              <button
-                onClick={() => setSched(schedFilter === 'HalfDay' ? '' : 'HalfDay')}
-                className={cn(
-                  'flex-1 flex items-center justify-between px-2 py-1 rounded-lg text-[11px] font-medium border transition-all',
-                  schedFilter === 'HalfDay'
-                    ? 'bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-700/50'
-                    : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-violet-300 hover:text-violet-600 dark:bg-gray-800/40 dark:border-gray-700/50 dark:text-gray-400'
-                )}
-              >
-                <span>Yarım günlük</span>
-                <span className={cn(
-                  'ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold',
-                  schedFilter === 'HalfDay' ? 'bg-violet-200 text-violet-800 dark:bg-violet-800/40 dark:text-violet-200' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-                )}>{halfDayCount}</span>
-              </button>
-            </div>
+          <div className="flex bg-gray-50 dark:bg-gray-800/40 p-1 rounded-xl border border-gray-100 dark:border-gray-700/50 min-h-[42px]">
+            <button
+              onClick={() => setSched('')}
+              className={cn(
+                'flex-1 flex items-center justify-center px-1.5 rounded-lg text-[12px] font-medium transition-all',
+                schedFilter === ''
+                  ? 'bg-white text-gray-800 shadow-sm border border-gray-200 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50 dark:text-gray-400 dark:hover:text-gray-300'
+              )}
+            >
+              Bütün
+            </button>
+            <button
+              onClick={() => setSched('FullDay')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1 px-1.5 rounded-lg text-[12px] font-medium transition-all',
+                schedFilter === 'FullDay'
+                  ? 'bg-amber-100 text-amber-700 shadow-sm border border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800/50'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50 dark:text-gray-400 dark:hover:text-gray-300'
+              )}
+            >
+              Tam
+              <span className={cn(
+                'px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none',
+                schedFilter === 'FullDay' ? 'bg-amber-200/60 text-amber-800 dark:bg-amber-800/60 dark:text-amber-200' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+              )}>{fullDayCount}</span>
+            </button>
+            <button
+              onClick={() => setSched('HalfDay')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1 px-1.5 rounded-lg text-[12px] font-medium transition-all',
+                schedFilter === 'HalfDay'
+                  ? 'bg-violet-100 text-violet-700 shadow-sm border border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800/50'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50 dark:text-gray-400 dark:hover:text-gray-300'
+              )}
+            >
+              Yarım
+              <span className={cn(
+                'px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none',
+                schedFilter === 'HalfDay' ? 'bg-violet-200/60 text-violet-800 dark:bg-violet-800/60 dark:text-violet-200' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+              )}>{halfDayCount}</span>
+            </button>
           </div>
           <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} options={SORT_OPTIONS} />
           
