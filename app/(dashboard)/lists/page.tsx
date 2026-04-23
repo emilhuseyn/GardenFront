@@ -685,7 +685,6 @@ export default function ListsPage() {
                     <th className="text-left px-4 py-3 text-gray-500">Qrup</th>
                     <th className="text-left px-4 py-3 text-gray-500 hidden lg:table-cell">Ödəniş günü</th>
                     <th className="text-left px-4 py-3 text-gray-500 hidden xl:table-cell">Aylıq ödəniş</th>
-                    <th className="text-left px-4 py-3 text-gray-500 hidden xl:table-cell">Endirim</th>
                     <th className="text-left px-4 py-3 text-gray-500">Qalıq borc</th>
                     <th className="text-left px-4 py-3 text-gray-500 hidden 2xl:table-cell">Ödənilməmiş aylar</th>
                   </tr>
@@ -709,15 +708,13 @@ export default function ListsPage() {
                       </td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{r.groupName}</td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 hidden lg:table-cell">{r.paymentDay || '-'}</td>
-                      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 hidden xl:table-cell">{formatCurrency(r.monthlyFee || 0)}</td>
-                      <td className="px-4 py-3.5 hidden xl:table-cell">
+                      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 hidden xl:table-cell whitespace-nowrap">
+                        <span>{formatCurrency(r.monthlyFee || 0)}</span>
                         {r.discountPercentage && r.discountPercentage > 0 ? (
-                          <Badge variant="teal" size="sm">
-                            %{r.discountPercentage} Endirim
-                          </Badge>
-                        ) : (
-                          <span className="text-gray-400 dark:text-gray-500">—</span>
-                        )}
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200/60 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50 align-text-bottom">
+                            -{r.discountPercentage}%
+                          </span>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3.5 font-semibold text-rose-600">{formatCurrency(r.totalDebt)}</td>
                       <td className="px-4 py-3.5 text-gray-500 hidden 2xl:table-cell">{fmtMonths(r.unpaidMonths) || '-'}</td>

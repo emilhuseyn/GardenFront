@@ -122,9 +122,9 @@ export function ChildCard({ child, index = 0, onToggleStatus, onDelete }: ChildC
             {SCHEDULE_LABELS[child.scheduleType]}
           </Badge>
           {child.discountPercentage && child.discountPercentage > 0 ? (
-            <Badge variant="teal" size="pill">
-              %{child.discountPercentage} Endirim
-            </Badge>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200/60 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50">
+              -{child.discountPercentage}%
+            </span>
           ) : null}
         </div>
 

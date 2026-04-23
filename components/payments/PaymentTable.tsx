@@ -265,11 +265,9 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
                   {formatCurrency(row.monthlyFee)}
                 </span>
                 {row.discountPercentage && row.discountPercentage > 0 ? (
-                  <div className="mt-1">
-                    <Badge variant="teal" size="xs" className="inline-block">
-                      %{row.discountPercentage}
-                    </Badge>
-                  </div>
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200/60 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50 align-text-bottom">
+                    -{row.discountPercentage}%
+                  </span>
                 ) : null}
               </td>
               {MONTHS_SHORT.map((_, mi) => {
