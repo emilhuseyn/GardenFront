@@ -24,6 +24,8 @@ interface ChildPayRow {
   groupName: string;
   monthlyFee: number;
   discountPercentage?: number | null;
+  parentFullName?: string;
+  secondParentFullName?: string;
   payments: Record<number, PaymentCell>;
   amounts: Record<number, { paid: number; remaining: number }>;
   cashboxNames: Record<number, string | undefined>;
@@ -126,6 +128,8 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
             groupName: child.groupName,
             monthlyFee: child.monthlyFee,
             discountPercentage: child.discountPercentage,
+            parentFullName: child.parentFullName,
+            secondParentFullName: child.secondParentFullName,
             payments,
             amounts,
             cashboxNames,
@@ -181,7 +185,9 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
   const searchFiltered = q
     ? rows.filter((r) =>
         `${r.firstName} ${r.lastName}`.toLowerCase().includes(q) ||
-        r.groupName.toLowerCase().includes(q)
+        r.groupName.toLowerCase().includes(q) ||
+        (r.parentFullName && r.parentFullName.toLowerCase().includes(q)) ||
+        (r.secondParentFullName && r.secondParentFullName.toLowerCase().includes(q))
       )
     : rows;
 

@@ -284,12 +284,12 @@ export default function PaymentsPage() {
 
         {tab === 'Ödənişlər' && (
           <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:items-center">
               <SearchBar
                 value={paymentSearch}
                 onChange={setPaymentSearch}
-                placeholder="Ad, soyad axtar..."
-                className="sm:w-64"
+                placeholder="Uşaq, qrup və ya valideyn adı axtar..."
+                className="flex-1 min-w-[200px] w-full sm:w-auto"
               />
               <Select
                 value={selectedGroupId ? String(selectedGroupId) : ''}
