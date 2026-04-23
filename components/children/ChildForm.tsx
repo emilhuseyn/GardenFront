@@ -58,6 +58,7 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
     defaultValues: {
       scheduleType: 0,
       monthlyFee: 300,
+      discountPercentage: null,
       paymentDay: defaultPaymentDay,
       parentFullName: '',
       secondParentFullName: '',
@@ -82,7 +83,7 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
     const fields: (keyof ChildFormValues)[][] = [
       ['firstName', 'lastName', 'dateOfBirth'],
       ['groupId', 'scheduleType'],
-      ['parentFullName', 'secondParentFullName', 'parentPhone', 'secondParentPhone', 'monthlyFee', 'paymentDay'],
+      ['parentFullName', 'secondParentFullName', 'parentPhone', 'secondParentPhone', 'monthlyFee', 'discountPercentage', 'paymentDay'],
     ];
     const valid = await trigger(fields[step - 1]);
     if (valid) setStep((s) => Math.min(s + 1, 3));
@@ -93,6 +94,9 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
       const normalizedPersonId = typeof data.personId === 'number' && Number.isFinite(data.personId)
         ? data.personId
         : undefined;
+      const normalizedDiscountPercentage = typeof data.discountPercentage === 'number' && Number.isFinite(data.discountPercentage)
+        ? data.discountPercentage
+        : null;
 
       if (normalizedPersonId !== undefined) {
         const existing = await childrenApi.findByPersonId(normalizedPersonId);
@@ -105,6 +109,7 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
       await childrenApi.create({
         ...data,
         personId: normalizedPersonId,
+        discountPercentage: normalizedDiscountPercentage,
       });
       setDone(true);
       toast.success('Uşaq uğurla əlavə edildi!');
@@ -344,6 +349,24 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
                   <p className="mt-1 text-xs text-accent-rose">⚠ {errors.monthlyFee.message}</p>
                 )}
               </div>
+
+              <Input
+                {...register('discountPercentage', {
+                  setValueAs: (value) => {
+                    if (value === '' || value === null || value === undefined) return null;
+                    const parsed = Number(value);
+                    return Number.isFinite(parsed) ? parsed : null;
+                  },
+                })}
+                label="Endirim faizi (%)"
+                type="number"
+                min={0}
+                max={100}
+                step="0.1"
+                placeholder="Məs: 15.5"
+                error={errors.discountPercentage?.message}
+                hint="İstəyə bağlı. 0 ilə 100 arasında dəyər daxil edin."
+              />
 
               <Select
                 {...register('paymentDay', { valueAsNumber: true })}

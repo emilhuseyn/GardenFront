@@ -93,6 +93,7 @@ export interface Child {
   divisionName: string;
   scheduleType: ScheduleType;
   monthlyFee: number;
+  discountPercentage?: number | null;
   paymentDay: number;
   status: ChildStatus;
   parentFullName: string;
@@ -116,6 +117,7 @@ export interface ChildFormData {
   groupId: number;
   scheduleType: 0 | 1; // POST body uses numbers
   monthlyFee: number;
+  discountPercentage?: number | null;
   paymentDay: number;
   parentFullName: string;
   secondParentFullName?: string;

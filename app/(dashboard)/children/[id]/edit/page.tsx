@@ -85,6 +85,7 @@ export default function EditChildPage() {
         groupId:        matchedGroup?.id ?? 0,
         scheduleType:   c.scheduleType === 'FullDay' ? 0 : 1,
         monthlyFee:     c.monthlyFee,
+        discountPercentage: c.discountPercentage ?? null,
         paymentDay:     c.paymentDay ?? 1,
         parentFullName: c.parentFullName,
         secondParentFullName: c.secondParentFullName ?? '',
@@ -110,6 +111,9 @@ export default function EditChildPage() {
       const normalizedPersonId = typeof data.personId === 'number' && Number.isFinite(data.personId) && data.personId > 0
         ? data.personId
         : null;
+      const normalizedDiscountPercentage = typeof data.discountPercentage === 'number' && Number.isFinite(data.discountPercentage)
+        ? data.discountPercentage
+        : null;
 
       if (normalizedPersonId !== null) {
         const existing = await childrenApi.findByPersonId(normalizedPersonId);
@@ -122,6 +126,7 @@ export default function EditChildPage() {
       await childrenApi.update(numId, {
         ...data,
         personId: normalizedPersonId,
+        discountPercentage: normalizedDiscountPercentage,
         ...(registrationDate ? { registrationDate: toIsoDate(registrationDate) } : {}),
         ...(child?.status === 'Inactive' && deactivationDate ? { deactivationDate: toIsoDate(deactivationDate) } : {}),
       });
@@ -266,6 +271,22 @@ export default function EditChildPage() {
                 type="number"
                 min={1}
                 error={errors.monthlyFee?.message}
+              />
+              <Input
+                {...register('discountPercentage', {
+                  setValueAs: (value) => {
+                    if (value === '' || value === null || value === undefined) return null;
+                    const parsed = Number(value);
+                    return Number.isFinite(parsed) ? parsed : null;
+                  },
+                })}
+                label="Endirim faizi (%)"
+                type="number"
+                min={0}
+                max={100}
+                step="0.1"
+                placeholder="Məs: 15.5"
+                error={errors.discountPercentage?.message}
               />
               <Select
                 {...register('paymentDay', { valueAsNumber: true })}

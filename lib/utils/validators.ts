@@ -35,6 +35,7 @@ export const childSchema = z.object({
   groupId: z.number().min(1, 'Qrup seçin'),
   scheduleType: z.union([z.literal(0), z.literal(1)]),
   monthlyFee: z.number().min(1, 'Ödəniş məbləği mütləqdir').max(10000, 'Ən çox 10000 ₼ ola bilər'),
+  discountPercentage: z.number().min(0, 'Endirim faizi 0 ilə 100 arasında olmalıdır').max(100, 'Endirim faizi 0 ilə 100 arasında olmalıdır').nullable().optional(),
   paymentDay: z.number().min(1, 'Ödəniş günü seçin').max(28, 'Maksimum 28 ola bilər'),
   parentFullName: z.string().min(3, 'Ən azı 3 hərf olmalıdır'),
   secondParentFullName: z.string().min(3, 'Ən azı 3 hərf olmalıdır').optional().or(z.literal('')),
