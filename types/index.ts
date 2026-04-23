@@ -185,6 +185,24 @@ export interface MarkAttendanceEntry {
 export type PaymentStatus = 0 | 1 | 2 | 'Paid' | 'PartiallyPaid' | 'Debt'; // API may return string or number
 export type DiscountType = 0 | 1 | 2;  // 0=None, 1=Percentage, 2=Fixed
 
+export interface DebtorInfo {
+  childId: number;
+  childFullName: string;
+  groupName: string;
+  divisionName: string;
+  parentPhone: string;
+  totalDebt: number;
+  unpaidMonths: number[];
+}
+
+export interface PaymentFormData {
+  childId: number;
+  amount: number;
+  month: number;
+  year: number;
+  cashboxId: number;
+}
+
 // ─── Cashbox ──────────────────────────────────────────────────────────────────
 export type CashboxType = 'Cash' | 'Cashless' | 'CardAccount' | 'DebitCard';
 
@@ -241,6 +259,7 @@ export interface CashboxTransferHistory {
 
 export interface Payment {
   id: number;
+  childId: number;
   childFullName: string;
   month: number;
   year: number;
@@ -252,14 +271,13 @@ export interface Payment {
   cashboxId?: number;
   cashboxName?: string;
   cashboxType?: CashboxType;
-    paymentDate?: string;
-  childId: number;
-  childFullName: string;
-  groupName: string;
-  divisionName: string;
-  parentPhone: string;
-  totalDebt: number;
-  unpaidMonths: number[];
+  paymentDate?: string;
+  notes?: string;
+  groupName?: string;
+  divisionName?: string;
+  parentPhone?: string;
+  totalDebt?: number;
+  unpaidMonths?: number[];
 }
 
 export interface DailyPaymentReport {
