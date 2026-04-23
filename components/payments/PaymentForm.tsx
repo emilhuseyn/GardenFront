@@ -85,6 +85,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const showChildSelector = !childId || childId === 0;
   const [childOptions, setChildOptions] = useState<ChildOption[]>([]);
   const [childMonthlyFeeById, setChildMonthlyFeeById] = useState<Record<number, number>>({});
+  const [childDiscountById, setChildDiscountById] = useState<Record<number, number>>({});
   const [childrenLoading, setChildrenLoading] = useState(showChildSelector);
   const [selectedChildId, setSelectedChildId] = useState('');
   const [selectedChildLabel, setSelectedChildLabel] = useState('');
@@ -92,6 +93,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const comboboxRef = useRef<HTMLDivElement>(null);
   const [currentChildMonthlyFee, setCurrentChildMonthlyFee] = useState(0);
+  const [currentChildDiscount, setCurrentChildDiscount] = useState(0);
   const [history, setHistory] = useState<Payment[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [cashboxes, setCashboxes] = useState<{ value: string; label: string }[]>([]);
@@ -193,7 +195,16 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
 
         setChildMonthlyFeeById(
           allChildren.reduce<Record<number, number>>((acc, child) => {
-            acc[child.id] = child.monthlyFee;
+            const fee = child.monthlyFee;
+            const discount = child.discountPercentage ?? 0;
+            acc[child.id] = discount > 0 ? fee - (fee * discount) / 100 : fee;
+            return acc;
+          }, {})
+        );
+
+        setChildDiscountById(
+          allChildren.reduce<Record<number, number>>((acc, child) => {
+            acc[child.id] = child.discountPercentage ?? 0;
             return acc;
           }, {})
         );
@@ -209,6 +220,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
         if (active) {
           setChildOptions([]);
           setChildMonthlyFeeById({});
+          setChildDiscountById({});
         }
       } finally {
         if (active) setChildrenLoading(false);
@@ -259,6 +271,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   useEffect(() => {
     if (!effectiveChildId) {
       setCurrentChildMonthlyFee(0);
+      setCurrentChildDiscount(0);
       return;
     }
 
@@ -267,9 +280,17 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
     const loadChildFee = async () => {
       try {
         const detail = await childrenApi.getById(effectiveChildId);
-        if (active) setCurrentChildMonthlyFee(detail.monthlyFee ?? 0);
+        if (active) {
+          const fee = detail.monthlyFee ?? 0;
+          const discount = detail.discountPercentage ?? 0;
+          setCurrentChildMonthlyFee(discount > 0 ? fee - (fee * discount) / 100 : fee);
+          setCurrentChildDiscount(discount);
+        }
       } catch {
-        if (active) setCurrentChildMonthlyFee(0);
+        if (active) {
+          setCurrentChildMonthlyFee(0);
+          setCurrentChildDiscount(0);
+        }
       }
     };
 
@@ -303,7 +324,6 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   }, [currentPayment, setValue]);
 
   useEffect(() => {
-    // When there is no record for the selected month, prefill with child's monthly fee.
     if (!effectiveChildId || currentPayment || currentChildMonthlyFee <= 0) return;
 
     setValue('amount', currentChildMonthlyFee, {
@@ -569,7 +589,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
           <>
             <div className="grid grid-cols-3 gap-2 text-xs">
               <div className="rounded-lg bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 p-2">
-                <p className="text-gray-400">Aylıq məbləğ</p>
+                <p className="text-gray-400 flex items-center gap-1">Aylıq məbləğ {currentChildDiscount > 0 && <span className="inline-flex items-center rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-700 border border-rose-200/60 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20">-{currentChildDiscount}%</span>}</p>
                 <p className="font-semibold text-gray-700 dark:text-gray-200 mt-1">{formatCurrency(monthTotal)}</p>
               </div>
               <div className="rounded-lg bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 p-2">
