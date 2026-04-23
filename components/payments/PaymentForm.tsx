@@ -153,14 +153,23 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
     let active = true;
     setChildrenLoading(true);
 
-    const fetchAllPages = async (status: 'Active' | 'Inactive') => {
+    const fetchChildrenByStatus = async (status: 'Active' | 'Inactive') => {
+      // Backend supports pageSize <= 0 to return all filtered rows at once.
+      const allAtOnce = await childrenApi.getAll({ status, pageSize: 0 }, { silentError: true });
+      const totalPages = Math.max(allAtOnce.totalPages || 1, 1);
+
+      if (!allAtOnce.hasNextPage && totalPages <= 1) {
+        return allAtOnce.items;
+      }
+
+      // Fallback when backend still paginates despite pageSize 0.
       const pageSize = 200;
       const firstPage = await childrenApi.getAll({ status, page: 1, pageSize }, { silentError: true });
       let allItems = [...firstPage.items];
-      const totalPages = Math.max(firstPage.totalPages || 1, 1);
+      const fallbackTotalPages = Math.max(firstPage.totalPages || 1, 1);
 
-      if (firstPage.hasNextPage || totalPages > 1) {
-        for (let page = 2; page <= totalPages; page += 1) {
+      if (firstPage.hasNextPage || fallbackTotalPages > 1) {
+        for (let page = 2; page <= fallbackTotalPages; page += 1) {
           const nextPage = await childrenApi.getAll({ status, page, pageSize }, { silentError: true });
           allItems = allItems.concat(nextPage.items);
         }
@@ -172,8 +181,8 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
     const run = async () => {
       try {
         const [activeChildren, inactiveChildren] = await Promise.all([
-          fetchAllPages('Active'),
-          fetchAllPages('Inactive'),
+          fetchChildrenByStatus('Active'),
+          fetchChildrenByStatus('Inactive'),
         ]);
 
         if (!active) return;
