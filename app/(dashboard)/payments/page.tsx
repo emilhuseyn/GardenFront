@@ -18,6 +18,7 @@ import { Download, Plus, Search, Trash2, X } from 'lucide-react';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { formatCurrency, formatMonthYear } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/constants';
+import { childrenApi } from '@/lib/api/children';
 import { paymentsApi } from '@/lib/api/payments';
 import { groupsApi } from '@/lib/api/groups';
 import type { DebtorInfo, MonthlyPaymentReport, DailyPaymentReport, Payment } from '@/types';
@@ -26,6 +27,34 @@ const TABS = ['Ödənişlər', 'Borclular', 'Günlük', 'Hesabat'] as const;
 type Tab = typeof TABS[number];
 
 const AZ_MONTHS = ['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'];
+const ACADEMIC_MONTH_COLUMNS = [
+  { label: 'sent-okt', month: 9 },
+  { label: 'okt-noy', month: 10 },
+  { label: 'noy-dek', month: 11 },
+  { label: 'dek-yan', month: 12 },
+  { label: 'yan-fev', month: 1 },
+  { label: 'fev-mart', month: 2 },
+  { label: 'mart-apr', month: 3 },
+  { label: 'apr-may', month: 4 },
+  { label: 'may-iyun+', month: 5 },
+  { label: 'iyun-iyul', month: 6 },
+  { label: 'iyul-avg', month: 7 },
+] as const;
+
+type ExportMonthStatus = 'paid' | 'partial' | 'debt' | 'empty';
+
+function getExcelColumnName(columnNumber: number): string {
+  let dividend = columnNumber;
+  let columnName = '';
+
+  while (dividend > 0) {
+    const modulo = (dividend - 1) % 26;
+    columnName = String.fromCharCode(65 + modulo) + columnName;
+    dividend = Math.floor((dividend - modulo) / 26);
+  }
+
+  return columnName;
+}
 
 export default function PaymentsPage() {
   const now = new Date();
@@ -60,6 +89,7 @@ export default function PaymentsPage() {
   const [dailySort, setDailySort] = useState<'name' | 'amount-desc' | 'amount-asc'>('name');
   const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   useEffect(() => {
     groupsApi.getAll().then((gs) => {
@@ -211,6 +241,337 @@ export default function PaymentsPage() {
     URL.revokeObjectURL(url);
   };
 
+  const exportPaymentsExcel = async () => {
+    if (exportingExcel) return;
+    setExportingExcel(true);
+
+    try {
+      const ExcelJS = await import('exceljs');
+
+      const fetchChildrenByStatus = async (status: 'Active' | 'Inactive') => {
+        const allAtOnce = await childrenApi.getAll(
+          {
+            status,
+            groupId: selectedGroupId ?? undefined,
+            pageSize: 0,
+          },
+          { silentError: true }
+        );
+
+        const totalPages = Math.max(allAtOnce.totalPages || 1, 1);
+        if (!allAtOnce.hasNextPage && totalPages <= 1) {
+          return allAtOnce.items;
+        }
+
+        const firstPage = await childrenApi.getAll(
+          {
+            status,
+            groupId: selectedGroupId ?? undefined,
+            page: 1,
+            pageSize: 200,
+          },
+          { silentError: true }
+        );
+
+        let allItems = [...firstPage.items];
+        const fallbackTotalPages = Math.max(firstPage.totalPages || 1, 1);
+        if (firstPage.hasNextPage || fallbackTotalPages > 1) {
+          for (let page = 2; page <= fallbackTotalPages; page += 1) {
+            const nextPage = await childrenApi.getAll(
+              {
+                status,
+                groupId: selectedGroupId ?? undefined,
+                page,
+                pageSize: 200,
+              },
+              { silentError: true }
+            );
+            allItems = allItems.concat(nextPage.items);
+          }
+        }
+
+        return allItems;
+      };
+
+      const [activeChildren, inactiveChildren] = await Promise.all([
+        fetchChildrenByStatus('Active'),
+        fetchChildrenByStatus('Inactive'),
+      ]);
+
+      const children = Array.from(
+        new Map([...activeChildren, ...inactiveChildren].map((child) => [child.id, child])).values()
+      );
+
+      const paymentHistories = await Promise.all(
+        children.map((child) => paymentsApi.getChildHistory(child.id).catch(() => [] as Payment[]))
+      );
+
+      const academicStartYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+      const monthDefs = ACADEMIC_MONTH_COLUMNS.map((def) => ({
+        ...def,
+        year: def.month >= 9 ? academicStartYear : academicStartYear + 1,
+      }));
+
+      const mappedRows = children.map((child, i) => {
+        const discount = child.discountPercentage ?? 0;
+        const plannedAmount = discount > 0
+          ? child.monthlyFee - (child.monthlyFee * discount) / 100
+          : child.monthlyFee;
+
+        const paymentMap = new Map<string, Payment>();
+        for (const payment of paymentHistories[i]) {
+          const key = `${payment.year}-${payment.month}`;
+          const prev = paymentMap.get(key);
+          if (!prev || payment.id > prev.id) paymentMap.set(key, payment);
+        }
+
+        const monthCells = monthDefs.map((def) => {
+          const payment = paymentMap.get(`${def.year}-${def.month}`);
+          if (!payment) {
+            return {
+              amount: null as number | null,
+              status: 'empty' as ExportMonthStatus,
+            };
+          }
+
+          const amount = Number.isFinite(payment.paidAmount) && payment.paidAmount > 0
+            ? payment.paidAmount
+            : Number.isFinite(payment.finalAmount) && payment.finalAmount > 0
+              ? payment.finalAmount
+              : plannedAmount;
+
+          let status: ExportMonthStatus = 'debt';
+          if (payment.remainingDebt <= 0) status = 'paid';
+          else if (payment.paidAmount > 0) status = 'partial';
+
+          return { amount, status };
+        });
+
+        const fullName = `${child.firstName} ${child.lastName}`.trim();
+        return {
+          childId: child.id,
+          childName: `${child.lastName} ${child.firstName}`.trim(),
+          fullName,
+          parentName: child.parentFullName?.trim() || '-',
+          groupName: child.groupName,
+          paymentDay: child.paymentDay,
+          plannedAmount,
+          discount,
+          childStatus: child.status,
+          monthCells,
+        };
+      });
+
+      const q = paymentSearch.trim().toLowerCase();
+      const searchFiltered = q
+        ? mappedRows.filter((r) =>
+            r.fullName.toLowerCase().includes(q) ||
+            r.groupName.toLowerCase().includes(q) ||
+            r.parentName.toLowerCase().includes(q)
+          )
+        : mappedRows;
+
+      const discountFiltered = searchFiltered.filter((r) => {
+        if (paymentDiscount === 'has_discount') return r.discount > 0;
+        if (paymentDiscount === 'no_discount') return r.discount <= 0;
+        return true;
+      });
+
+      const statusFiltered = discountFiltered.filter((r) => {
+        if (paymentStatus === 'all') return true;
+        const hasDebt = r.monthCells.some((c) => c.status === 'debt');
+        const hasPartial = r.monthCells.some((c) => c.status === 'partial');
+        if (paymentStatus === 'has-debt') return hasDebt;
+        if (paymentStatus === 'has-partial') return hasDebt || hasPartial;
+        return !hasDebt && !hasPartial;
+      });
+
+      const sortedRows = [...statusFiltered].sort((a, b) =>
+        paymentSort === 'fee'
+          ? b.plannedAmount - a.plannedAmount
+          : a.fullName.localeCompare(b.fullName, 'az')
+      );
+
+      if (sortedRows.length === 0) {
+        toast.error('Export üçün məlumat tapılmadı');
+        return;
+      }
+
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'KinderGarden';
+      workbook.created = new Date();
+
+      const sheet = workbook.addWorksheet('Ödənişlər', {
+        views: [{ state: 'frozen', xSplit: 4, ySplit: 4 }],
+      });
+
+      const columnHeaders = [
+        'valideynlərin adı',
+        'uşağın soyadı, adı',
+        'ödə günü',
+        'məbləğ',
+        ...monthDefs.map((m) => m.label),
+      ];
+
+      const lastColumn = columnHeaders.length;
+      const lastColumnName = getExcelColumnName(lastColumn);
+
+      sheet.mergeCells(`A1:${lastColumnName}1`);
+      sheet.getCell('A1').value = `Ödəniş cədvəli (${academicStartYear}-${academicStartYear + 1})`;
+      sheet.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+      sheet.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F6E43' } };
+      sheet.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
+
+      sheet.mergeCells(`A2:${lastColumnName}2`);
+      sheet.getCell('A2').value = `Tarix: ${new Date().toLocaleDateString('az-AZ')} | Qeyd sayı: ${sortedRows.length} | Filtr: ${paymentStatus}`;
+      sheet.getCell('A2').font = { size: 11, color: { argb: 'FF334155' } };
+      sheet.getCell('A2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6F4EA' } };
+      sheet.getCell('A2').alignment = { horizontal: 'left', vertical: 'middle' };
+
+      sheet.getRow(1).height = 26;
+      sheet.getRow(2).height = 20;
+
+      const headerRowIndex = 4;
+      const headerRow = sheet.getRow(headerRowIndex);
+      headerRow.values = columnHeaders;
+      headerRow.height = 24;
+
+      const applyBorder = (cell: { border?: unknown }) => {
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+          left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+          bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+          right: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+        };
+      };
+
+      for (let col = 1; col <= lastColumn; col += 1) {
+        const cell = headerRow.getCell(col);
+        cell.font = { bold: true, color: { argb: 'FF0F172A' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: col <= 4 ? 'FFF4C7F7' : 'FFD7E9FF' },
+        };
+        applyBorder(cell);
+      }
+
+      const widths = [28, 30, 10, 12, ...monthDefs.map(() => 11)];
+      widths.forEach((width, i) => {
+        sheet.getColumn(i + 1).width = width;
+      });
+
+      const dataStart = headerRowIndex + 1;
+      sortedRows.forEach((row, idx) => {
+        const rowIndex = dataStart + idx;
+        const excelRow = sheet.getRow(rowIndex);
+
+        const monthValues = row.monthCells.map((cell) => cell.amount);
+        excelRow.values = [
+          row.parentName,
+          row.childName,
+          row.paymentDay,
+          row.plannedAmount,
+          ...monthValues,
+        ];
+
+        excelRow.height = 21;
+
+        for (let col = 1; col <= lastColumn; col += 1) {
+          const cell = excelRow.getCell(col);
+          applyBorder(cell);
+
+          if (col === 1 || col === 2) {
+            cell.alignment = { horizontal: 'left', vertical: 'middle' };
+          } else {
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          }
+
+          if (col === 4 || col >= 5) {
+            cell.numFmt = '#,##0';
+          }
+
+          if (col === 4) {
+            cell.font = { bold: true, color: { argb: 'FF1F2937' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFCE7F3' } };
+          }
+
+          if (col >= 5) {
+            const monthCell = row.monthCells[col - 5];
+            if (monthCell.status === 'paid') {
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } };
+              cell.font = { color: { argb: 'FF006100' }, bold: true };
+            } else if (monthCell.status === 'partial') {
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE699' } };
+              cell.font = { color: { argb: 'FF7C5700' }, bold: true };
+            } else if (monthCell.status === 'debt') {
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8CBAD' } };
+              cell.font = { color: { argb: 'FF9C0006' }, bold: true };
+            } else {
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+              cell.font = { color: { argb: 'FF6B7280' } };
+            }
+          }
+        }
+
+        if (row.childStatus === 'Inactive') {
+          excelRow.getCell(2).font = { color: { argb: 'FF6B7280' }, italic: true };
+        }
+      });
+
+      const totalRowIndex = dataStart + sortedRows.length;
+      const totalRow = sheet.getRow(totalRowIndex);
+      totalRow.getCell(1).value = 'CƏMİ';
+      totalRow.getCell(1).font = { bold: true, color: { argb: 'FF111827' } };
+      totalRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+      totalRow.height = 23;
+
+      const amountColumn = getExcelColumnName(4);
+      totalRow.getCell(4).value = { formula: `SUM(${amountColumn}${dataStart}:${amountColumn}${totalRowIndex - 1})` };
+      totalRow.getCell(4).numFmt = '#,##0';
+      totalRow.getCell(4).font = { bold: true, color: { argb: 'FF111827' } };
+
+      for (let col = 5; col <= lastColumn; col += 1) {
+        const colName = getExcelColumnName(col);
+        const cell = totalRow.getCell(col);
+        cell.value = { formula: `SUM(${colName}${dataStart}:${colName}${totalRowIndex - 1})` };
+        cell.numFmt = '#,##0';
+        cell.font = { bold: true, color: { argb: 'FF111827' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      }
+
+      for (let col = 1; col <= lastColumn; col += 1) {
+        const cell = totalRow.getCell(col);
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
+        applyBorder(cell);
+      }
+
+      sheet.autoFilter = {
+        from: { row: headerRowIndex, column: 1 },
+        to: { row: headerRowIndex, column: lastColumn },
+      };
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `odenisler_${academicStartYear}_${academicStartYear + 1}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast.success('Excel faylı hazırlandı');
+    } catch {
+      toast.error('Excel export alınmadı');
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
   const totalDebt = debtors.reduce((s, d) => s + d.totalDebt, 0);
   const showBootLoader = loadingDebtors || loadingReports || loadingGroups || !paymentsTableReady;
 
@@ -315,6 +676,14 @@ export default function PaymentsPage() {
                 <option value="name">Ada görə A-Z</option>
                 <option value="fee">Məbləğə görə ↓</option>
               </select>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={exportPaymentsExcel}
+                disabled={exportingExcel}
+              >
+                <Download size={14} /> {exportingExcel ? 'Hazırlanır...' : 'Excel export'}
+              </Button>
             </div>
             <div className="space-y-1.5">
               <p className="text-xs text-gray-500 dark:text-gray-400">Ödəniş vəziyyətinə görə filtrlə:</p>
