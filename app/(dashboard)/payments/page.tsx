@@ -27,19 +27,26 @@ const TABS = ['Ödənişlər', 'Borclular', 'Günlük', 'Hesabat'] as const;
 type Tab = typeof TABS[number];
 
 const AZ_MONTHS = ['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'];
-const ACADEMIC_MONTH_COLUMNS = [
-  { label: 'sent-okt', month: 9 },
-  { label: 'okt-noy', month: 10 },
-  { label: 'noy-dek', month: 11 },
-  { label: 'dek-yan', month: 12 },
-  { label: 'yan-fev', month: 1 },
-  { label: 'fev-mart', month: 2 },
-  { label: 'mart-apr', month: 3 },
-  { label: 'apr-may', month: 4 },
-  { label: 'may-iyun+', month: 5 },
-  { label: 'iyun-iyul', month: 6 },
-  { label: 'iyul-avg', month: 7 },
-] as const;
+const AZ_MONTHS_LOWER = ['yan','fev','mar','apr','may','iyn','iyl','avq','sen','okt','noy','dek'];
+
+interface RollingMonthColumn {
+  label: string;
+  month: number;
+  year: number;
+}
+
+function buildRollingMonthColumns(referenceDate: Date, monthCount = 12): RollingMonthColumn[] {
+  const start = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - (monthCount - 1), 1);
+  return Array.from({ length: monthCount }, (_, i) => {
+    const current = new Date(start.getFullYear(), start.getMonth() + i, 1);
+    const next = new Date(start.getFullYear(), start.getMonth() + i + 1, 1);
+    return {
+      label: `${AZ_MONTHS_LOWER[current.getMonth()]}-${AZ_MONTHS_LOWER[next.getMonth()]}`,
+      month: current.getMonth() + 1,
+      year: current.getFullYear(),
+    };
+  });
+}
 
 type ExportMonthStatus = 'paid' | 'partial' | 'debt' | 'empty';
 
@@ -306,11 +313,9 @@ export default function PaymentsPage() {
         children.map((child) => paymentsApi.getChildHistory(child.id).catch(() => [] as Payment[]))
       );
 
-      const academicStartYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
-      const monthDefs = ACADEMIC_MONTH_COLUMNS.map((def) => ({
-        ...def,
-        year: def.month >= 9 ? academicStartYear : academicStartYear + 1,
-      }));
+      const monthDefs = buildRollingMonthColumns(now, 12);
+      const periodStart = monthDefs[0];
+      const periodEnd = monthDefs[monthDefs.length - 1];
 
       const mappedRows = children.map((child, i) => {
         const discount = child.discountPercentage ?? 0;
@@ -402,7 +407,7 @@ export default function PaymentsPage() {
       workbook.created = new Date();
 
       const sheet = workbook.addWorksheet('Ödənişlər', {
-        views: [{ state: 'frozen', xSplit: 4, ySplit: 4 }],
+        views: [{ state: 'frozen', xSplit: 4, ySplit: 5 }],
       });
 
       const columnHeaders = [
@@ -416,22 +421,56 @@ export default function PaymentsPage() {
       const lastColumn = columnHeaders.length;
       const lastColumnName = getExcelColumnName(lastColumn);
 
+      const groupLabel = selectedGroupId !== null
+        ? groups.find((g) => g.value === String(selectedGroupId))?.label ?? String(selectedGroupId)
+        : 'Bütün qruplar';
+      const filterMeta = [
+        `Qrup: ${groupLabel}`,
+        `Status: ${paymentStatus}`,
+        `Endirim: ${paymentDiscount}`,
+        paymentSearch.trim() ? `Axtarış: ${paymentSearch.trim()}` : '',
+      ].filter(Boolean).join(' | ');
+
       sheet.mergeCells(`A1:${lastColumnName}1`);
-      sheet.getCell('A1').value = `Ödəniş cədvəli (${academicStartYear}-${academicStartYear + 1})`;
+      sheet.getCell('A1').value = 'Ödəniş cədvəli | Rolling son 12 ay';
       sheet.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
-      sheet.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F6E43' } };
+      sheet.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } };
       sheet.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
 
       sheet.mergeCells(`A2:${lastColumnName}2`);
-      sheet.getCell('A2').value = `Tarix: ${new Date().toLocaleDateString('az-AZ')} | Qeyd sayı: ${sortedRows.length} | Filtr: ${paymentStatus}`;
+      sheet.getCell('A2').value = `Period: ${formatMonthYear(periodStart.month, periodStart.year)} - ${formatMonthYear(periodEnd.month, periodEnd.year)} | Qeyd sayı: ${sortedRows.length}`;
       sheet.getCell('A2').font = { size: 11, color: { argb: 'FF334155' } };
-      sheet.getCell('A2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6F4EA' } };
+      sheet.getCell('A2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6FFFA' } };
       sheet.getCell('A2').alignment = { horizontal: 'left', vertical: 'middle' };
+
+      sheet.mergeCells(`A3:${lastColumnName}3`);
+      sheet.getCell('A3').value = filterMeta || 'Filtr: standart';
+      sheet.getCell('A3').font = { size: 10, color: { argb: 'FF475569' }, italic: true };
+      sheet.getCell('A3').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+      sheet.getCell('A3').alignment = { horizontal: 'left', vertical: 'middle' };
+
+      sheet.getCell('A4').value = 'Tam ödəniş';
+      sheet.getCell('B4').value = 'Qismən ödəniş';
+      sheet.getCell('C4').value = 'Borclu';
+      sheet.getCell('D4').value = 'Məlumat yoxdur';
+
+      sheet.getCell('A4').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } };
+      sheet.getCell('B4').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE699' } };
+      sheet.getCell('C4').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8CBAD' } };
+      sheet.getCell('D4').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+
+      for (let col = 1; col <= 4; col += 1) {
+        const cell = sheet.getCell(4, col);
+        cell.font = { bold: true, color: { argb: 'FF1E293B' }, size: 10 };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      }
 
       sheet.getRow(1).height = 26;
       sheet.getRow(2).height = 20;
+      sheet.getRow(3).height = 19;
+      sheet.getRow(4).height = 20;
 
-      const headerRowIndex = 4;
+      const headerRowIndex = 5;
       const headerRow = sheet.getRow(headerRowIndex);
       headerRow.values = columnHeaders;
       headerRow.height = 24;
@@ -447,12 +486,12 @@ export default function PaymentsPage() {
 
       for (let col = 1; col <= lastColumn; col += 1) {
         const cell = headerRow.getCell(col);
-        cell.font = { bold: true, color: { argb: 'FF0F172A' } };
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
         cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',
-          fgColor: { argb: col <= 4 ? 'FFF4C7F7' : 'FFD7E9FF' },
+          fgColor: { argb: col <= 4 ? 'FF475569' : 'FF2563EB' },
         };
         applyBorder(cell);
       }
@@ -489,7 +528,11 @@ export default function PaymentsPage() {
           }
 
           if (col === 4 || col >= 5) {
-            cell.numFmt = '#,##0';
+            cell.numFmt = '#,##0" ₼"';
+          }
+
+          if (idx % 2 === 1 && col < 5) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
           }
 
           if (col === 4) {
@@ -529,14 +572,14 @@ export default function PaymentsPage() {
 
       const amountColumn = getExcelColumnName(4);
       totalRow.getCell(4).value = { formula: `SUM(${amountColumn}${dataStart}:${amountColumn}${totalRowIndex - 1})` };
-      totalRow.getCell(4).numFmt = '#,##0';
+      totalRow.getCell(4).numFmt = '#,##0" ₼"';
       totalRow.getCell(4).font = { bold: true, color: { argb: 'FF111827' } };
 
       for (let col = 5; col <= lastColumn; col += 1) {
         const colName = getExcelColumnName(col);
         const cell = totalRow.getCell(col);
         cell.value = { formula: `SUM(${colName}${dataStart}:${colName}${totalRowIndex - 1})` };
-        cell.numFmt = '#,##0';
+        cell.numFmt = '#,##0" ₼"';
         cell.font = { bold: true, color: { argb: 'FF111827' } };
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       }
@@ -560,7 +603,7 @@ export default function PaymentsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `odenisler_${academicStartYear}_${academicStartYear + 1}.xlsx`;
+      a.download = `odenisler_son12ay_${periodStart.year}_${String(periodStart.month).padStart(2, '0')}_${periodEnd.year}_${String(periodEnd.month).padStart(2, '0')}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
 
