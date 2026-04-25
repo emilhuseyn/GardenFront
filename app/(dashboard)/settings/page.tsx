@@ -808,90 +808,9 @@ export default function SettingsPage() {
 
           {activeTab === 'notifications' && (
             <div className="space-y-6">
-              <h3 className="text-base font-bold text-gray-900 dark:text-gray-50 font-display">WhatsApp Bildirişləri</h3>
-
-              {/* Status Card */}
-              <div className="rounded-xl border border-white-border dark:border-gray-700/60 p-4">
-                {waLoading && !waStatus ? (
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="w-10 h-10 rounded-full" />
-                    <Skeleton className="h-5 w-48" />
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      'w-10 h-10 rounded-full flex items-center justify-center text-xl',
-                      waStatus?.connected ? 'bg-green-50' : waStatus?.hasQR ? 'bg-amber-50' : 'bg-rose-50'
-                    )}>
-                      {waStatus?.connected ? '🟢' : waStatus?.hasQR ? '🟡' : '🔴'}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                        {waStatus?.connected
-                          ? 'WhatsApp Qoşulub'
-                          : waStatus?.hasQR
-                          ? 'QR Skan Gözlənilir'
-                          : 'Qoşulmayıb'}
-                      </p>
-                      {waStatus?.message && (
-                        <p className="text-xs text-gray-400 mt-0.5">{waStatus.message}</p>
-                      )}
-                    </div>
-                    {waStatus?.connected && (
-                      <Button size="sm" variant="outline" loading={waDisconnecting} onClick={handleDisconnect}
-                        className="text-rose-500 border-rose-200 hover:bg-rose-50">
-                        <LogOut size={13} /> Çıx
-                      </Button>
-                    )}
-                    {!waStatus?.connected && (
-                      <div className="flex items-center gap-2">
-                        {waStatus?.hasQR && (
-                          <Button size="sm" variant="outline" onClick={() => setQrModalOpen(true)}>
-                            <Smartphone size={13} /> QR Göstər
-                          </Button>
-                        )}
-                        <Button size="sm" loading={waLoading} onClick={handleConnect}>
-                          <RefreshCw size={13} /> {waStatus?.hasQR ? 'Yenidən Başlat' : 'Qoşul'}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Send overdue alerts */}
-              <div className="rounded-xl border border-white-border dark:border-gray-700/60 p-4 space-y-3">
-                <div>
-                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">Xatırlatma və gecikmə bildirişi</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Sabah ödəniş günü olanlara xatırlatma, 5+ gün gecikən borclulara gecikmə mesajı göndər
-                  </p>
-                </div>
-                <Button
-                  disabled={!waStatus?.connected}
-                  loading={waSending}
-                  onClick={handleSendDueAndOverdue}
-                >
-                  <Send size={14} /> Xatırlatma mesajlarını göndər
-                </Button>
-                {alertResult && (
-                  <p className="text-xs text-gray-500">
-                    Son nəticə: {alertResult.sent} uğurlu, {alertResult.failed} uğursuz
-                  </p>
-                )}
-                {!waStatus?.connected && (
-                  <p className="text-xs text-amber-500">
-                    ⚠️ Mesaj göndərmək üçün əvvəlcə WhatsApp qoşulması tələb olunur
-                  </p>
-                )}
-              </div>
-
               <div className="rounded-xl border border-white-border dark:border-gray-700/60 p-4 space-y-3">
                 <div>
                   <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">Hikvision Sync</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Endpoint: http://localhost:5034/api/attendance/hikvision-sync?date=YYYY-MM-DD
-                  </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <input
