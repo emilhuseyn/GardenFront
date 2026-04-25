@@ -422,33 +422,31 @@ export default function PaymentsPage() {
       const lastColumn = columnHeaders.length;
       const lastColumnName = getExcelColumnName(lastColumn);
 
-      const groupLabel = selectedGroupId !== null
-        ? groups.find((g) => g.value === String(selectedGroupId))?.label ?? String(selectedGroupId)
-        : 'Bütün qruplar';
-      const filterMeta = [
-        `Qrup: ${groupLabel}`,
-        `Status: ${paymentStatus}`,
-        `Endirim: ${paymentDiscount}`,
-        paymentSearch.trim() ? `Axtarış: ${paymentSearch.trim()}` : '',
-      ].filter(Boolean).join(' | ');
+      // const filterMeta = [
+      //   `Qrup: ${groupLabel}`,
+      //   `Status: ${paymentStatus}`,
+      //   `Endirim: ${paymentDiscount}`,
+      //   paymentSearch.trim() ? `Axtarış: ${paymentSearch.trim()}` : '',
+      // ].filter(Boolean).join(' | ');
 
       sheet.mergeCells(`A1:${lastColumnName}1`);
-      sheet.getCell('A1').value = 'Ödəniş cədvəli | Rolling son 12 ay';
+      sheet.getCell('A1').value = 'Ödəniş cədvəli | Son 12 ay';
       sheet.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
       sheet.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } };
       sheet.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
 
-      sheet.mergeCells(`A2:${lastColumnName}2`);
-      sheet.getCell('A2').value = `Period: ${formatMonthYear(periodStart.month, periodStart.year)} - ${formatMonthYear(periodEnd.month, periodEnd.year)} | Qeyd sayı: ${sortedRows.length}`;
-      sheet.getCell('A2').font = { size: 11, color: { argb: 'FF334155' } };
-      sheet.getCell('A2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6FFFA' } };
-      sheet.getCell('A2').alignment = { horizontal: 'left', vertical: 'middle' };
+      // Remove unnecessary rows
+      sheet.unMergeCells(`A2:${lastColumnName}2`);
+      sheet.getCell('A2').value = '';
+      sheet.getCell('A2').font = {};
+      sheet.getCell('A2').fill = { type: 'pattern', pattern: 'none' };
+      sheet.getCell('A2').alignment = {};
 
-      sheet.mergeCells(`A3:${lastColumnName}3`);
-      sheet.getCell('A3').value = filterMeta || 'Filtr: standart';
-      sheet.getCell('A3').font = { size: 10, color: { argb: 'FF475569' }, italic: true };
-      sheet.getCell('A3').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-      sheet.getCell('A3').alignment = { horizontal: 'left', vertical: 'middle' };
+      sheet.unMergeCells(`A3:${lastColumnName}3`);
+      sheet.getCell('A3').value = '';
+      sheet.getCell('A3').font = {};
+      sheet.getCell('A3').fill = { type: 'pattern', pattern: 'none' };
+      sheet.getCell('A3').alignment = {};
 
       sheet.getCell('A4').value = 'Tam ödəniş';
       sheet.getCell('B4').value = 'Qismən ödəniş';
