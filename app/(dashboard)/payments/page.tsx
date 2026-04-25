@@ -407,11 +407,12 @@ export default function PaymentsPage() {
       workbook.created = new Date();
 
       const sheet = workbook.addWorksheet('Ödənişlər', {
-        views: [{ state: 'frozen', xSplit: 4, ySplit: 5 }],
+        views: [{ state: 'frozen', xSplit: 5, ySplit: 5 }],
       });
 
       const columnHeaders = [
         'valideynlərin adı',
+        'telefon',
         'uşağın soyadı, adı',
         'ödə günü',
         'məbləğ',
@@ -491,12 +492,12 @@ export default function PaymentsPage() {
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',
-          fgColor: { argb: col <= 4 ? 'FF475569' : 'FF2563EB' },
+          fgColor: { argb: col <= 5 ? 'FF475569' : 'FF2563EB' },
         };
         applyBorder(cell);
       }
 
-      const widths = [28, 30, 10, 12, ...monthDefs.map(() => 11)];
+      const widths = [28, 18, 30, 10, 12, ...monthDefs.map(() => 11)];
       widths.forEach((width, i) => {
         sheet.getColumn(i + 1).width = width;
       });
@@ -509,6 +510,7 @@ export default function PaymentsPage() {
         const monthValues = row.monthCells.map((cell) => cell.amount);
         excelRow.values = [
           row.parentName,
+          children.find((c) => c.id === row.childId)?.parentPhone || '-',
           row.childName,
           row.paymentDay,
           row.plannedAmount,
@@ -521,27 +523,27 @@ export default function PaymentsPage() {
           const cell = excelRow.getCell(col);
           applyBorder(cell);
 
-          if (col === 1 || col === 2) {
+          if (col === 1 || col === 2 || col === 3) {
             cell.alignment = { horizontal: 'left', vertical: 'middle' };
           } else {
             cell.alignment = { horizontal: 'center', vertical: 'middle' };
           }
 
-          if (col === 4 || col >= 5) {
+          if (col === 5 || col >= 6) {
             cell.numFmt = '#,##0" ₼"';
           }
 
-          if (idx % 2 === 1 && col < 5) {
+          if (idx % 2 === 1 && col < 6) {
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
           }
 
-          if (col === 4) {
+          if (col === 5) {
             cell.font = { bold: true, color: { argb: 'FF1F2937' } };
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFCE7F3' } };
           }
 
-          if (col >= 5) {
-            const monthCell = row.monthCells[col - 5];
+          if (col >= 6) {
+            const monthCell = row.monthCells[col - 6];
             if (monthCell.status === 'paid') {
               cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } };
               cell.font = { color: { argb: 'FF006100' }, bold: true };
@@ -559,7 +561,7 @@ export default function PaymentsPage() {
         }
 
         if (row.childStatus === 'Inactive') {
-          excelRow.getCell(2).font = { color: { argb: 'FF6B7280' }, italic: true };
+          excelRow.getCell(3).font = { color: { argb: 'FF6B7280' }, italic: true };
         }
       });
 
@@ -570,12 +572,12 @@ export default function PaymentsPage() {
       totalRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
       totalRow.height = 23;
 
-      const amountColumn = getExcelColumnName(4);
-      totalRow.getCell(4).value = { formula: `SUM(${amountColumn}${dataStart}:${amountColumn}${totalRowIndex - 1})` };
-      totalRow.getCell(4).numFmt = '#,##0" ₼"';
-      totalRow.getCell(4).font = { bold: true, color: { argb: 'FF111827' } };
+      const amountColumn = getExcelColumnName(5);
+      totalRow.getCell(5).value = { formula: `SUM(${amountColumn}${dataStart}:${amountColumn}${totalRowIndex - 1})` };
+      totalRow.getCell(5).numFmt = '#,##0" ₼"';
+      totalRow.getCell(5).font = { bold: true, color: { argb: 'FF111827' } };
 
-      for (let col = 5; col <= lastColumn; col += 1) {
+      for (let col = 6; col <= lastColumn; col += 1) {
         const colName = getExcelColumnName(col);
         const cell = totalRow.getCell(col);
         cell.value = { formula: `SUM(${colName}${dataStart}:${colName}${totalRowIndex - 1})` };
