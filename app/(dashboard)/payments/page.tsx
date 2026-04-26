@@ -546,8 +546,8 @@ export default function PaymentsPage() {
               cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } };
               cell.font = { color: { argb: 'FF006100' }, bold: true };
             } else if (monthCell.status === 'partial') {
-              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE699' } };
-              cell.font = { color: { argb: 'FF7C5700' }, bold: true };
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC7CE' } };
+              cell.font = { color: { argb: 'FF9C0006' }, bold: true };
             } else if (monthCell.status === 'debt') {
               cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8CBAD' } };
               cell.font = { color: { argb: 'FF9C0006' }, bold: true };
