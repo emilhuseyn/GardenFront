@@ -81,8 +81,8 @@ export function AttendanceGrid() {
 
     Promise.all([
       Promise.all([
-        childrenApi.getAll({ groupId: selectedGroupId ?? undefined, status: 'Active', pageSize: 200 }),
-        childrenApi.getAll({ groupId: selectedGroupId ?? undefined, status: 'Inactive', pageSize: 200 }),
+        childrenApi.getAll({ groupId: selectedGroupId ?? undefined, status: 'Active', pageSize: 0 }),
+        childrenApi.getAll({ groupId: selectedGroupId ?? undefined, status: 'Inactive', pageSize: 0 }),
       ]),
       attendanceApi.getDaily(dateStr, selectedGroupId ?? undefined),
     ])

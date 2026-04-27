@@ -62,7 +62,7 @@ export function SmartAlertCenter() {
 
         const mainPromise = (async () => {
           const [childrenRes, debtorsRes] = await Promise.allSettled([
-            childrenApi.getAll({ status: 'Active', pageSize: 120 }, { silentError: true }),
+            childrenApi.getAll({ status: 'Active', pageSize: 0 }, { silentError: true }),
             paymentsApi.getDebtors({ silentError: true }),
           ]);
 
@@ -82,41 +82,40 @@ export function SmartAlertCenter() {
           });
 
           const sampleChildren = prioritized.slice(0, 30);
+          const today = new Date();
+          const todayStr = format(today, 'yyyy-MM-dd');
+          const recentFromStr = format(subDays(today, 13), 'yyyy-MM-dd');
+          const prevFromStr = format(subDays(today, 27), 'yyyy-MM-dd');
+          const prevToStr = format(subDays(today, 14), 'yyyy-MM-dd');
 
-        const today = new Date();
-        const todayStr = format(today, 'yyyy-MM-dd');
-        const recentFromStr = format(subDays(today, 13), 'yyyy-MM-dd'); // last 14 days inclusive
-        const prevFromStr = format(subDays(today, 27), 'yyyy-MM-dd');
-        const prevToStr = format(subDays(today, 14), 'yyyy-MM-dd');
-
-        // Pull 28-day attendance history per child for trend analysis
-        const attendanceResults = await Promise.all(
-          sampleChildren.map(async (child) => {
-            try {
+          // Pull 28-day attendance history per child for trend analysis
+          const attendanceResults = await Promise.all(
+            sampleChildren.map(async (child) => {
+              try {
                 const history = await attendanceApi.getChildHistory(child.id, prevFromStr, todayStr, { silentError: true });
-              return { childId: child.id, history };
-            } catch {
-              return { childId: child.id, history: [] as AttendanceEntry[] };
+                return { childId: child.id, history };
+              } catch {
+                return { childId: child.id, history: [] as AttendanceEntry[] };
+              }
+            })
+          );
+
+          const attendanceByChild = new Map<number, AttendanceEntry[]>(
+            attendanceResults.map((r) => [r.childId, r.history])
+          );
+
+          const computed: ChildRisk[] = sampleChildren.map((child) => {
+            const fullName = `${child.firstName} ${child.lastName}`;
+            const reasons: string[] = [];
+            let score = 0;
+
+            const debtor = debtorByChildId.get(child.id);
+            if (debtor) {
+              const overdueMonths = debtor.unpaidMonths.length;
+              const paymentScore = Math.min(50, overdueMonths * 12 + Math.min(18, Math.floor(debtor.totalDebt / 150) * 4));
+              score += paymentScore;
+              reasons.push(`Ödəniş gecikməsi: ${overdueMonths} ay, borc məbləği`);
             }
-          })
-        );
-
-        const attendanceByChild = new Map<number, AttendanceEntry[]>(
-          attendanceResults.map((r) => [r.childId, r.history])
-        );
-
-        const computed: ChildRisk[] = sampleChildren.map((child) => {
-          const fullName = `${child.firstName} ${child.lastName}`;
-          const reasons: string[] = [];
-          let score = 0;
-
-          const debtor = debtorByChildId.get(child.id);
-          if (debtor) {
-            const overdueMonths = debtor.unpaidMonths.length;
-            const paymentScore = Math.min(50, overdueMonths * 12 + Math.min(18, Math.floor(debtor.totalDebt / 150) * 4));
-            score += paymentScore;
-            reasons.push(`Ödəniş gecikməsi: ${overdueMonths} ay, borc məbləği`);
-          }
 
           const history = attendanceByChild.get(child.id) ?? [];
           const recentWindow = history.filter((e) => e.date >= recentFromStr && e.date <= todayStr);

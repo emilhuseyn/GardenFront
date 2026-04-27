@@ -38,7 +38,7 @@ export function ScenarioSimulator({ groups }: ScenarioSimulatorProps) {
     const load = async () => {
       setLoading(true);
       try {
-        const res = await childrenApi.getAll({ status: 'Active', pageSize: 400 }, { silentError: true });
+        const res = await childrenApi.getAll({ status: 'Active', pageSize: 0 }, { silentError: true });
         if (!cancelled) {
           setChildren(res.items);
 

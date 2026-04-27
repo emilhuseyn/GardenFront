@@ -1,5 +1,5 @@
 import apiClient, { unwrap } from './client';
-import type { DailyAttendance, MonthlyAttendance, AttendanceEntry, MarkAttendanceEntry } from '@/types';
+import type { DailyAttendance, MonthlyAttendance, AttendanceEntry, MarkAttendanceEntry, HikvisionLog } from '@/types';
 
 export const attendanceApi = {
   getDaily: async (date: string, groupId?: number, options?: { silentError?: boolean }) => {
@@ -44,13 +44,14 @@ export const attendanceApi = {
     return unwrap(res);
   },
 
-  hikvisionSync: async (date: string): Promise<{ accepted: boolean; jobId?: string }> => {
+  hikvisionSync: async (date?: string): Promise<{ accepted: boolean; jobId?: string }> => {
+    // Sizin əvvəlki struktur - bu metod POST atır və sinxronizasiyanı başladır. Return: jobId
     let res;
+    const params = date ? { date } : undefined;
     try {
-      res = await apiClient.post('/api/attendance/hikvision-sync', null, { params: { date } });
+      res = await apiClient.post('/api/attendance/hikvision-sync', null, { params });
     } catch {
-      // Backward-compatible fallback if backend still exposes plural route.
-      res = await apiClient.post('/api/attendances/hikvision-sync', null, { params: { date } });
+      res = await apiClient.post('/api/attendances/hikvision-sync', null, { params });
     }
 
     let payload: Record<string, unknown>;
@@ -59,11 +60,31 @@ export const attendanceApi = {
     } catch {
       payload = (res.data ?? {}) as Record<string, unknown>;
     }
-
+    
     const jobIdRaw = payload.jobId ?? payload.JobId;
     return {
-      accepted: res.status === 202,
+      accepted: res.status === 202 || res.status === 200,
       jobId: typeof jobIdRaw === 'string' ? jobIdRaw : jobIdRaw != null ? String(jobIdRaw) : undefined,
     };
+  },
+
+  getHikvisionLogs: async (from?: string, to?: string): Promise<HikvisionLog[]> => {
+    // YENİ GET endpoints: /api/attendances/hikvision-logs
+    const params: { from?: string; to?: string } = {};
+    if (from) params.from = from;
+    if (to) params.to = to;
+    
+    // Direct call to attendances 
+    const res = await apiClient.get('/api/attendances/hikvision-logs', { params });
+
+    try {
+      return unwrap<HikvisionLog[]>(res);
+    } catch {
+      const data = res.data;
+      if (Array.isArray(data)) return data;
+      if (data && Array.isArray(data.data)) return data.data; 
+      if (data && Array.isArray(data.Data)) return data.Data;
+      return [];
+    }
   },
 };

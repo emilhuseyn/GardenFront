@@ -84,7 +84,7 @@ export function InsightCards() {
         const prevTo = format(subDays(today, 14), 'yyyy-MM-dd');
 
         const [childrenRes, debtorsRes] = await Promise.allSettled([
-          childrenApi.getAll({ status: 'Active', pageSize: 220 }, { silentError: true }),
+          childrenApi.getAll({ status: 'Active', pageSize: 0 }, { silentError: true }),
           paymentsApi.getDebtors({ silentError: true }),
         ]);
 

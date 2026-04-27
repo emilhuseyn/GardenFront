@@ -26,6 +26,7 @@ interface ChildPayRow {
   discountPercentage?: number | null;
   parentFullName?: string;
   secondParentFullName?: string;
+  scheduleType?: string;
   payments: Record<number, PaymentCell>;
   amounts: Record<number, { paid: number; remaining: number }>;
   cashboxNames: Record<number, string | undefined>;
@@ -47,11 +48,22 @@ interface PaymentTableProps {
   search?: string;
   statusFilter?: 'all' | 'has-debt' | 'has-partial' | 'full';
   discountFilter?: 'all' | 'has_discount' | 'no_discount';
+  scheduleFilter?: 'all' | 'FullDay' | 'HalfDay';
   sortBy?: 'name' | 'fee';
   onInitialLoadDone?: () => void;
 }
 
-export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', statusFilter = 'all', discountFilter = 'all', sortBy = 'name', onInitialLoadDone }: PaymentTableProps) {
+export function PaymentTable({
+  onRecord,
+  refreshKey = 0,
+  groupId,
+  search = '',
+  statusFilter = 'all',
+  discountFilter = 'all',
+  scheduleFilter = 'all',
+  sortBy = 'name',
+  onInitialLoadDone,
+}: PaymentTableProps) {
   const router = useRouter();
   const [rows, setRows] = useState<ChildPayRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,8 +137,7 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
             firstName: child.firstName,
             lastName: child.lastName,
             childStatus: child.status,
-            groupName: child.groupName,
-            monthlyFee: child.monthlyFee,
+            groupName: child.groupName,              scheduleType: child.scheduleType,            monthlyFee: child.monthlyFee,
             discountPercentage: child.discountPercentage,
             parentFullName: child.parentFullName,
             secondParentFullName: child.secondParentFullName,
@@ -191,7 +202,13 @@ export function PaymentTable({ onRecord, refreshKey = 0, groupId, search = '', s
       )
     : rows;
 
-  const discountFiltered = searchFiltered.filter((r) => {
+  const scheduleFiltered = searchFiltered.filter((r) => {
+    if (scheduleFilter === 'FullDay') return r.scheduleType === 'FullDay' || r.scheduleType === 0;
+    if (scheduleFilter === 'HalfDay') return r.scheduleType === 'HalfDay' || r.scheduleType === 1;
+    return true;
+  });
+
+  const discountFiltered = scheduleFiltered.filter((r) => {
     if (discountFilter === 'has_discount') return r.discountPercentage && r.discountPercentage > 0;
     if (discountFilter === 'no_discount') return !r.discountPercentage || r.discountPercentage <= 0;
     return true;

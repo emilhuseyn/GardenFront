@@ -2,8 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
-import { Save, User, Shield, Palette, Plus, Users, Check, Bell, Send, Smartphone, RefreshCw, LogOut, Search, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
-import { format } from 'date-fns';
+import { Save, User, Shield, Palette, Plus, Users, Check, Search, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -20,8 +19,6 @@ import { useThemeStore, type FontSize, type RadiusPreset } from '@/lib/stores/th
 import { applyTheme, applyFontSize, applyRadius, THEME_OPTIONS, type ThemeKey } from '@/lib/utils/themes';
 import { usersApi } from '@/lib/api/users';
 import { authApi } from '@/lib/api/auth';
-import { notificationsApi, type WhatsAppStatus, type DueAndOverdueAlertsResult } from '@/lib/api/notifications';
-import { attendanceApi } from '@/lib/api/attendance';
 import type { UserResponse, UserRole } from '@/types';
 
 const TABS = [
@@ -29,7 +26,6 @@ const TABS = [
   { id: 'users',         label: 'İstifadəçilər',   icon: Users,   adminOnly: true  },
   { id: 'security',      label: 'Təhlükəsizlik',   icon: Shield,  adminOnly: false },
   { id: 'appearance',    label: 'Görünüş',         icon: Palette, adminOnly: false },
-  { id: 'notifications', label: 'Bildirişlər',     icon: Bell,    adminOnly: true  },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -205,149 +201,6 @@ export default function SettingsPage() {
   const sidebarSize = useUIStore((s) => s.sidebarSize);
   const setSidebarSize = useUIStore((s) => s.setSidebarSize);
 
-  // ── WhatsApp notifications ──────────────────────────────────────────────
-  const [waStatus, setWaStatus]       = useState<WhatsAppStatus | null>(null);
-  const [waLoading, setWaLoading]     = useState(false);
-  const [waQR, setWaQR]               = useState<string | null>(null);
-  const [qrModalOpen, setQrModalOpen] = useState(false);
-  const [waSending, setWaSending]     = useState(false);
-  const [alertResult, setAlertResult] = useState<DueAndOverdueAlertsResult | null>(null);
-  const [alertErrorsOpen, setAlertErrorsOpen] = useState(false);
-  const [qrCountdown, setQrCountdown] = useState(20);
-  const [waDisconnecting, setWaDisconnecting] = useState(false);
-  const [hikvisionSyncLoading, setHikvisionSyncLoading] = useState(false);
-  const [hikvisionSyncDate, setHikvisionSyncDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
-
-  const fetchWaStatus = async (showLoader = false) => {
-    if (showLoader) setWaLoading(true);
-    try {
-      const s = await notificationsApi.getWhatsAppStatus();
-      setWaStatus(s);
-      if (s.connected) { setQrModalOpen(false); setWaQR(null); }
-      if (s.hasQR && !s.connected) {
-        const qrData = await notificationsApi.getWhatsAppQR();
-        setWaQR(qrData.qr);
-        setQrCountdown(15);
-        setQrModalOpen(true);
-      }
-    } catch { /* silent */ } finally {
-      if (showLoader) setWaLoading(false);
-    }
-  };
-
-  // Status polling: every 30s while tab is open
-  useEffect(() => {
-    if (activeTab !== 'notifications') return;
-    fetchWaStatus(true);
-    const id = setInterval(() => fetchWaStatus(false), 30000);
-    return () => clearInterval(id);
-  }, [activeTab]);
-
-  // QR refresh: every 20s while modal is open (QR expires in ~20-25s)
-  // Fast status poll every 3s to detect connection right after user scans
-  useEffect(() => {
-    if (!qrModalOpen) return;
-    setQrCountdown(20);
-    const refresh = setInterval(async () => {
-      try {
-        const qrData = await notificationsApi.getWhatsAppQR();
-        setWaQR(qrData.qr);
-        setQrCountdown(20);
-      } catch { /* silent */ }
-    }, 20000);
-    const tick = setInterval(() => setQrCountdown((c) => (c > 0 ? c - 1 : 0)), 1000);
-    const statusPoll = setInterval(async () => {
-      try {
-        const s = await notificationsApi.getWhatsAppStatus();
-        setWaStatus(s);
-        if (s.connected) {
-          setQrModalOpen(false);
-          setWaQR(null);
-          toast.success('WhatsApp uğurla qoşuldu!');
-        }
-      } catch { /* silent */ }
-    }, 3000);
-    return () => { clearInterval(refresh); clearInterval(tick); clearInterval(statusPoll); };
-  }, [qrModalOpen]);
-
-  const handleConnect = async () => {
-    setWaLoading(true);
-    try {
-      await notificationsApi.startWhatsApp();
-    } catch { /* ignore, still fetch status */ } finally {
-      await fetchWaStatus(false);
-      setWaLoading(false);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    setWaDisconnecting(true);
-    try {
-      await notificationsApi.disconnectWhatsApp();
-      toast.success('WhatsApp bağlantısı kəsildi');
-      await fetchWaStatus(false);
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Xəta baş verdi');
-    } finally {
-      setWaDisconnecting(false);
-    }
-  };
-
-  const handleSendDueAndOverdue = async () => {
-    setWaSending(true);
-    try {
-      const result = await notificationsApi.sendDueAndOverdueAlerts();
-      setAlertResult(result);
-
-      if (result.sent > 0 && result.failed === 0) {
-        toast.success(`${result.sent} mesaj uğurla göndərildi`);
-      } else if (result.sent > 0 && result.failed > 0) {
-        toast.warning(`Qismən tamamlandı: ${result.sent} göndərildi, ${result.failed} uğursuz oldu`);
-      } else if (result.failed > 0) {
-        toast.warning(`${result.failed} mesaj göndərilmədi`);
-      } else {
-        toast.success('Mesaj prosesi tamamlandı');
-      }
-
-      if (result.failed > 0 && result.errors.length > 0) {
-        setAlertErrorsOpen(true);
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Xəta baş verdi';
-      const normalized = message.toLowerCase();
-
-      if (normalized.includes('400') || normalized.includes('whatsapp')) {
-        toast.error('WhatsApp qoşulu deyil. Əvvəlcə Qoşul düyməsi ilə aktiv edin.');
-      } else {
-        toast.error(message);
-      }
-    } finally {
-      setWaSending(false);
-    }
-  };
-
-  const handleHikvisionSync = async () => {
-    if (!hikvisionSyncDate) {
-      toast.error('Tarix seçin');
-      return;
-    }
-
-    setHikvisionSyncLoading(true);
-    try {
-      const result = await attendanceApi.hikvisionSync(hikvisionSyncDate);
-      const suffix = result.jobId ? ` (job: ${result.jobId})` : '';
-      toast.success(`Sinxronizasiya növbəyə alındı${suffix}`);
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 4000);
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Sinxronizasiya zamanı xəta baş verdi');
-    } finally {
-      setHikvisionSyncLoading(false);
-    }
-  };
-  // ────────────────────────────────────────────────────────────────────────
 
   const handlePasswordChange = async () => {
     if (passwordForm.next !== passwordForm.confirm) {
@@ -806,26 +659,6 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {activeTab === 'notifications' && (
-            <div className="space-y-6">
-              <div className="rounded-xl border border-white-border dark:border-gray-700/60 p-4 space-y-3">
-                <div>
-                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">Hikvision Sync</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="date"
-                    value={hikvisionSyncDate}
-                    onChange={(e) => setHikvisionSyncDate(e.target.value)}
-                    className="h-10 px-3 text-sm border border-white-border rounded-lg bg-white dark:bg-[#1e2130] dark:border-gray-700/60"
-                  />
-                  <Button loading={hikvisionSyncLoading} onClick={handleHikvisionSync}>
-                    <RefreshCw size={14} /> Kameradan yüklə
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
         </motion.div>
       </div>
 
@@ -918,51 +751,6 @@ export default function SettingsPage() {
         </ModalContent>
       </Modal>
 
-      {/* WhatsApp QR Modal */}
-      <Modal open={qrModalOpen} onOpenChange={(open) => !open && setQrModalOpen(false)}>
-        <ModalContent size="sm">
-          <ModalHeader>
-            <ModalTitle>WhatsApp QR Kodu</ModalTitle>
-          </ModalHeader>
-          <div className="flex flex-col items-center gap-5 py-4">
-            {waQR ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={waQR} alt="WhatsApp QR" className="w-56 h-56 rounded-xl border border-white-border" />
-            ) : (
-              <Skeleton className="w-56 h-56 rounded-xl" />
-            )}
-            <div className="text-center space-y-1.5">
-              <p className="text-sm font-semibold text-gray-800">QR kodu skan edin</p>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                Telefonunuzda WhatsApp → Cihazları əlaqələndir → QR Skan et
-              </p>
-            </div>
-            <p className="text-xs text-gray-300">Yenilənməsinə: {qrCountdown}s qalır</p>
-          </div>
-        </ModalContent>
-      </Modal>
-
-      <Modal open={alertErrorsOpen} onOpenChange={(open) => setAlertErrorsOpen(open)}>
-        <ModalContent size="md">
-          <ModalHeader>
-            <ModalTitle>Uğursuz göndərişlər</ModalTitle>
-          </ModalHeader>
-          <div className="space-y-2 max-h-[300px] overflow-auto">
-            {alertResult?.errors.length ? (
-              alertResult.errors.map((err, i) => (
-                <div key={`${err}-${i}`} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                  {err}
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-gray-500">Xəta detalları tapılmadı</p>
-            )}
-          </div>
-          <ModalFooter>
-            <Button type="button" onClick={() => setAlertErrorsOpen(false)}>Bağla</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
     </div>
   );
 }

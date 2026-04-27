@@ -433,3 +433,5 @@ export interface Permissions {
   reports: { view: boolean };
   settings: { view: boolean; edit: boolean };
 }
+
+export interface HikvisionLog { id: number; syncDate: string; syncTime: string; syncedCount: number; skippedCount: number; isManual: boolean; triggeredBy: string; details: string; createdAt: string; updatedAt: string; isDeleted: boolean; }
