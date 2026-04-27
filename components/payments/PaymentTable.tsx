@@ -203,8 +203,8 @@ export function PaymentTable({
     : rows;
 
   const scheduleFiltered = searchFiltered.filter((r) => {
-    if (scheduleFilter === 'FullDay') return r.scheduleType === 'FullDay' || r.scheduleType === 0;
-    if (scheduleFilter === 'HalfDay') return r.scheduleType === 'HalfDay' || r.scheduleType === 1;
+    if (scheduleFilter === 'FullDay') return r.scheduleType === 'FullDay' || (r.scheduleType as any) === 0;
+    if (scheduleFilter === 'HalfDay') return r.scheduleType === 'HalfDay' || (r.scheduleType as any) === 1;
     return true;
   });
 
