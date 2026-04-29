@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
@@ -137,7 +138,17 @@ export default function EditChildPage() {
       if (normalizedPersonId !== null) {
         const existing = await childrenApi.findByPersonId(normalizedPersonId);
         if (existing && existing.id !== numId) {
-          toast.error(`Bu İVMS ID artıq ${existing.firstName} ${existing.lastName} üçün istifadə olunur`);
+          toast.error(
+            <div className="space-y-1">
+              <p>Bu İVMS ID artıq {existing.firstName} {existing.lastName} üçün istifadə olunur</p>
+              <Link
+                href={`/children/${existing.id}`}
+                className="text-xs font-medium underline text-blue-600 hover:text-blue-700"
+              >
+                Detala keç
+              </Link>
+            </div>
+          );
           return;
         }
       }
