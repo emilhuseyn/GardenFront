@@ -111,7 +111,6 @@ export default function EditChildPage() {
         secondParentFullName: c.secondParentFullName ?? '',
         parentPhone:    c.parentPhone,
         secondParentPhone: c.secondParentPhone ?? '',
-        parentEmail:    c.parentEmail ?? '',
       });
     }).catch(() => toast.error('Məlumatlar yüklənmədi'))
       .finally(() => setLoading(false));
@@ -146,6 +145,7 @@ export default function EditChildPage() {
       await childrenApi.update(numId, {
         ...data,
         personId: normalizedPersonId,
+        parentEmail: null,
         discountPercentage: normalizedDiscountPercentage,
         ...(registrationDate ? { registrationDate: toIsoDate(registrationDate) } : {}),
         ...(child?.status === 'Inactive' && deactivationDate ? { deactivationDate: toIsoDate(deactivationDate) } : {}),
@@ -471,13 +471,6 @@ export default function EditChildPage() {
                 placeholder="+447700900123"
                 error={errors.secondParentPhone?.message}
                 hint="İstəyə bağlı: beynəlxalq format (boşluq və tire qəbul olunur)"
-              />
-              <Input
-                {...register('parentEmail')}
-                label="E-poçt (ixtiyari)"
-                type="email"
-                placeholder="valideyn@email.com"
-                error={errors.parentEmail?.message}
               />
             </div>
           </Card>

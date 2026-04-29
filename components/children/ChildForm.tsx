@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -84,7 +85,6 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
       secondParentFullName: '',
       parentPhone: '',
       secondParentPhone: '',
-      parentEmail: '',
       ...(defaultGroupId !== undefined ? { groupId: defaultGroupId } : {}),
     },
   });
@@ -191,7 +191,17 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
       if (normalizedPersonId !== undefined) {
         const existing = await childrenApi.findByPersonId(normalizedPersonId);
         if (existing) {
-          toast.error(`Bu İVMS ID artıq ${existing.firstName} ${existing.lastName} üçün istifadə olunur`);
+          toast.error(
+            <div className="space-y-1">
+              <p>Bu İVMS ID artıq {existing.firstName} {existing.lastName} üçün istifadə olunur</p>
+              <Link
+                href={`/children/${existing.id}`}
+                className="text-xs font-medium underline text-blue-600 hover:text-blue-700"
+              >
+                Detala keç
+              </Link>
+            </div>
+          );
           return;
         }
       }
@@ -199,6 +209,7 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
       await childrenApi.create({
         ...data,
         personId: normalizedPersonId,
+        parentEmail: null,
         discountPercentage: normalizedDiscountPercentage,
       });
       setDone(true);
@@ -419,7 +430,6 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
                   hint="İstəyə bağlı: beynəlxalq format (boşluq və tire qəbul olunur)"
                 />
               </div>
-              <Input {...register('parentEmail')} label="E-poçt" type="email" placeholder="email@example.com" error={errors.parentEmail?.message} />
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Aylıq ödəniş məbləği (₼) *

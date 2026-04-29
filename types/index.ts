@@ -104,7 +104,7 @@ export interface Child {
   attendanceDays?: number;
   absentDays?: number;
   totalDebt?: number;
-  parentEmail?: string;
+  parentEmail?: string | null;
   registrationDate?: string;
   deactivationDate?: string | null;
 }
@@ -123,7 +123,7 @@ export interface ChildFormData {
   secondParentFullName?: string;
   parentPhone: string;
   secondParentPhone?: string;
-  parentEmail?: string;
+  parentEmail?: string | null;
 }
 
 // ─── Attendance ───────────────────────────────────────────────────────────────
