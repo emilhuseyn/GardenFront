@@ -142,6 +142,7 @@ export function AttendanceGrid() {
 
           return {
             id: String(child.id),
+            personId: child.personId ?? null,
             firstName: child.firstName,
             lastName: child.lastName,
             groupName: child.groupName,
@@ -520,6 +521,7 @@ export function AttendanceGrid() {
                 <tr className="border-b border-white-border dark:border-gray-700/40 bg-gray-50/50 dark:bg-gray-800/40">
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Uşaq</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">IVMS ID</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Giriş</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Çıxış</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Cari status</th>

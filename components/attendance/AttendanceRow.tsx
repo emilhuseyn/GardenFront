@@ -13,6 +13,7 @@ export type RecordSource = 'manual' | 'faceid' | 'auto';
 
 export interface AttendanceRowData {
   id: string;
+  personId?: number | null;
   firstName: string;
   lastName: string;
   groupName: string;
@@ -217,6 +218,11 @@ export function AttendanceRow({ row, index, onChange, onToggleEarlyLeave }: Atte
             </button>
           )}
         </div>
+      </td>
+
+      {/* IVMS ID */}
+      <td className="px-4 py-3 hidden sm:table-cell text-sm text-gray-500 dark:text-gray-400">
+        {row.personId ?? '-'}
       </td>
 
       {/* Check-in */}
