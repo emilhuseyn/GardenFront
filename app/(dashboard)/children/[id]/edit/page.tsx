@@ -15,8 +15,9 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { childSchema, type ChildFormValues } from '@/lib/utils/validators';
 import { childrenApi } from '@/lib/api/children';
 import { groupsApi } from '@/lib/api/groups';
+import { schedulesApi } from '@/lib/api/schedules';
 import { cn } from '@/lib/utils/constants';
-import type { Child, Group } from '@/types';
+import type { Child, Group, ScheduleConfig } from '@/types';
 
 const AZ_MONTHS = [
   'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'İyun',
@@ -36,6 +37,12 @@ export default function EditChildPage() {
   const [dobYear, setDobYear]   = useState('');
   const [registrationDate, setRegistrationDate] = useState('');
   const [deactivationDate, setDeactivationDate] = useState('');
+  const [scheduleMap, setScheduleMap] = useState<Record<string, { startTime: string; endTime: string }>>({
+    FullDay: { startTime: '09:00', endTime: '18:00' },
+    HalfDay: { startTime: '09:00', endTime: '13:00' },
+  });
+  const [discountMode, setDiscountMode] = useState<'percentage' | 'amount'>('percentage');
+  const [discountAmount, setDiscountAmount] = useState<number | ''>('');
 
   const currentYear = new Date().getFullYear();
   const dayOptions   = Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1).padStart(2, '0'), label: String(i + 1) }));
@@ -43,7 +50,7 @@ export default function EditChildPage() {
   const yearOptions  = Array.from({ length: 14 }, (_, i) => currentYear - 1 - i).map((y) => ({ value: String(y), label: String(y) }));
 
   const {
-    register, handleSubmit, setValue, watch,
+    register, handleSubmit, setValue, watch, setError, clearErrors,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<ChildFormValues>({
@@ -53,15 +60,28 @@ export default function EditChildPage() {
   });
 
   const scheduleType = watch('scheduleType');
+  const monthlyFee = watch('monthlyFee');
+  const discountPercentage = watch('discountPercentage');
 
   // Load child + groups in parallel
   useEffect(() => {
     Promise.all([
       childrenApi.getById(numId),
       groupsApi.getAll(),
-    ]).then(([c, g]) => {
+      schedulesApi.getAll().catch(() => [] as ScheduleConfig[]),
+    ]).then(([c, g, schedules]) => {
       setChild(c);
       setGroups(g);
+      if (schedules.length > 0) {
+        const map: Record<string, { startTime: string; endTime: string }> = {
+          FullDay: { startTime: '09:00', endTime: '18:00' },
+          HalfDay: { startTime: '09:00', endTime: '13:00' },
+        };
+        schedules.forEach((config) => {
+          map[config.scheduleType] = { startTime: config.startTime, endTime: config.endTime };
+        });
+        setScheduleMap(map);
+      }
 
       // Pre-fill DOB selects
       if (c.dateOfBirth) {
@@ -138,6 +158,74 @@ export default function EditChildPage() {
   };
 
   const groupOptions = groups.map((g) => ({ value: String(g.id), label: g.name }));
+  const formatTime = (value: string) => value.split(':').slice(0, 2).join(':');
+  const buildScheduleLabel = (type: 'FullDay' | 'HalfDay') => {
+    const entry = scheduleMap[type];
+    return entry ? `${formatTime(entry.startTime)} – ${formatTime(entry.endTime)}` : '';
+  };
+  const feeValue = typeof monthlyFee === 'number' && Number.isFinite(monthlyFee) ? monthlyFee : null;
+  const discountPercentValue = typeof discountPercentage === 'number' && Number.isFinite(discountPercentage)
+    ? discountPercentage
+    : null;
+  const computedDiscountAmount = feeValue !== null
+    && discountPercentValue !== null
+    && discountPercentValue >= 0
+    && discountPercentValue <= 100
+      ? Number(((feeValue * discountPercentValue) / 100).toFixed(2))
+      : null;
+  const computedDiscountPercentage = feeValue !== null && discountAmount !== '' && Number.isFinite(Number(discountAmount))
+    ? Number(((Number(discountAmount) / feeValue) * 100).toFixed(2))
+    : null;
+
+  const handleDiscountModeChange = (mode: 'percentage' | 'amount') => {
+    setDiscountMode(mode);
+    if (mode === 'percentage') {
+      clearErrors('discountPercentage');
+    }
+    if (mode === 'amount') {
+      if (
+        feeValue !== null
+        && discountPercentValue !== null
+        && discountPercentValue >= 0
+        && discountPercentValue <= 100
+      ) {
+        setDiscountAmount(Number(((feeValue * discountPercentValue) / 100).toFixed(2)));
+      } else {
+        setDiscountAmount('');
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (discountMode !== 'amount') return;
+
+    if (discountAmount === '' || discountAmount === null || discountAmount === undefined) {
+      setValue('discountPercentage', null, { shouldValidate: true, shouldDirty: true });
+      clearErrors('discountPercentage');
+      return;
+    }
+
+    if (feeValue === null || feeValue <= 0) {
+      setValue('discountPercentage', null, { shouldValidate: true, shouldDirty: true });
+      clearErrors('discountPercentage');
+      return;
+    }
+
+    const amountNumber = Number(discountAmount);
+    if (Number.isFinite(amountNumber) && amountNumber > feeValue) {
+      setError('discountPercentage', {
+        type: 'manual',
+        message: 'Endirim məbləği aylıq məbləği keçə bilməz.',
+      });
+      setValue('discountPercentage', null, { shouldValidate: false, shouldDirty: true });
+      return;
+    }
+
+    clearErrors('discountPercentage');
+    const percent = (amountNumber / feeValue) * 100;
+    const normalized = Number.isFinite(percent) ? Number(percent.toFixed(2)) : null;
+    setValue('discountPercentage', normalized, { shouldValidate: true, shouldDirty: true });
+  }, [discountMode, discountAmount, feeValue, setValue, setError, clearErrors]);
 
   if (loading) {
     return (
@@ -244,8 +332,8 @@ export default function EditChildPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Qrafik növü *</label>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { value: 0 as const, label: 'Tam günlük',   time: '09:00 – 18:00', icon: '☀️' },
-                    { value: 1 as const, label: 'Yarım günlük', time: '09:00 – 13:00', icon: '🌤️' },
+                    { value: 0 as const, label: 'Tam günlük',   time: buildScheduleLabel('FullDay'), icon: '☀️' },
+                    { value: 1 as const, label: 'Yarım günlük', time: buildScheduleLabel('HalfDay'), icon: '🌤️' },
                   ].map((s) => (
                     <button
                       key={s.value}
@@ -272,22 +360,79 @@ export default function EditChildPage() {
                 min={1}
                 error={errors.monthlyFee?.message}
               />
-              <Input
-                {...register('discountPercentage', {
-                  setValueAs: (value) => {
-                    if (value === '' || value === null || value === undefined) return null;
-                    const parsed = Number(value);
-                    return Number.isFinite(parsed) ? parsed : null;
-                  },
-                })}
-                label="Endirim faizi (%)"
-                type="number"
-                min={0}
-                max={100}
-                step="0.1"
-                placeholder="Məs: 15.5"
-                error={errors.discountPercentage?.message}
-              />
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Endirim növü</label>
+                <div className="inline-flex rounded-lg border border-white-border bg-gray-50 p-1">
+                  <button
+                    type="button"
+                    onClick={() => handleDiscountModeChange('percentage')}
+                    className={cn(
+                      'px-3 py-1.5 text-sm rounded-md transition-colors',
+                      discountMode === 'percentage'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    )}
+                  >
+                    Faiz
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDiscountModeChange('amount')}
+                    className={cn(
+                      'px-3 py-1.5 text-sm rounded-md transition-colors',
+                      discountMode === 'amount'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    )}
+                  >
+                    Məbləğ
+                  </button>
+                </div>
+
+                {discountMode === 'percentage' ? (
+                  <Input
+                    {...register('discountPercentage', {
+                      setValueAs: (value) => {
+                        if (value === '' || value === null || value === undefined) return null;
+                        const parsed = Number(value);
+                        return Number.isFinite(parsed) ? parsed : null;
+                      },
+                    })}
+                    label="Endirim faizi (%)"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.1"
+                    placeholder="Məs: 15.5"
+                    error={errors.discountPercentage?.message}
+                    hint={computedDiscountAmount !== null
+                      ? `Hesablanan endirim məbləği: ₼${computedDiscountAmount}`
+                      : undefined}
+                  />
+                ) : (
+                  <Input
+                    label="Endirim məbləği (₼)"
+                    type="number"
+                    min={0}
+                    step="0.1"
+                    placeholder="Məs: 50"
+                    value={discountAmount}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '') {
+                        setDiscountAmount('');
+                        return;
+                      }
+                      const parsed = Number(value);
+                      setDiscountAmount(Number.isFinite(parsed) ? parsed : '');
+                    }}
+                    error={errors.discountPercentage?.message}
+                    hint={computedDiscountPercentage !== null
+                      ? `Hesablanan endirim faizi: ${computedDiscountPercentage}%`
+                      : 'İstəyə bağlı. Məbləği daxil edin, faiz avtomatik hesablanacaq.'}
+                  />
+                )}
+              </div>
               <Select
                 {...register('paymentDay', { valueAsNumber: true })}
                 label="Ödəniş günü *"

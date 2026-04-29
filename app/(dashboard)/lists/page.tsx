@@ -41,15 +41,9 @@ interface ListRow extends DebtorInfo {
   monthlyFee: number;
   scheduleType: string;
   discountPercentage?: number | null;
+  personId?: number | null;
 }
 
-function fmtMonths(months: number[]) {
-  return months
-    .slice()
-    .sort((a, b) => a - b)
-    .map((m) => String(m).padStart(2, '0'))
-    .join(', ');
-}
 
 function sanitizeFilePart(value: string) {
   return value
@@ -67,13 +61,13 @@ async function exportDebtWorkbook(rows: ListRow[], grouped: GroupDebtRow[], file
 
   const detailData = rows.map((r, i) => ({
     No: i + 1,
+    IVMS: r.personId || '-',
     Sagird: r.childFullName,
     ValideynAdSoyad: r.parentFullName,
     Bolme: r.divisionName,
     Qrup: r.groupName,
     ValideynElaqeNomresi: r.parentPhone,
     QaliqBorc: r.totalDebt,
-    OdenilmemisAylar: fmtMonths(r.unpaidMonths),
   }));
 
   const groupData = grouped.map((g, i) => ({
@@ -186,6 +180,7 @@ export default function ListsPage() {
           const debtInfo = debtByChildId.get(child.id);
           return {
             childId: child.id,
+            personId: child.personId,
             childFullName: `${child.lastName} ${child.firstName}`.trim(),
             parentFullName: child.parentFullName?.trim() || parentNameById.get(child.id) || '-',
             groupName: child.groupName,
@@ -260,7 +255,8 @@ export default function ListsPage() {
       if (!q) return true;
 
       return (
-        r.childFullName.toLowerCase().includes(q)
+        String(r.personId || '').includes(q)
+        || r.childFullName.toLowerCase().includes(q)
         || r.parentFullName.toLowerCase().includes(q)
         || r.parentPhone.toLowerCase().includes(q)
         || r.groupName.toLowerCase().includes(q)
@@ -296,7 +292,8 @@ export default function ListsPage() {
       if (!q) return true;
 
       return (
-        r.childFullName.toLowerCase().includes(q)
+        String(r.personId || '').includes(q)
+        || r.childFullName.toLowerCase().includes(q)
         || r.parentFullName.toLowerCase().includes(q)
         || r.parentPhone.toLowerCase().includes(q)
         || r.groupName.toLowerCase().includes(q)
@@ -477,7 +474,7 @@ export default function ListsPage() {
             <SearchBar
               value={search}
               onChange={setSearch}
-              placeholder="Şagird, valideyn, nömrə, qrup və ya bölmə axtar..."
+              placeholder="IVMS, şagird, valideyn, nömrə, qrup və ya bölmə axtar..."
               className="w-[320px] shrink-0"
             />
             <Select
@@ -678,6 +675,7 @@ export default function ListsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50/70 dark:bg-gray-800/40 border-b border-gray-100 dark:border-gray-700/40">
+                    <th className="text-left px-4 py-3 text-gray-500">IVMS ID</th>
                     <th className="text-left px-4 py-3 text-gray-500">Şagird</th>
                     <th className="text-left px-4 py-3 text-gray-500 hidden md:table-cell">Valideyn ad soyad</th>
                     <th className="text-left px-4 py-3 text-gray-500 hidden lg:table-cell">Valideyn əlaqə nömrəsi</th>
@@ -686,12 +684,12 @@ export default function ListsPage() {
                     <th className="text-left px-4 py-3 text-gray-500 hidden lg:table-cell">Ödəniş günü</th>
                     <th className="text-left px-4 py-3 text-gray-500 hidden xl:table-cell">Aylıq ödəniş</th>
                     <th className="text-left px-4 py-3 text-gray-500">Qalıq borc</th>
-                    <th className="text-left px-4 py-3 text-gray-500 hidden 2xl:table-cell">Ödənilməmiş aylar</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 dark:divide-gray-700/40">
                   {filteredRows.map((r) => (
                     <tr key={r.childId} className="hover:bg-gray-50/60 dark:hover:bg-gray-700/20 transition-colors">
+                      <td className="px-4 py-3.5 text-gray-500 text-xs font-mono">{r.personId || '-'}</td>
                       <td className="px-4 py-3.5 font-medium text-gray-800 dark:text-gray-100">
                         <Link href={`/children/${r.childId}`} className="hover:text-green-600 transition-colors underline-offset-2 hover:underline">
                           {r.childFullName}
@@ -717,7 +715,6 @@ export default function ListsPage() {
                         ) : null}
                       </td>
                       <td className="px-4 py-3.5 font-semibold text-rose-600">{formatCurrency(r.totalDebt)}</td>
-                      <td className="px-4 py-3.5 text-gray-500 hidden 2xl:table-cell">{fmtMonths(r.unpaidMonths) || '-'}</td>
                     </tr>
                   ))}
                 </tbody>

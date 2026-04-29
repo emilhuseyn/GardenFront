@@ -224,7 +224,12 @@ export default function PaymentsPage() {
       d.divisionName,
       d.parentPhone,
       d.totalDebt,
-      d.unpaidMonths.map((m) => AZ_MONTHS[m - 1]).join('; '),
+      d.unpaidMonths.map((m: any) => {
+        if (typeof m === 'object') {
+          return m.monthName ?? AZ_MONTHS[(m.month ?? m.Month) - 1] ?? JSON.stringify(m);
+        }
+        return AZ_MONTHS[m - 1] || m;
+      }).join('; '),
     ]);
     const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });

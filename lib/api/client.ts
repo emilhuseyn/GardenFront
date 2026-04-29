@@ -11,7 +11,7 @@ function isSilentErrorRequest(error: AxiosError): boolean {
 }
 
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE || '', // əvvəlki .env variantına qaytarıldı
+  baseURL: '', // Use Next.js rewrites instead of direct backend calls
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',

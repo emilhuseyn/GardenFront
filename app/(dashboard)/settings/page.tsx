@@ -2,13 +2,14 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
-import { Save, User, Shield, Palette, Plus, Users, Check, Search, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { Save, User, Shield, Palette, Plus, Users, Check, Search, ArrowUpDown, ChevronUp, ChevronDown, Settings as SettingsIcon, MessageCircle } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
+import { Switch } from '@/components/ui/Switch';
 import { Modal, ModalHeader, ModalTitle, ModalFooter, ModalContent } from '@/components/ui/Modal';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { toast } from 'sonner';
@@ -20,10 +21,12 @@ import { applyTheme, applyFontSize, applyRadius, THEME_OPTIONS, type ThemeKey } 
 import { usersApi } from '@/lib/api/users';
 import { authApi } from '@/lib/api/auth';
 import type { UserResponse, UserRole } from '@/types';
+import { systemSettingsApi, type SystemSetting } from '@/lib/api/systemSettings';
 
 const TABS = [
   { id: 'profile',       label: 'Profil',          icon: User,    adminOnly: false },
   { id: 'users',         label: 'İstifadəçilər',   icon: Users,   adminOnly: true  },
+  { id: 'system',        label: 'Sistem',          icon: SettingsIcon, adminOnly: true  },
   { id: 'security',      label: 'Təhlükəsizlik',   icon: Shield,  adminOnly: false },
   { id: 'appearance',    label: 'Görünüş',         icon: Palette, adminOnly: false },
 ];
@@ -222,6 +225,55 @@ export default function SettingsPage() {
       setPasswordSaving(false);
     }
   };
+
+  // ── System Params ─────────────────────────────────────────────────────────
+  const [systemSettings, setSystemSettings] = useState<SystemSetting[]>([]);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+
+  const loadSystemSettings = async () => {
+    setSettingsLoading(true);
+    try {
+      // Load messaging status from the backend
+      const response = await systemSettingsApi.getMessagingStatus();
+      // Initialize system settings with the messaging status
+      setSystemSettings([
+        {
+          id: 1,
+          settingKey: 'WhatsApp_Enabled',
+          settingValue: response.data?.enabled?.toString() || 'false',
+          description: 'WhatsApp göndərişlərini aktivləşdirir'
+        }
+      ]);
+    } catch (err: unknown) {
+      toast.error('Sistem parametrləri yüklənmədi');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'system' && isAdmin) {
+      loadSystemSettings();
+    }
+  }, [activeTab, isAdmin]);
+
+  const handleToggleWhatsApp = async (checked: boolean) => {
+    try {
+      await systemSettingsApi.toggleMessaging(checked);
+      setSystemSettings((prev) => {
+        const hasKey = prev.find(p => p.settingKey === 'WhatsApp_Enabled');
+        if (hasKey) {
+          return prev.map(p => p.settingKey === 'WhatsApp_Enabled' ? { ...p, settingValue: checked.toString() } : p);
+        }
+        return [...prev, { id: 0, settingKey: 'WhatsApp_Enabled', settingValue: checked.toString(), description: 'WhatsApp göndərişlərini aktivləşdirir' }];
+      });
+      toast.success(`WhatsApp mesajları ${checked ? 'aktiv' : 'deaktiv'} edildi`);
+    } catch (err: unknown) {
+      toast.error('Dəyişiklik yadda saxlanılmadı');
+      loadSystemSettings(); // rollback UI
+    }
+  };
+
 
   return (
     <div className="space-y-6">
@@ -524,6 +576,56 @@ export default function SettingsPage() {
               <Button onClick={handlePasswordChange} loading={passwordSaving}>
                 <Save size={14} /> Şifrəni yenilə
               </Button>
+            </div>
+          )}
+
+          {activeTab === 'system' && isAdmin && (
+            <div className="space-y-6">
+              <h3 className="text-base font-bold text-gray-900 dark:text-gray-50 font-display">Sistem parametrləri</h3>
+              
+              {settingsLoading ? (
+                <div className="flex flex-col gap-4">
+                  <Skeleton className="h-16 w-full rounded-xl" />
+                  <Skeleton className="h-16 w-full rounded-xl" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* WhatsApp Integration Setting */}
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-white-border dark:border-gray-700/60 bg-gray-50 dark:bg-gray-800/40">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-500 rounded-lg">
+                          <MessageCircle size={16} />
+                        </div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">WhatsApp Mesajları</p>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Sistem üzərindən WhatsApp mesajlarının göndərilməsini aktivləşdirir.
+                      </p>
+                    </div>
+                    {(() => {
+                      const wpSet = systemSettings.find(s => s.settingKey === 'WhatsApp_Enabled');
+                      const checked = wpSet?.settingValue === 'true';
+                      return (
+                        <Switch
+                          checked={checked}
+                          onCheckedChange={handleToggleWhatsApp}
+                        />
+                      );
+                    })()}
+                  </div>
+                  
+                  {/* other potential system systems can go here dynamically */}
+                  {systemSettings.filter(s => s.settingKey !== 'WhatsApp_Enabled').map(s => (
+                    <div key={s.id} className="flex items-center justify-between p-4 rounded-xl border border-white-border dark:border-gray-700/60 bg-gray-50 dark:bg-gray-800/40">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{s.settingKey}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{s.description || s.settingValue}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

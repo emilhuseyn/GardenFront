@@ -102,12 +102,9 @@ export function PaymentTable({
           return allItems;
         };
 
-        const [activeResult, inactiveResult] = await Promise.all([
-          fetchChildrenByStatus('Active'),
-          fetchChildrenByStatus('Inactive'),
-        ]);
+        const activeResult = await fetchChildrenByStatus('Active');
         const children = Array.from(
-          new Map([...activeResult, ...inactiveResult].map((child) => [child.id, child])).values()
+          new Map(activeResult.map((child) => [child.id, child])).values()
         );
         const paymentHistories = await Promise.all(
           children.map((c) => paymentsApi.getChildHistory(c.id).catch(() => [] as Payment[]))
