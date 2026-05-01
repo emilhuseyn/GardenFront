@@ -235,12 +235,12 @@ export default function SettingsPage() {
     try {
       // Load messaging status from the backend
       const response = await systemSettingsApi.getMessagingStatus();
-      // Initialize system settings with the messaging status
+      const isEnabled = response.data?.data?.isEnabled ?? false;
       setSystemSettings([
         {
           id: 1,
           settingKey: 'WhatsApp_Enabled',
-          settingValue: response.data?.enabled?.toString() || 'false',
+          settingValue: isEnabled.toString(),
           description: 'WhatsApp göndərişlərini aktivləşdirir'
         }
       ]);
