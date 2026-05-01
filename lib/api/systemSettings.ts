@@ -14,6 +14,6 @@ export const systemSettingsApi = {
   update: (key: string, value: string) => apiClient.post<SystemSetting>(`/api/systemsettingses/${key}`, { settingKey: key, settingValue: value }),
 
   // Yeni endpointlər:
-  getMessagingStatus: () => apiClient.get('/api/systemsettingses/messaging-status'),
-  toggleMessaging: (enable: boolean) => apiClient.post(`/api/systemsettingses/toggle-messaging?enable=${enable}`),
+  getMessagingStatus: () => apiClient.get('/api/SystemSettings/messaging-status'),
+  toggleMessaging: (enable: boolean) => apiClient.post(`/api/SystemSettings/toggle-messaging?enable=${enable}`),
 };
