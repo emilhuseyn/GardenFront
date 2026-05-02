@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { MoreHorizontal, Eye, Pencil, UserX, UserCheck, Trash2 } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
@@ -21,6 +21,34 @@ export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDelete
   const [openMenu, setOpenMenu] = useState<number | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
+  const processedList = useMemo(() => {
+    if (!childList) return [] as Child[];
+    // Group siblings by parent identity (prefer phone, fallback to parent full name)
+    const parentKey = (c: Child) => c.parentPhone || c.secondParentPhone || c.parentFullName || c.secondParentFullName || '';
+    const groups = new Map<string, Child[]>();
+    for (const c of childList) {
+      const k = parentKey(c) || '__no_parent__';
+      const arr = groups.get(k) || [];
+      arr.push(c);
+      groups.set(k, arr);
+    }
+
+    // Sort within groups by lastName then firstName, and sort groups by parent key so siblings stay consecutive
+    const rows: Child[] = [];
+    const sortedGroupKeys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+    for (const k of sortedGroupKeys) {
+      const arr = groups.get(k) || [];
+      arr.sort((x, y) => {
+        const ln = x.lastName.localeCompare(y.lastName);
+        if (ln !== 0) return ln;
+        return x.firstName.localeCompare(y.firstName);
+      });
+      rows.push(...arr);
+    }
+
+    return rows;
+  }, [childList]);
+
   const toggleSelect = (id: number) => {
     setSelected((s) => {
       const n = new Set(s);
@@ -34,11 +62,39 @@ export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDelete
   };
 
   const toggleAll = () => {
-    if (selected.size === childList.length) {
+    if (selected.size === processedList.length && processedList.length > 0) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(childList.map((c) => c.id)));
+      setSelected(new Set(processedList.map((c) => c.id)));
     }
+  };
+
+  const exportInactiveToCsv = () => {
+    const inactive = childList.filter(c => c.status !== 'Active');
+    if (inactive.length === 0) return;
+    const headers = ['id','lastName','firstName','parentFullName','parentPhone','secondParentFullName','secondParentPhone','groupName','divisionName','deactivationDate'];
+    const rows = inactive.map(c => [
+      c.id,
+      c.lastName,
+      c.firstName,
+      c.parentFullName ?? '',
+      c.parentPhone ?? '',
+      c.secondParentFullName ?? '',
+      c.secondParentPhone ?? '',
+      c.groupName ?? '',
+      c.divisionName ?? '',
+      c.deactivationDate ?? ''
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `inactive-children-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -102,6 +158,12 @@ export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDelete
         );
       })()}
 
+      <div className="px-5 pt-3 flex items-center justify-end gap-3">
+        <Button variant="ghost" size="sm" onClick={exportInactiveToCsv} className="text-rose-600">
+          Deaktiv uşaqları export et
+        </Button>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -109,7 +171,7 @@ export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDelete
               <th className="w-10 px-4 py-3">
                 <input
                   type="checkbox"
-                  checked={selected.size === childList.length && childList.length > 0}
+                  checked={selected.size === processedList.length && processedList.length > 0}
                   onChange={toggleAll}
                   className="rounded border-gray-300 text-green-400 focus:ring-green-400 cursor-pointer"
                   aria-label="Hamısını seç"
@@ -127,10 +189,12 @@ export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDelete
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 dark:divide-gray-700/40">
-            {childList.map((child) => {
-              const fullName = `${child.firstName} ${child.lastName}`;
+            {processedList.map((child) => {
+              const fullName = `${child.lastName} ${child.firstName}`;
               const divisionVariant = getDivisionBadgeVariant(child.divisionName);
               const divisionFlag = getDivisionFlag(child.divisionName);
+              const parentKey = child.parentPhone || child.secondParentPhone || child.parentFullName || child.secondParentFullName || '';
+              const siblingCount = processedList.filter(c => (c.parentPhone || c.secondParentPhone || c.parentFullName || c.secondParentFullName || '') === parentKey).length;
               return (
               <tr
                 key={child.id}
@@ -152,7 +216,14 @@ export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDelete
                 <td className="px-4 py-3.5">
                   <Link href={`/children/${child.id}`} className="flex items-center gap-3 hover:text-green-600 transition-colors">
                     <Avatar name={fullName} size="sm" />
-                    <span className="font-medium text-gray-800 dark:text-gray-100 whitespace-nowrap">{fullName}</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-medium text-gray-800 dark:text-gray-100 whitespace-nowrap">{fullName}</span>
+                      {siblingCount > 1 && (
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                          Bacı/Qardaş
+                        </span>
+                      )}
+                    </div>
                   </Link>
                 </td>
                 <td className="px-4 py-3.5 text-gray-500 dark:text-gray-400 hidden md:table-cell font-mono-nums">
