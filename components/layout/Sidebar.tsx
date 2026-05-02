@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Baby, ClipboardCheck, CreditCard,
   GraduationCap, Building2, BarChart3, Clock, ListOrdered,
-  Settings, ChevronLeft, ChevronRight, LogOut, Wallet, ArrowUpDown,
+  Settings, ChevronLeft, ChevronRight, LogOut, Wallet, ArrowUpDown, UserMinus
 } from 'lucide-react';
 import { cn } from '@/lib/utils/constants';
 import { useUIStore } from '@/lib/stores/uiStore';
@@ -17,6 +17,7 @@ import { ROLE_LABELS } from '@/lib/utils/constants';
 const ALL_NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Ana Səhifə',  href: '/',           color: '#34C47E', permKey: null              },
   { icon: Baby,            label: 'Uşaqlar',      href: '/children',   color: '#34C47E', permKey: 'children'         },
+  { icon: UserMinus,       label: 'Deaktiv Uşaqlar', href: '/children/inactive', color: '#9CA3AF', permKey: 'children' },
   { icon: ClipboardCheck,  label: 'Davamiyyət',   href: '/attendance', color: '#4A90D9', permKey: 'attendance'       },
   { icon: CreditCard,      label: 'Ödənişlər',    href: '/payments',   color: '#F5A623', permKey: 'payments'         },
   { icon: Wallet,          label: 'Kassalar',     href: '/cashboxes',  color: '#10B981', permKey: 'cashboxes'        },
