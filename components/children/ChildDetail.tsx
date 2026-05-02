@@ -1,6 +1,7 @@
 ﻿'use client';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 import {
   User, Calendar, DollarSign, FileText,
   Phone, Mail, Clock, BookOpen, Edit, Sparkles,
@@ -84,6 +85,16 @@ function getTimelineIcon(type: TimelineEventType) {
   return NotebookPen;
 }
 
+function normalizeForMatch(value?: string | null) {
+  return value?.trim().toLowerCase().replace(/\s+/g, ' ') ?? '';
+}
+
+function getSiblingMatchKey(child: Child) {
+  const phone = child.parentPhone?.trim() || child.secondParentPhone?.trim() || '';
+  const parentName = child.parentFullName?.trim() || child.secondParentFullName?.trim() || '';
+  return phone || parentName;
+}
+
 interface ChildDetailProps {
   childId?: string;
   onEdit?: () => void;
@@ -104,6 +115,8 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
   const [downloadingAgreement, setDownloadingAgreement] = useState(false);
   const [downloadingContract, setDownloadingContract] = useState(false);
   const [matchedGroupId, setMatchedGroupId] = useState<number | null>(null);
+  const [siblings, setSiblings] = useState<Child[]>([]);
+  const [siblingsLoading, setSiblingsLoading] = useState(false);
 
   const numId = Number(childId);
 
@@ -225,6 +238,69 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
       active = false;
     };
   }, [child?.groupName, child?.divisionName]);
+
+  useEffect(() => {
+    if (!child) {
+      setSiblings([]);
+      return;
+    }
+
+    const siblingKey = getSiblingMatchKey(child);
+    if (!siblingKey) {
+      setSiblings([]);
+      return;
+    }
+
+    let active = true;
+    setSiblingsLoading(true);
+
+    const matchesSibling = (candidate: Child) => {
+      if (candidate.id === child.id) return false;
+
+      const candidatePhoneKeys = [candidate.parentPhone, candidate.secondParentPhone]
+        .map((value) => normalizeForMatch(value))
+        .filter(Boolean);
+      const candidateNameKeys = [candidate.parentFullName, candidate.secondParentFullName]
+        .map((value) => normalizeForMatch(value))
+        .filter(Boolean);
+
+      return candidatePhoneKeys.includes(normalizeForMatch(siblingKey))
+        || candidateNameKeys.includes(normalizeForMatch(siblingKey));
+    };
+
+    const loadSiblings = async () => {
+      const pageSize = 200;
+      let page = 1;
+      const collected: Child[] = [];
+
+      while (true) {
+        const data = await childrenApi.getAll({ page, pageSize }, { silentError: true });
+        collected.push(...data.items.filter(matchesSibling));
+        if (!data.hasNextPage) break;
+        page += 1;
+      }
+
+      collected.sort((a, b) => {
+        const lastNameOrder = a.lastName.localeCompare(b.lastName);
+        if (lastNameOrder !== 0) return lastNameOrder;
+        return a.firstName.localeCompare(b.firstName);
+      });
+
+      if (active) setSiblings(collected);
+    };
+
+    loadSiblings()
+      .catch(() => {
+        if (active) setSiblings([]);
+      })
+      .finally(() => {
+        if (active) setSiblingsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [child]);
 
   // Load attendance for the selected calendar month
   useEffect(() => {
@@ -618,20 +694,51 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
         )}
 
         {activeTab === 'info' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InfoCard icon={User}       label="Ad Soyad"          value={`${child.firstName} ${child.lastName}`} />
-            <InfoCard icon={User}       label="IVMS ID"          value={child.personId ? String(child.personId) : '-'} />
-            <InfoCard icon={Calendar}   label="Doğum tarixi"      value={formatDate(new Date(child.dateOfBirth), 'dd MMMM yyyy')} />
-            <InfoCard icon={Calendar}   label="Qeydiyyat tarixi"  value={child.registrationDate ? formatDate(new Date(child.registrationDate), 'dd MMMM yyyy') : '-'} />
-            <InfoCard icon={Calendar}   label="Deaktiv tarixi"    value={child.deactivationDate ? formatDate(new Date(child.deactivationDate), 'dd MMMM yyyy') : '-'} />
-            <InfoCard icon={Phone}      label="Valideyn telefonu" value={formatPhone(child.parentPhone)} />
-            <InfoCard icon={User}       label="Valideyn adı"      value={child.parentFullName} />
-            <InfoCard icon={User}       label="Əlavə valideyn"    value={child.secondParentFullName || '-'} />
-            <InfoCard icon={Phone}      label="Əlavə telefon"     value={child.secondParentPhone ? formatPhone(child.secondParentPhone) : '-'} />
-            <InfoCard icon={DollarSign} label="Aylıq ödəniş"      value={formatCurrency(child.monthlyFee)} />
-            <InfoCard icon={Calendar}   label="Ödəniş günü"       value={`${child.paymentDay}-i`} />
-            <InfoCard icon={BookOpen}   label="Bölmə"             value={child.divisionName} />
-            <InfoCard icon={Clock}      label="Müəllim"           value={child.teacherName || '-'} />
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <InfoCard icon={User}       label="Ad Soyad"          value={`${child.firstName} ${child.lastName}`} />
+              <InfoCard icon={User}       label="IVMS ID"          value={child.personId ? String(child.personId) : '-'} />
+              <InfoCard icon={Calendar}   label="Doğum tarixi"      value={formatDate(new Date(child.dateOfBirth), 'dd MMMM yyyy')} />
+              <InfoCard icon={Calendar}   label="Qeydiyyat tarixi"  value={child.registrationDate ? formatDate(new Date(child.registrationDate), 'dd MMMM yyyy') : '-'} />
+              <InfoCard icon={Calendar}   label="Deaktiv tarixi"    value={child.deactivationDate ? formatDate(new Date(child.deactivationDate), 'dd MMMM yyyy') : '-'} />
+              <InfoCard icon={Phone}      label="Valideyn telefonu" value={formatPhone(child.parentPhone)} />
+              <InfoCard icon={User}       label="Valideyn adı"      value={child.parentFullName} />
+              <InfoCard icon={User}       label="Əlavə valideyn"    value={child.secondParentFullName || '-'} />
+              <InfoCard icon={Phone}      label="Əlavə telefon"     value={child.secondParentPhone ? formatPhone(child.secondParentPhone) : '-'} />
+              <InfoCard icon={DollarSign} label="Aylıq ödəniş"      value={formatCurrency(child.monthlyFee)} />
+              <InfoCard icon={Calendar}   label="Ödəniş günü"       value={`${child.paymentDay}-i`} />
+              <InfoCard icon={BookOpen}   label="Bölmə"             value={child.divisionName} />
+              <InfoCard icon={Clock}      label="Müəllim"           value={child.teacherName || '-'} />
+            </div>
+
+            <div className="bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-2xl p-4 sm:p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Ailə bağlantısı</p>
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-50 mt-0.5">Bacı və qardaşlar</h4>
+                </div>
+                <Badge variant="blue" size="sm">{siblings.length}</Badge>
+              </div>
+
+              {siblingsLoading ? (
+                <p className="text-sm text-gray-400">Yüklənir...</p>
+              ) : siblings.length === 0 ? (
+                <p className="text-sm text-gray-400">Bacı və ya qardaş tapılmadı.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {siblings.map((sibling) => (
+                    <Link
+                      key={sibling.id}
+                      href={`/children/${sibling.id}`}
+                      className="inline-flex items-center gap-2 rounded-full border border-green-200 dark:border-green-900/50 bg-green-50 dark:bg-green-900/20 px-3 py-1.5 text-sm text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/35 transition-colors"
+                    >
+                      <span className="font-medium">{sibling.lastName} {sibling.firstName}</span>
+                      <span className="text-[11px] opacity-75">detal</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
