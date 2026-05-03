@@ -143,7 +143,6 @@ export default function InactiveChildrenPage() {
       <PageHeader
         title="Deaktiv Uşaqlar"
         description="Ayrılmış və ya deaktiv edilmiş uşaqların siyahısı."
-        icon={Users}
         actions={
           <div className="flex items-center gap-3">
             <Link href="/children">
@@ -188,7 +187,7 @@ export default function InactiveChildrenPage() {
         />
       ) : (
         <EmptyState
-            icon={Users}
+            icon={<Users />}
             title="Deaktiv uşaq tapılmadı"
             description="Hazırda deaktiv statuslu uşaq yoxdur."
         />
