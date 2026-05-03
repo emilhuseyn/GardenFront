@@ -418,11 +418,18 @@ export default function ChildrenPage() {
         title="Uşaqlar"
         description="Qeydiyyatda olan bütün uşaqların siyahısı"
         actions={
-          <Link href={newChildHref}>
-            <Button>
-              <Plus size={16} /> Uşaq əlavə et
-            </Button>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/children/inactive">
+              <Button variant="outline" className="text-gray-600 dark:text-gray-300">
+                <Users size={16} className="mr-2" /> Deaktiv Uşaqlar
+              </Button>
+            </Link>
+            <Link href={newChildHref}>
+              <Button>
+                <Plus size={16} className="mr-2" /> Uşaq əlavə et
+              </Button>
+            </Link>
+          </div>
         }
         badge={
           <div className="flex items-center gap-1.5 flex-wrap">

@@ -69,34 +69,6 @@ export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDelete
     }
   };
 
-  const exportInactiveToCsv = () => {
-    const inactive = childList.filter(c => c.status !== 'Active');
-    if (inactive.length === 0) return;
-    const headers = ['id','lastName','firstName','parentFullName','parentPhone','secondParentFullName','secondParentPhone','groupName','divisionName','deactivationDate'];
-    const rows = inactive.map(c => [
-      c.id,
-      c.lastName,
-      c.firstName,
-      c.parentFullName ?? '',
-      c.parentPhone ?? '',
-      c.secondParentFullName ?? '',
-      c.secondParentPhone ?? '',
-      c.groupName ?? '',
-      c.divisionName ?? '',
-      c.deactivationDate ?? ''
-    ]);
-    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `inactive-children-${new Date().toISOString().slice(0,10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-xl overflow-hidden"
       style={{ boxShadow: '0 1px 3px 0 rgb(0 0 0/0.06)' }}>
@@ -157,12 +129,6 @@ export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDelete
           </div>
         );
       })()}
-
-      <div className="px-5 pt-3 flex items-center justify-end gap-3">
-        <Button variant="ghost" size="sm" onClick={exportInactiveToCsv} className="text-rose-600">
-          Deaktiv uşaqları export et
-        </Button>
-      </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
