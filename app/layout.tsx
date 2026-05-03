@@ -16,7 +16,10 @@ export default function RootLayout({
   return (
     <html lang="az" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: buildThemeInitScript() }} />
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: buildThemeInitScript() }}
+        />
       </head>
       <body className="antialiased">
         <Providers>
