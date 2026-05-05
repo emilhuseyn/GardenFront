@@ -306,14 +306,7 @@ export default function PaymentsPage() {
         return allItems;
       };
 
-      const [activeChildren, inactiveChildren] = await Promise.all([
-        fetchChildrenByStatus('Active'),
-        fetchChildrenByStatus('Inactive'),
-      ]);
-
-      const children = Array.from(
-        new Map([...activeChildren, ...inactiveChildren].map((child) => [child.id, child])).values()
-      );
+      const children = await fetchChildrenByStatus('Active');
 
       const paymentHistories = await Promise.all(
         children.map((child) => paymentsApi.getChildHistory(child.id).catch(() => [] as Payment[]))
