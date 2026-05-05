@@ -56,6 +56,51 @@ function sanitizeFilePart(value: string) {
     .slice(0, 40);
 }
 
+function normalizeParentName(value: string) {
+  const trimmed = value?.trim() ?? '';
+  return trimmed === '-' ? '' : trimmed;
+}
+
+function sortRowsForExport(input: ListRow[]) {
+  const activeRows = input.filter((r) => r.status === 'Active');
+  return [...activeRows].sort((a, b) => {
+    const aParent = normalizeParentName(a.parentFullName);
+    const bParent = normalizeParentName(b.parentFullName);
+
+    if (!aParent && bParent) return 1;
+    if (aParent && !bParent) return -1;
+
+    const parentCompare = aParent.localeCompare(bParent, 'az');
+    if (parentCompare !== 0) return parentCompare;
+    return a.childFullName.localeCompare(b.childFullName, 'az');
+  });
+}
+
+function buildGroupedRows(source: ListRow[]) {
+  const map = new Map<string, GroupDebtRow>();
+
+  for (const r of source) {
+    const key = `${r.divisionName}__${r.groupName}`;
+    const current = map.get(key);
+    if (current) {
+      current.childCount += 1;
+      current.totalDebt += r.totalDebt;
+      current.avgDebt = current.totalDebt / current.childCount;
+    } else {
+      map.set(key, {
+        key,
+        divisionName: r.divisionName,
+        groupName: r.groupName,
+        childCount: 1,
+        totalDebt: r.totalDebt,
+        avgDebt: r.totalDebt,
+      });
+    }
+  }
+
+  return Array.from(map.values());
+}
+
 async function exportDebtWorkbook(rows: ListRow[], grouped: GroupDebtRow[], fileName: string) {
   const XLSX = await import('xlsx');
 
@@ -384,7 +429,9 @@ export default function ListsPage() {
 
   const handleExportFiltered = async () => {
     try {
-      await exportDebtWorkbook(filteredRows, groupedRows, buildFilteredFileName());
+      const exportRows = sortRowsForExport(filteredRows);
+      const exportGrouped = buildGroupedRows(exportRows);
+      await exportDebtWorkbook(exportRows, exportGrouped, buildFilteredFileName());
       toast.success('Filterə görə Excel yükləndi');
     } catch {
       toast.error('Excel export alınmadı');
@@ -393,28 +440,9 @@ export default function ListsPage() {
 
   const handleExportAll = async () => {
     try {
-      const groupedAllMap = new Map<string, GroupDebtRow>();
-      for (const r of rows) {
-        const key = `${r.divisionName}__${r.groupName}`;
-        const current = groupedAllMap.get(key);
-        if (current) {
-          current.childCount += 1;
-          current.totalDebt += r.totalDebt;
-          current.avgDebt = current.totalDebt / current.childCount;
-        } else {
-          groupedAllMap.set(key, {
-            key,
-            divisionName: r.divisionName,
-            groupName: r.groupName,
-            childCount: 1,
-            totalDebt: r.totalDebt,
-            avgDebt: r.totalDebt,
-          });
-        }
-      }
-
-      const groupedAll = Array.from(groupedAllMap.values()).sort((a, b) => b.totalDebt - a.totalDebt);
-      await exportDebtWorkbook(rows, groupedAll, 'sagird_siyahi_umumi.xlsx');
+      const exportRows = sortRowsForExport(rows);
+      const groupedAll = buildGroupedRows(exportRows).sort((a, b) => b.totalDebt - a.totalDebt);
+      await exportDebtWorkbook(exportRows, groupedAll, 'sagird_siyahi_umumi.xlsx');
       toast.success('Ümumi Excel yükləndi');
     } catch {
       toast.error('Excel export alınmadı');
