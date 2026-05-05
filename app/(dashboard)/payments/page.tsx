@@ -400,11 +400,22 @@ export default function PaymentsPage() {
         return !hasDebt && !hasPartial;
       });
 
-      const sortedRows = [...statusFiltered].sort((a, b) =>
-        paymentSort === 'fee'
-          ? b.plannedAmount - a.plannedAmount
-          : a.fullName.localeCompare(b.fullName, 'az')
-      );
+      const normalizeParentName = (value: string) => {
+        const trimmed = value?.trim() ?? '';
+        return trimmed === '-' ? '' : trimmed;
+      };
+
+      const sortedRows = [...statusFiltered].sort((a, b) => {
+        const aParent = normalizeParentName(a.parentName);
+        const bParent = normalizeParentName(b.parentName);
+
+        if (!aParent && bParent) return 1;
+        if (aParent && !bParent) return -1;
+
+        const parentCompare = aParent.localeCompare(bParent, 'az');
+        if (parentCompare !== 0) return parentCompare;
+        return a.fullName.localeCompare(b.fullName, 'az');
+      });
 
       if (sortedRows.length === 0) {
         toast.error('Export üçün məlumat tapılmadı');
