@@ -25,7 +25,6 @@ import type { ActiveInactive, Child, ChildFilters, Division, Group } from '@/typ
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Aktivlər' },
-  { value: 'Active', label: 'Aktiv' },
 ];
 
 const SCHEDULE_OPTIONS = [
