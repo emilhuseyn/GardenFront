@@ -24,9 +24,8 @@ import { toast } from 'sonner';
 import type { ActiveInactive, Child, ChildFilters, Division, Group } from '@/types';
 
 const STATUS_OPTIONS = [
-  { value: '', label: 'Bütün statuslar' },
+  { value: '', label: 'Aktivlər' },
   { value: 'Active', label: 'Aktiv' },
-  { value: 'Inactive', label: 'Qeyri-aktiv' },
 ];
 
 const SCHEDULE_OPTIONS = [
@@ -192,8 +191,9 @@ export default function ChildrenPage() {
       try {
         if (debouncedSearch.trim()) {
           const results = await childrenApi.search(debouncedSearch.trim());
-          setChildren(results);
-          sessionStorage.setItem(cacheKey, JSON.stringify(results));
+          const activeResults = results.filter((child) => child.status === 'Active');
+          setChildren(activeResults);
+          sessionStorage.setItem(cacheKey, JSON.stringify(activeResults));
         } else {
           const baseFilters: ChildFilters = {
             divisionId:   divFilter ? Number(divFilter) : undefined,
@@ -218,18 +218,7 @@ export default function ChildrenPage() {
             return allItems;
           };
 
-          const selectedStatus = (statusFilter as 'Active' | 'Inactive' | '') || undefined;
-
-          let allItems: Child[];
-          if (selectedStatus) {
-            allItems = await fetchAllPages({ ...baseFilters, status: selectedStatus });
-          } else {
-            const [activeItems, inactiveItems] = await Promise.all([
-              fetchAllPages({ ...baseFilters, status: 'Active' }),
-              fetchAllPages({ ...baseFilters, status: 'Inactive' }),
-            ]);
-            allItems = activeItems.concat(inactiveItems);
-          }
+          const allItems = await fetchAllPages({ ...baseFilters, status: 'Active' });
 
           // Keep latest item per id in case backend pages overlap.
           const uniqueItems = Array.from(new Map(allItems.map((child) => [child.id, child])).values());

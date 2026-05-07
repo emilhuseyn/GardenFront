@@ -80,40 +80,14 @@ export function AttendanceGrid() {
     const dateStr = format(date, 'yyyy-MM-dd');
 
     Promise.all([
-      Promise.all([
-        childrenApi.getAll({ groupId: selectedGroupId ?? undefined, status: 'Active', pageSize: 0 }),
-        childrenApi.getAll({ groupId: selectedGroupId ?? undefined, status: 'Inactive', pageSize: 0 }),
-      ]),
+      childrenApi.getAll({ groupId: selectedGroupId ?? undefined, status: 'Active', pageSize: 0 }),
       attendanceApi.getDaily(dateStr, selectedGroupId ?? undefined),
     ])
-      .then(([[activeResult, inactiveResult], daily]) => {
-        const children = Array.from(
-          new Map([...activeResult.items, ...inactiveResult.items].map((child) => [child.id, child])).values()
-        );
+      .then(([activeResult, daily]) => {
+        const children = activeResult.items.filter((child) => child.status === 'Active');
         const entryMap = new Map(daily.entries.map((e) => [e.childId, e]));
 
-        const parseDateOnly = (value?: string | null) => {
-          if (!value) return null;
-          const parsed = new Date(`${value}T00:00:00`);
-          return Number.isNaN(parsed.getTime()) ? null : parsed;
-        };
-        const selectedDate = parseDateOnly(dateStr);
-
-        const visibleChildren = children.filter((child) => {
-          if (child.status === 'Active') return true;
-          if (entryMap.has(child.id)) return true;
-          if (!selectedDate) return false;
-
-          const registrationDate = parseDateOnly(child.registrationDate);
-          const deactivationDate = parseDateOnly(child.deactivationDate);
-
-          if (registrationDate && selectedDate < registrationDate) return false;
-          if (!deactivationDate) return false;
-
-          return selectedDate <= deactivationDate;
-        });
-
-        const mapped: AttendanceRowData[] = visibleChildren.map((child) => {
+        const mapped: AttendanceRowData[] = children.map((child) => {
           const entry = entryMap.get(child.id);
           const sched = scheduleMap[child.scheduleType] ?? scheduleMap.FullDay;
           const parseTimeMins = (t: string) => {
