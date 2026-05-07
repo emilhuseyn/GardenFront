@@ -64,6 +64,7 @@ export default function ReportsPage() {
   const [loadingDivRev, setLoadingDivRev] = useState(false);
   const [loadingLookups, setLoadingLookups] = useState(true);
   const [bootDone, setBootDone] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   useEffect(() => {
     const yr = Number(year);
@@ -129,32 +130,160 @@ export default function ReportsPage() {
     }).catch(() => {}).finally(() => setLoadingDivRev(false));
   }, [divisions, divRevMonth, year]);
 
-  const exportCSV = () => {
-    const rows: string[][] = [];
-    rows.push([`Hesabat ${year}`]);
-    rows.push(['Aylıq Gəlir']);
-    rows.push(['Ay', 'Toplanmış (₼)']);
-    monthlyReports.forEach((r) => rows.push([r.month, String(r.value)]));
-    rows.push([]);
-    rows.push(['Qrup üzrə Gəlir']);
-    rows.push(['Qrup', 'Toplanmış (₼)']);
-    groupRevReport.forEach((r) => rows.push([r.group, String(r.value)]));
-    rows.push([]);
-    rows.push(['Bölmə üzrə Gəlir']);
-    rows.push(['Bölmə', 'Toplanmış (₼)']);
-    divRevReport.forEach((r) => rows.push([r.name, String(r.value)]));
-    rows.push([]);
-    rows.push(['Uşaq Statistikası']);
-    rows.push(['Aktiv', String(activeInactive?.activeCount ?? 0)]);
-    rows.push(['Passiv', String(activeInactive?.inactiveCount ?? 0)]);
-    const csv = rows.map((r) => r.join(',')).join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `hesabat_${year}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const exportExcel = async () => {
+    if (exportingExcel) return;
+    setExportingExcel(true);
+
+    try {
+      const ExcelJS = await import('exceljs');
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'KinderGarden';
+      workbook.created = new Date();
+
+      const sheet = workbook.addWorksheet('Hesabat');
+      sheet.columns = [
+        { key: 'col1', width: 32 },
+        { key: 'col2', width: 18 },
+        { key: 'col3', width: 16 },
+        { key: 'col4', width: 18 },
+      ];
+
+      const titleRow = sheet.addRow([`Hesabat ${year}`]);
+      sheet.mergeCells(`A${titleRow.number}:D${titleRow.number}`);
+      titleRow.height = 24;
+      titleRow.font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+      titleRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF14532D' } };
+      titleRow.alignment = { vertical: 'middle', horizontal: 'center' };
+
+      const dateRow = sheet.addRow(['Tarix', new Date().toISOString().slice(0, 10)]);
+      dateRow.font = { size: 10, color: { argb: 'FF475569' } };
+      sheet.addRow([]);
+
+      const addSectionTitle = (title: string) => {
+        const row = sheet.addRow([title]);
+        sheet.mergeCells(`A${row.number}:D${row.number}`);
+        row.height = 20;
+        row.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F6F5B' } };
+        row.alignment = { vertical: 'middle' };
+      };
+
+      const styleHeaderRow = (row: import('exceljs').Row) => {
+        row.font = { bold: true, color: { argb: 'FF1F2937' } };
+        row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
+        row.alignment = { vertical: 'middle' };
+      };
+
+      const addTable = (
+        title: string,
+        headers: string[],
+        rows: (string | number)[][],
+        currencyCols: number[] = []
+      ) => {
+        addSectionTitle(title);
+        const headerRow = sheet.addRow(headers);
+        styleHeaderRow(headerRow);
+        rows.forEach((r) => {
+          const row = sheet.addRow(r);
+          currencyCols.forEach((col) => {
+            const cell = row.getCell(col);
+            if (typeof cell.value === 'number') {
+              cell.numFmt = '#,##0" ₼"';
+            }
+          });
+        });
+        sheet.addRow([]);
+      };
+
+      const activeCount = activeInactive?.activeCount ?? stats?.totalActiveChildren ?? 0;
+      const inactiveCount = activeInactive?.inactiveCount ?? 0;
+      const totalCount = activeCount + inactiveCount;
+
+      addTable(
+        'Yekun göstəricilər',
+        ['Göstərici', 'Dəyər'],
+        [
+          ['Aktiv uşaq', String(activeCount)],
+          ['Passiv uşaq', String(inactiveCount)],
+          ['Ümumi uşaq', String(totalCount)],
+          ['Tam günlük', String(stats?.fullDayCount ?? 0)],
+          ['Yarım günlük', String(stats?.halfDayCount ?? 0)],
+          ['Bu ay gəlir', formatCurrency(monthlyReports.at(-1)?.value ?? 0)],
+          ['Qruplar', String(stats?.totalGroups ?? groups.length)],
+          ['Bölmələr', String(stats?.totalDivisions ?? divisions.length)],
+        ]
+      );
+
+      addTable(
+        'Aylıq Gəlir (₼)',
+        ['Ay', 'Toplanmış (₼)'],
+        monthlyReports.map((r) => [r.month, r.value]),
+        [2]
+      );
+
+      addTable(
+        'Qrafik üzrə Paylanma',
+        ['Qrafik', 'Uşaq sayı'],
+        scheduleData.map((d) => [d.name, d.value])
+      );
+
+      addTable(
+        'Bölmə üzrə Paylanma',
+        ['Bölmə', 'Uşaq sayı'],
+        divisionData.map((d) => [d.name, d.value])
+      );
+
+      addTable(
+        'Aktiv / Passiv Uşaqlar',
+        ['Status', 'Uşaq sayı'],
+        activeData.map((d) => [d.name, d.value])
+      );
+
+      if (divisionStats.length > 0) {
+        addTable(
+          'Bölmə Statistikası',
+          ['Bölmə', 'Qrup sayı', 'Uşaq sayı', 'Aylıq gəlir (₼)'],
+          divisionStats.map((d) => [d.divisionName, d.groupCount, d.childCount, d.monthlyRevenue]),
+          [4]
+        );
+      } else if (stats?.byDivision?.length) {
+        addTable(
+          'Bölmə Statistikası',
+          ['Bölmə', 'Qrup sayı', 'Uşaq sayı', 'Aylıq gəlir (₼)'],
+          stats.byDivision.map((d) => [d.divisionName, '-', d.childCount, '-'])
+        );
+      }
+
+      const groupCountMap = new Map(groups.map((g) => [g.name, g.currentChildCount]));
+      const groupLabel = formatMonthYear(Number(groupRevMonth), Number(year));
+      addTable(
+        `Qrup üzrə Gəlir (${groupLabel})`,
+        ['Qrup', 'Uşaq sayı', 'Toplanmış (₼)'],
+        groupRevReport.map((r) => [r.group, groupCountMap.get(r.group) ?? 0, r.value]),
+        [3]
+      );
+
+      const divLabel = formatMonthYear(Number(divRevMonth), Number(year));
+      addTable(
+        `Bölmə üzrə Gəlir (${divLabel})`,
+        ['Bölmə', 'Toplanmış (₼)'],
+        divRevReport.map((r) => [r.name, r.value]),
+        [2]
+      );
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `hesabat_${year}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportingExcel(false);
+    }
   };
 
   const divisionData = (stats?.byDivision ?? []).map((d) => ({ name: d.divisionName, value: d.childCount }));
@@ -215,8 +344,8 @@ export default function ReportsPage() {
               options={YEAR_OPTIONS}
               className="w-28"
             />
-            <Button onClick={exportCSV}>
-              <Download size={14} /> Excel
+            <Button onClick={exportExcel} disabled={exportingExcel || initialLoading}>
+              <Download size={14} /> {exportingExcel ? 'Hazırlanır...' : 'Excel'}
             </Button>
           </div>
         }
