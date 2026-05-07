@@ -61,6 +61,11 @@ export const paymentsApi = {
     return unwrap(res);
   },
 
+  bulkMarkAsPaid: async (month: number, year: number) => {
+    const res = await apiClient.post('/api/paymentses/bulk-mark-paid', null, { params: { month, year } });
+    return unwrap<{ updatedCount: number }>(res);
+  },
+
   applyDiscount: async (id: number, discountType: DiscountType, discountValue: number) => {
     const res = await apiClient.patch(`/api/paymentses/${id}/discount`, { discountType, discountValue });
     return unwrap<Payment>(res);

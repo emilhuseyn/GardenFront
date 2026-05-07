@@ -14,7 +14,7 @@ import { PaymentForm } from '@/components/payments/PaymentForm';
 import { SmartPaymentForecast } from '@/components/payments/SmartPaymentForecast';
 import { BarChart } from '@/components/charts/BarChart';
 import { Badge } from '@/components/ui/Badge';
-import { Download, Plus, Search, Trash2, X } from 'lucide-react';
+import { CheckSquare, Download, Plus, Search, Trash2, X } from 'lucide-react';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { formatCurrency, formatMonthYear } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/constants';
@@ -98,6 +98,12 @@ export default function PaymentsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
+
+  // Bulk mark as paid
+  const [bulkMarkOpen, setBulkMarkOpen] = useState(false);
+  const [bulkMarkMonth, setBulkMarkMonth] = useState(4);
+  const [bulkMarkYear, setBulkMarkYear] = useState(now.getFullYear());
+  const [bulkMarkLoading, setBulkMarkLoading] = useState(false);
 
   useEffect(() => {
     groupsApi.getAll().then((gs) => {
@@ -213,6 +219,26 @@ export default function PaymentsPage() {
       }
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const handleBulkMarkAsPaid = async () => {
+    setBulkMarkLoading(true);
+    try {
+      const result = await paymentsApi.bulkMarkAsPaid(bulkMarkMonth, bulkMarkYear);
+      const count = result?.updatedCount ?? 0;
+      if (count === 0) {
+        toast.info(`${AZ_MONTHS[bulkMarkMonth - 1]} ${bulkMarkYear} üçün ödənilməmiş qeyd tapılmadı`);
+      } else {
+        toast.success(`${count} ödəniş ödənilmiş kimi işarələndi`);
+        setTableRefreshKey((k) => k + 1);
+        refreshPaymentOverview();
+      }
+      setBulkMarkOpen(false);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Əməliyyat uğursuz oldu');
+    } finally {
+      setBulkMarkLoading(false);
     }
   };
 
@@ -655,7 +681,9 @@ export default function PaymentsPage() {
         description="Aylıq ödəniş idarəetməsi"
         actions={
           <div className="flex gap-2">
-
+            <Button variant="secondary" onClick={() => setBulkMarkOpen(true)}>
+              <CheckSquare size={15} /> Kütləvi ödənilmiş et
+            </Button>
             <Button onClick={() => handleRecord(0, undefined)}>
               <Plus size={15} /> Ödəniş qeyd et
             </Button>
@@ -1090,6 +1118,64 @@ export default function PaymentsPage() {
           </div>
         </div>
       )}
+
+      {/* Bulk mark as paid modal */}
+      <Modal
+        open={bulkMarkOpen}
+        onOpenChange={(open) => { if (!bulkMarkLoading) setBulkMarkOpen(open); }}
+      >
+        <ModalContent size="sm">
+          <ModalHeader>
+            <ModalTitle>Kütləvi ödənilmiş et</ModalTitle>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              Seçilmiş ay üçün ödənilməmiş və ya yarımçıq bütün qeydlər <strong>tam ödənilmiş</strong> kimi işarələnəcək.
+              Bu əməliyyat yalnız administratora aiddir.
+            </p>
+          </ModalHeader>
+
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Ay</label>
+              <select
+                value={bulkMarkMonth}
+                onChange={(e) => setBulkMarkMonth(Number(e.target.value))}
+                disabled={bulkMarkLoading}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#1e2130] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                {AZ_MONTHS.map((m, i) => (
+                  <option key={i + 1} value={i + 1}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div className="w-28">
+              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">İl</label>
+              <select
+                value={bulkMarkYear}
+                onChange={(e) => setBulkMarkYear(Number(e.target.value))}
+                disabled={bulkMarkLoading}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#1e2130] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2 text-sm text-gray-700 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-gray-200">
+            <p>⚠️ <strong>{AZ_MONTHS[bulkMarkMonth - 1]} {bulkMarkYear}</strong> üçün ödənilməmiş bütün qeydlər ödənilmiş olacaq.</p>
+          </div>
+
+          <ModalFooter>
+            <Button variant="secondary" size="sm" disabled={bulkMarkLoading} onClick={() => setBulkMarkOpen(false)}>
+              Ləğv et
+            </Button>
+            <Button size="sm" loading={bulkMarkLoading} onClick={handleBulkMarkAsPaid}>
+              <CheckSquare size={14} /> Ödənilmiş et
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       <Modal
         open={Boolean(deleteTarget)}
