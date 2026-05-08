@@ -735,12 +735,20 @@ export default function ListsPage() {
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{r.groupName}</td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 hidden lg:table-cell">{r.paymentDay || '-'}</td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 hidden xl:table-cell whitespace-nowrap">
-                        <span>{formatCurrency(r.monthlyFee || 0)}</span>
-                        {r.discountPercentage && r.discountPercentage > 0 ? (
-                          <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200/60 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50 align-text-bottom">
-                            -{r.discountPercentage}%
+                        {r.discountPercentage === 100 ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-500 dark:bg-gray-700/60 dark:text-gray-400">
+                            Ödənişsiz
                           </span>
-                        ) : null}
+                        ) : (
+                          <>
+                            <span>{formatCurrency(r.monthlyFee || 0)}</span>
+                            {r.discountPercentage && r.discountPercentage > 0 ? (
+                              <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200/60 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50 align-text-bottom">
+                                -{r.discountPercentage}%
+                              </span>
+                            ) : null}
+                          </>
+                        )}
                       </td>
                       <td className="px-4 py-3.5">
                         {r.discountPercentage === 100 ? (
