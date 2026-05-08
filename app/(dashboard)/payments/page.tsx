@@ -86,7 +86,7 @@ export default function PaymentsPage() {
   const [paymentsTableReady, setPaymentsTableReady] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [paymentSearch, setPaymentSearch] = useState('');
-  const [paymentStatus, setPaymentStatus] = useState<'all' | 'has-debt' | 'has-partial' | 'full'>('all');
+  const [paymentStatus, setPaymentStatus] = useState<'all' | 'has-debt' | 'has-partial' | 'full' | 'free'>('all');
   const [paymentDiscount, setPaymentDiscount] = useState<'all' | 'has_discount' | 'no_discount'>('all');
   const [paymentSchedule, setPaymentSchedule] = useState<'all' | 'FullDay' | 'HalfDay'>('all');
   const [paymentSort, setPaymentSort] = useState<'name' | 'fee'>('name');
@@ -787,6 +787,7 @@ export default function PaymentsPage() {
                   { v: 'has-debt',    label: 'Borcu olanlar' },
                   { v: 'has-partial', label: 'Qismən ödəniş edənlər' },
                   { v: 'full',        label: 'Tam ödəniş edənlər' },
+                  { v: 'free',        label: 'Ödənişsizlər' },
                 ] as const).map(({ v, label }) => (
                 <button
                   key={v}
@@ -803,7 +804,7 @@ export default function PaymentsPage() {
                 ))}
               </div>
               <p className="text-[11px] text-gray-400 dark:text-gray-500">
-                Borcu olanlar: ən azı 1 ay ödənilməyib. Qismən ödəniş edənlər: ən azı 1 ay tam bağlanmayıb. Tam ödəniş edənlər: heç bir açıq borc yoxdur.
+                Borcu olanlar: ən azı 1 ay ödənilməyib. Qismən ödəniş edənlər: ən azı 1 ay tam bağlanmayıb. Tam ödəniş edənlər: heç bir açıq borc yoxdur. Ödənişsizlər: 100% endirimlilər.
               </p>
             </div>
             {(paymentSearch || selectedGroupId !== null || paymentStatus !== 'all' || paymentDiscount !== 'all' || paymentSchedule !== 'all') && (

@@ -47,7 +47,7 @@ interface PaymentTableProps {
   refreshKey?: number;
   groupId?: number | null;
   search?: string;
-  statusFilter?: 'all' | 'has-debt' | 'has-partial' | 'full';
+  statusFilter?: 'all' | 'has-debt' | 'has-partial' | 'full' | 'free';
   discountFilter?: 'all' | 'has_discount' | 'no_discount';
   scheduleFilter?: 'all' | 'FullDay' | 'HalfDay';
   sortBy?: 'name' | 'fee';
@@ -217,7 +217,8 @@ export function PaymentTable({
   const statusFiltered =
     statusFilter === 'has-debt'    ? discountFiltered.filter((r) => Object.values(r.payments).some((c) => c === 'unpaid')) :
     statusFilter === 'has-partial' ? discountFiltered.filter((r) => Object.values(r.payments).some((c) => c === 'partial' || c === 'unpaid')) :
-    statusFilter === 'full'        ? discountFiltered.filter((r) => !Object.values(r.payments).some((c) => c === 'unpaid' || c === 'partial')) :
+    statusFilter === 'full'        ? discountFiltered.filter((r) => !Object.values(r.payments).some((c) => c === 'unpaid' || c === 'partial') && r.discountPercentage !== 100) :
+    statusFilter === 'free'        ? discountFiltered.filter((r) => r.discountPercentage === 100) :
     discountFiltered;
 
   const filteredRows = [...statusFiltered].sort((a, b) =>
