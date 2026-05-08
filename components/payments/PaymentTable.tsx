@@ -113,7 +113,7 @@ export function PaymentTable({
 
         const mapped: ChildPayRow[] = children.map((child, i) => {
           const payments: Record<number, PaymentCell> = {};
-          const amounts: Record<number, { paid: number; remaining: number }> = {};
+          const amounts: Record<number, { paid: number; remaining: number; final: number; notes?: string }> = {};
           const cashboxNames: Record<number, string | undefined> = {};
           paymentHistories[i]
             .filter((p) => Number(p.year) === CURRENT_YEAR)
