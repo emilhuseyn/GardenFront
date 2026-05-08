@@ -28,7 +28,7 @@ interface ChildPayRow {
   secondParentFullName?: string;
   scheduleType?: string;
   payments: Record<number, PaymentCell>;
-  amounts: Record<number, { paid: number; remaining: number }>;
+  amounts: Record<number, { paid: number; remaining: number; final: number; notes?: string }>;
   cashboxNames: Record<number, string | undefined>;
 }
 
@@ -126,7 +126,7 @@ export function PaymentTable({
                 cell = 'unpaid';
               }
               payments[p.month - 1] = cell;
-              amounts[p.month - 1] = { paid: p.paidAmount, remaining: p.remainingDebt };
+              amounts[p.month - 1] = { paid: p.paidAmount, remaining: p.remainingDebt, final: p.finalAmount, notes: p.notes ?? undefined };
               cashboxNames[p.month - 1] = p.cashboxName;
             });
           return {
@@ -296,7 +296,9 @@ export function PaymentTable({
                 const cbName = row.cashboxNames[mi];
                 const tooltipParts: string[] = [];
                 if (amt) {
+                  if (amt.notes) tooltipParts.push(amt.notes);
                   tooltipParts.push(`Ödənildi: ${formatCurrency(amt.paid)}`);
+                  if (amt.final !== amt.paid) tooltipParts.push(`Cəmi: ${formatCurrency(amt.final)}`);
                   if (amt.remaining > 0) tooltipParts.push(`Qalıq: ${formatCurrency(amt.remaining)}`);
                   if (cbName) tooltipParts.push(`Kassa: ${cbName}`);
                 }
