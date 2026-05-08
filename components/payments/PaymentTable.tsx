@@ -14,7 +14,7 @@ import type { ChildStatus, Payment } from '@/types';
 const CURRENT_YEAR = new Date().getFullYear();
 const MONTHS_SHORT = ['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'];
 
-export type PaymentCell = 'paid' | 'partial' | 'unpaid' | null;
+export type PaymentCell = 'paid' | 'partial' | 'unpaid' | 'free' | null;
 
 interface ChildPayRow {
   id: string;
@@ -36,9 +36,10 @@ const CELL_CLASS: Record<string, string> = {
   paid:    'bg-green-400 text-white',
   partial: 'bg-accent-amber text-white',
   unpaid:  'bg-accent-rose text-white',
+  free:    'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500',
 };
 const CELL_LABEL: Record<string, string> = {
-  paid: '✓', partial: '½', unpaid: '✕'
+  paid: '✓', partial: '½', unpaid: '✕', free: '–'
 };
 
 interface PaymentTableProps {
@@ -118,7 +119,9 @@ export function PaymentTable({
             .filter((p) => Number(p.year) === CURRENT_YEAR)
             .forEach((p) => {
               let cell: PaymentCell;
-              if (p.remainingDebt <= 0) {
+              if (p.finalAmount <= 0) {
+                cell = 'free';   // 100% discount — no payment needed
+              } else if (p.remainingDebt <= 0) {
                 cell = 'paid';
               } else if (p.paidAmount > 0) {
                 cell = 'partial';
@@ -277,6 +280,11 @@ export function PaymentTable({
                         <Badge variant="inactive" size="xs">Deaktiv</Badge>
                       )}
                     </div>
+                    {row.parentFullName ? (
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                        Valideyn: {row.parentFullName}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               </td>
@@ -296,26 +304,32 @@ export function PaymentTable({
                 const cbName = row.cashboxNames[mi];
                 const tooltipParts: string[] = [];
                 if (amt) {
-                  if (amt.notes) tooltipParts.push(amt.notes);
-                  tooltipParts.push(`Ödənildi: ${formatCurrency(amt.paid)}`);
-                  if (amt.final !== amt.paid) tooltipParts.push(`Cəmi: ${formatCurrency(amt.final)}`);
-                  if (amt.remaining > 0) tooltipParts.push(`Qalıq: ${formatCurrency(amt.remaining)}`);
-                  if (cbName) tooltipParts.push(`Kassa: ${cbName}`);
+                  if (amt.final <= 0) {
+                    tooltipParts.push('Ödənişsiz (100% endirim)');
+                  } else {
+                    if (amt.notes) tooltipParts.push(amt.notes);
+                    tooltipParts.push(`Ödənildi: ${formatCurrency(amt.paid)}`);
+                    if (amt.final !== amt.paid) tooltipParts.push(`Cəmi: ${formatCurrency(amt.final)}`);
+                    if (amt.remaining > 0) tooltipParts.push(`Qalıq: ${formatCurrency(amt.remaining)}`);
+                    if (cbName) tooltipParts.push(`Kassa: ${cbName}`);
+                  }
                 }
                 return (
                   <td key={mi} className="px-1 py-2 text-center">
                     <button
-                      onClick={() => onRecord?.(row.id, mi + 1, `${row.firstName} ${row.lastName}`)}
+                      onClick={() => cell !== 'free' && onRecord?.(row.id, mi + 1, `${row.firstName} ${row.lastName}`)}
                       title={tooltipParts.length ? tooltipParts.join(' · ') : (cell ? undefined : `${MONTHS_SHORT[mi]}: Qeyd et`)}
                       className={cn(
                         'rounded-md transition-all mx-auto flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-[44px]',
-                        cell
-                          ? CELL_CLASS[cell] + ' hover:opacity-80'
-                          : 'bg-gray-100 dark:bg-gray-700/60 text-gray-300 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        cell === 'free'
+                          ? CELL_CLASS['free'] + ' cursor-default'
+                          : cell
+                            ? CELL_CLASS[cell] + ' hover:opacity-80'
+                            : 'bg-gray-100 dark:bg-gray-700/60 text-gray-300 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
                       )}
                     >
                       <span className="text-xs font-bold leading-none">{cell ? CELL_LABEL[cell] : '·'}</span>
-                      {amt && (
+                      {amt && amt.final > 0 && (
                         <span className="text-[9px] leading-none opacity-90 font-mono">
                           {formatCurrency(amt.paid)}
                         </span>
