@@ -115,11 +115,12 @@ export function PaymentTable({
           const payments: Record<number, PaymentCell> = {};
           const amounts: Record<number, { paid: number; remaining: number; final: number; notes?: string }> = {};
           const cashboxNames: Record<number, string | undefined> = {};
+          const isFreeChild = child.discountPercentage === 100;
           paymentHistories[i]
             .filter((p) => Number(p.year) === CURRENT_YEAR)
             .forEach((p) => {
               let cell: PaymentCell;
-              if (p.finalAmount <= 0) {
+              if (isFreeChild || p.finalAmount <= 0) {
                 cell = 'free';   // 100% discount — no payment needed
               } else if (p.remainingDebt <= 0) {
                 cell = 'paid';
