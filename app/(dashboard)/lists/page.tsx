@@ -742,7 +742,17 @@ export default function ListsPage() {
                           </span>
                         ) : null}
                       </td>
-                      <td className="px-4 py-3.5 font-semibold text-rose-600">{formatCurrency(r.totalDebt)}</td>
+                      <td className="px-4 py-3.5">
+                        {r.totalDebt > 0 ? (
+                          <span className="font-semibold text-rose-600">{formatCurrency(r.totalDebt)}</span>
+                        ) : r.discountPercentage === 100 ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-500 dark:bg-gray-700/60 dark:text-gray-400">
+                            Ödənişsiz
+                          </span>
+                        ) : (
+                          <span className="text-sm font-medium text-green-600">–</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
