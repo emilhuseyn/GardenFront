@@ -289,14 +289,22 @@ export function PaymentTable({
                 </div>
               </td>
               <td className="px-4 py-3 text-right">
-                <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 font-mono-nums">
-                  {formatCurrency(row.monthlyFee)}
-                </span>
-                {row.discountPercentage && row.discountPercentage > 0 ? (
-                  <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200/60 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50 align-text-bottom">
-                    -{row.discountPercentage}%
+                {row.discountPercentage === 100 ? (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-500 dark:bg-gray-700/60 dark:text-gray-400">
+                    Ödənişsiz
                   </span>
-                ) : null}
+                ) : (
+                  <>
+                    <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 font-mono-nums">
+                      {formatCurrency(row.monthlyFee)}
+                    </span>
+                    {row.discountPercentage && row.discountPercentage > 0 ? (
+                      <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200/60 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50 align-text-bottom">
+                        -{row.discountPercentage}%
+                      </span>
+                    ) : null}
+                  </>
+                )}
               </td>
               {MONTHS_SHORT.map((_, mi) => {
                 const cell = row.payments[mi];
