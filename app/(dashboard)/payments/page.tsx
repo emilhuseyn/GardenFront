@@ -70,6 +70,7 @@ export default function PaymentsPage() {
   const [drawerOpen, setOpen] = useState(false);
   const [selectedChild, setChild] = useState<{ id: number; month: number; name?: string } | null>(null);
   const [debtors, setDebtors] = useState<DebtorInfo[]>([]);
+  const [inactiveDebtors, setInactiveDebtors] = useState<DebtorInfo[]>([]);
   const [monthlyReports, setMonthlyReports] = useState<{ month: string; value: number }[]>([]);
   const [currentMonthReport, setCurrentMonthReport] = useState<MonthlyPaymentReport | null>(null);
   const [loadingDebtors, setLoadingDebtors] = useState(true);
@@ -113,11 +114,31 @@ export default function PaymentsPage() {
   }, []);
 
   useEffect(() => {
-    paymentsApi
-      .getDebtors()
-      .then(setDebtors)
-      .catch(() => toast.error('Borclular yüklənmədi'))
-      .finally(() => setLoadingDebtors(false));
+    let active = true;
+
+    const loadBoth = async () => {
+      try {
+        const [activeRes, inactiveRes] = await Promise.all([
+          paymentsApi.getDebtors().catch((err) => { throw err; }),
+          paymentsApi.getInactiveDebtors({ silentError: true }).catch(() => [] as DebtorInfo[]),
+        ]);
+        if (active) {
+          setDebtors(activeRes);
+          setInactiveDebtors(inactiveRes);
+        }
+      } catch {
+        if (active) {
+          toast.error('Borclular yüklənmədi');
+        }
+      } finally {
+        if (active) setLoadingDebtors(false);
+      }
+    };
+
+    void loadBoth();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -156,6 +177,11 @@ export default function PaymentsPage() {
     paymentsApi
       .getDebtors({ silentError: true })
       .then(setDebtors)
+      .catch(() => {});
+
+    paymentsApi
+      .getInactiveDebtors({ silentError: true })
+      .then(setInactiveDebtors)
       .catch(() => {});
 
     const currentMonth = now.getMonth() + 1;
@@ -655,7 +681,10 @@ export default function PaymentsPage() {
     }
   };
 
-  const totalDebt = debtors.reduce((s, d) => s + d.totalDebt, 0);
+  const activeDebt = debtors.reduce((s, d) => s + d.totalDebt, 0);
+  const inactiveDebt = inactiveDebtors.reduce((s, d) => s + d.totalDebt, 0);
+  const totalDebt = activeDebt + inactiveDebt;
+  const totalDebtorCount = debtors.length + inactiveDebtors.length;
   const showBootLoader = loadingDebtors || loadingReports || loadingGroups || !paymentsTableReady;
 
   return (
@@ -695,16 +724,49 @@ export default function PaymentsPage() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Bu ay daxil oldu', value: formatCurrency(currentMonthReport?.totalCollected ?? 0), color: 'text-green-600', bg: 'bg-green-50' },
-          { label: 'Cəmi borc', value: formatCurrency(totalDebt), color: 'text-accent-rose', bg: 'bg-rose-50' },
-          { label: 'Borclular sayı', value: `${debtors.length} uşaq`, color: 'text-accent-amber', bg: 'bg-amber-50' },
-          { label: 'Gözlənilən', value: formatCurrency(currentMonthReport?.totalExpected ?? 0), color: 'text-accent-blue', bg: 'bg-blue-50' },
+          {
+            label: 'Bu ay daxil oldu',
+            value: formatCurrency(currentMonthReport?.totalCollected ?? 0),
+            color: 'text-green-600',
+            bg: 'bg-green-50',
+            sub: undefined as string | undefined,
+          },
+          {
+            label: 'Cəmi borc',
+            value: formatCurrency(totalDebt),
+            color: 'text-accent-rose',
+            bg: 'bg-rose-50',
+            sub: inactiveDebt > 0
+              ? `${formatCurrency(activeDebt)} aktiv · ${formatCurrency(inactiveDebt)} deaktiv`
+              : undefined,
+          },
+          {
+            label: 'Borclular sayı',
+            value: `${totalDebtorCount} uşaq`,
+            color: 'text-accent-amber',
+            bg: 'bg-amber-50',
+            sub: inactiveDebtors.length > 0
+              ? `${debtors.length} aktiv · ${inactiveDebtors.length} deaktiv`
+              : undefined,
+          },
+          {
+            label: 'Gözlənilən',
+            value: formatCurrency(currentMonthReport?.totalExpected ?? 0),
+            color: 'text-accent-blue',
+            bg: 'bg-blue-50',
+            sub: undefined as string | undefined,
+          },
         ].map((c, i) => (
           <div key={i} className={cn('rounded-xl p-4 border border-white-border dark:border-gray-700/60', c.bg)}>
             <p className="text-xs text-gray-500 dark:text-gray-400">{c.label}</p>
             <p className={cn('text-lg font-bold font-display mt-1', c.color)}>
               {loadingDebtors || loadingReports ? '...' : c.value}
             </p>
+            {c.sub && !loadingDebtors && (
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 font-mono-nums">
+                {c.sub}
+              </p>
+            )}
           </div>
         ))}
       </div>

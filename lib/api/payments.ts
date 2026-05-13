@@ -26,6 +26,13 @@ export const paymentsApi = {
     return unwrap<DebtorInfo[]>(res);
   },
 
+  getInactiveDebtors: async (options?: { silentError?: boolean }) => {
+    const res = await apiClient.get('/api/paymentses/debtors/inactive', {
+      headers: options?.silentError ? { 'X-Silent-Error': '1' } : undefined,
+    });
+    return unwrap<DebtorInfo[]>(res);
+  },
+
   getChildHistory: async (childId: number) => {
     const res = await apiClient.get(`/api/paymentses/child/${childId}`);
     return unwrap<Payment[]>(res);
