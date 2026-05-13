@@ -14,7 +14,7 @@ import { cashboxesApi } from '@/lib/api/cashboxes';
 import { formatCurrency } from '@/lib/utils/format';
 import { DollarSign, ReceiptText, Trash2, Search, X, ChevronDown, User, Check, CalendarDays, Layers, ArrowDownToLine } from 'lucide-react';
 import { cn } from '@/lib/utils/constants';
-import type { Payment, Cashbox } from '@/types';
+import type { Payment, Cashbox, ChildStatus } from '@/types';
 
 type BulkMonthStatus = 'paid' | 'partial' | 'unpaid' | 'new' | 'free';
 
@@ -112,6 +112,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const comboboxRef = useRef<HTMLDivElement>(null);
   const [currentChildMonthlyFee, setCurrentChildMonthlyFee] = useState(0);
   const [currentChildDiscount, setCurrentChildDiscount] = useState(0);
+  const [currentChildStatus, setCurrentChildStatus] = useState<ChildStatus | null>(null);
   const [history, setHistory] = useState<Payment[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [cashboxes, setCashboxes] = useState<{ value: string; label: string }[]>([]);
@@ -303,6 +304,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
     if (!effectiveChildId) {
       setCurrentChildMonthlyFee(0);
       setCurrentChildDiscount(0);
+      setCurrentChildStatus(null);
       return;
     }
 
@@ -316,11 +318,13 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
           const discount = detail.discountPercentage ?? 0;
           setCurrentChildMonthlyFee(discount > 0 ? fee - (fee * discount) / 100 : fee);
           setCurrentChildDiscount(discount);
+          setCurrentChildStatus(detail.status ?? null);
         }
       } catch {
         if (active) {
           setCurrentChildMonthlyFee(0);
           setCurrentChildDiscount(0);
+          setCurrentChildStatus(null);
         }
       }
     };
@@ -386,13 +390,16 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
     return Math.max(0, roundingState.original - roundingState.rounded);
   }, [roundingState, watchedAmount]);
 
-  // Can we suggest rounding down? Need a positive amount whose floor-to-10 is meaningful.
+  // The rounding courtesy is only meaningful for deactivated children — their pro-rated
+  // amounts (e.g. 203 ₼ for a partial month) are the ones admins typically forgive down
+  // to nice round numbers. Active children pay normal monthly fees and don't need this.
   const canRoundDown = useMemo(() => {
+    if (currentChildStatus !== 'Inactive') return false;
     const amt = typeof watchedAmount === 'number' && Number.isFinite(watchedAmount) ? watchedAmount : 0;
-    if (amt <= 10) return false;                       // too small to round
+    if (amt <= 10) return false;
     const rounded = Math.floor(amt / 10) * 10;
-    return rounded > 0 && rounded < amt;               // must actually reduce
-  }, [watchedAmount]);
+    return rounded > 0 && rounded < amt;
+  }, [watchedAmount, currentChildStatus]);
 
   const handleRoundDown = () => {
     const amt = typeof watchedAmount === 'number' && Number.isFinite(watchedAmount) ? watchedAmount : 0;

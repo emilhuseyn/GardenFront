@@ -11,6 +11,7 @@ import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from '@/com
 import { PaymentTable } from '@/components/payments/PaymentTable';
 import { DebtorRow } from '@/components/payments/DebtorRow';
 import { PaymentForm } from '@/components/payments/PaymentForm';
+import { InactivePaymentList } from '@/components/payments/InactivePaymentList';
 import { SmartPaymentForecast } from '@/components/payments/SmartPaymentForecast';
 import { BarChart } from '@/components/charts/BarChart';
 import { Badge } from '@/components/ui/Badge';
@@ -23,7 +24,7 @@ import { paymentsApi } from '@/lib/api/payments';
 import { groupsApi } from '@/lib/api/groups';
 import type { DebtorInfo, MonthlyPaymentReport, DailyPaymentReport, Payment } from '@/types';
 
-const TABS = ['Ödənişlər', 'Borclular', 'Günlük', 'Hesabat'] as const;
+const TABS = ['Ödənişlər', 'Borclular', 'Deaktivlər', 'Günlük', 'Hesabat'] as const;
 type Tab = typeof TABS[number];
 
 const AZ_MONTHS = ['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'];
@@ -977,6 +978,13 @@ export default function PaymentsPage() {
             })()}
           </div>
         )}
+
+      {tab === 'Deaktivlər' && (
+        <InactivePaymentList
+          refreshKey={tableRefreshKey}
+          onRecord={(childId, month, childName) => handleRecord(childId, month, childName)}
+        />
+      )}
 
       {tab === 'Günlük' && (
           <div className="space-y-5">
