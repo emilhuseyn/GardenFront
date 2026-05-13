@@ -12,7 +12,7 @@ import { paymentsApi } from '@/lib/api/payments';
 import { childrenApi } from '@/lib/api/children';
 import { cashboxesApi } from '@/lib/api/cashboxes';
 import { formatCurrency } from '@/lib/utils/format';
-import { DollarSign, ReceiptText, Trash2, Search, X, ChevronDown, User, Check, CalendarDays, Layers, ArrowDownToLine } from 'lucide-react';
+import { DollarSign, ReceiptText, Trash2, Search, X, ChevronDown, User, Check, CalendarDays, Layers, ArrowDownToLine, Info } from 'lucide-react';
 import { cn } from '@/lib/utils/constants';
 import type { Payment, Cashbox, ChildStatus } from '@/types';
 
@@ -111,6 +111,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const comboboxRef = useRef<HTMLDivElement>(null);
   const [currentChildMonthlyFee, setCurrentChildMonthlyFee] = useState(0);
+  const [currentChildRawMonthlyFee, setCurrentChildRawMonthlyFee] = useState(0);
   const [currentChildDiscount, setCurrentChildDiscount] = useState(0);
   const [currentChildStatus, setCurrentChildStatus] = useState<ChildStatus | null>(null);
   const [history, setHistory] = useState<Payment[]>([]);
@@ -316,6 +317,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
         if (active) {
           const fee = detail.monthlyFee ?? 0;
           const discount = detail.discountPercentage ?? 0;
+          setCurrentChildRawMonthlyFee(fee);
           setCurrentChildMonthlyFee(discount > 0 ? fee - (fee * discount) / 100 : fee);
           setCurrentChildDiscount(discount);
           setCurrentChildStatus(detail.status ?? null);
@@ -323,6 +325,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
       } catch {
         if (active) {
           setCurrentChildMonthlyFee(0);
+          setCurrentChildRawMonthlyFee(0);
           setCurrentChildDiscount(0);
           setCurrentChildStatus(null);
         }
@@ -339,6 +342,31 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const paidBefore = currentPayment?.paidAmount ?? 0;
   const remainingBefore = currentPayment?.remainingDebt ?? 0;
   const monthTotal = currentPayment?.finalAmount ?? currentPayment?.originalAmount ?? 0;
+
+  // Detect pro-rated period info stored in Notes: "Dövr: {startDay}-{endDay} ({daysActive} gün)"
+  // Backend writes this whenever a payment was billed for a partial month (mid-month entry or exit).
+  const periodInfo = useMemo(() => {
+    const notes = currentPayment?.notes;
+    if (!notes) return null;
+    const match = notes.match(/Dövr:\s*(\d+)\s*-\s*(\d+)\s*\(\s*(\d+)\s*gün\s*\)/i);
+    if (!match) return null;
+    return {
+      startDay: Number(match[1]),
+      endDay: Number(match[2]),
+      daysActive: Number(match[3]),
+    };
+  }, [currentPayment?.notes]);
+
+  const monthLabel = useMemo(() => {
+    const m = typeof watchedMonth === 'number' ? watchedMonth : 0;
+    return MONTH_OPTIONS[m - 1]?.label ?? '';
+  }, [watchedMonth]);
+
+  const daysInMonthCount = useMemo(() => {
+    const y = typeof watchedYear === 'number' ? watchedYear : new Date().getFullYear();
+    const m = typeof watchedMonth === 'number' ? watchedMonth : 1;
+    return new Date(y, m, 0).getDate();
+  }, [watchedMonth, watchedYear]);
 
   useEffect(() => {
     // If there is an existing monthly record, prefill with that month's total amount.
@@ -831,6 +859,29 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
                 <p className="font-semibold text-accent-rose mt-1">{formatCurrency(remainingBefore)}</p>
               </div>
             </div>
+
+            {periodInfo && currentPayment && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50/70 dark:bg-blue-900/15 dark:border-blue-800/40 px-3 py-2">
+                <p className="text-[11px] font-bold text-blue-900 dark:text-blue-300 flex items-center gap-1.5">
+                  <Info size={12} /> Niyə {formatCurrency(currentPayment.finalAmount)}? (tam aylıq deyil)
+                </p>
+                <div className="mt-1 space-y-0.5 text-[11px] text-blue-800/90 dark:text-blue-300/90 leading-relaxed">
+                  <p>
+                    Uşaq <b>{monthLabel}</b> ayında {periodInfo.startDay}-dən {periodInfo.endDay}-ə kimi bağçada olub
+                    {' '}= <b>{periodInfo.daysActive} gün</b>.
+                  </p>
+                  {currentChildRawMonthlyFee > 0 && (
+                    <p className="font-mono-nums">
+                      Hesablama: {currentChildRawMonthlyFee} ₼ × {periodInfo.daysActive} gün ÷ {daysInMonthCount} gün
+                      {currentChildDiscount > 0 ? (
+                        <> × (1 − {currentChildDiscount}%)</>
+                      ) : null}
+                      {' = '}<b>{formatCurrency(currentPayment.finalAmount)}</b>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {plannedAmount > 0 && remainingAfter !== null && (
               <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-gray-600 dark:text-gray-300">
