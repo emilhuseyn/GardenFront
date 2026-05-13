@@ -12,8 +12,26 @@ import { paymentsApi } from '@/lib/api/payments';
 import { childrenApi } from '@/lib/api/children';
 import { cashboxesApi } from '@/lib/api/cashboxes';
 import { formatCurrency } from '@/lib/utils/format';
-import { DollarSign, ReceiptText, Trash2, Search, X, ChevronDown, User } from 'lucide-react';
+import { DollarSign, ReceiptText, Trash2, Search, X, ChevronDown, User, Check, CalendarDays, Layers } from 'lucide-react';
+import { cn } from '@/lib/utils/constants';
 import type { Payment, Cashbox } from '@/types';
+
+type BulkMonthStatus = 'paid' | 'partial' | 'unpaid' | 'new' | 'free';
+
+interface BulkMonthState {
+  status: BulkMonthStatus;
+  amountDue: number;
+  paidSoFar: number;
+  finalAmount: number;
+}
+
+const BULK_MONTH_STYLES: Record<BulkMonthStatus, { bg: string; icon: string; label: string; textColor: string; ringColor: string }> = {
+  paid:    { bg: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40',     icon: '✓', label: 'Ödənildi',    textColor: 'text-green-700 dark:text-green-400',   ringColor: 'ring-green-400'  },
+  partial: { bg: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40',     icon: '½', label: 'Yarımçıq',    textColor: 'text-amber-700 dark:text-amber-400',   ringColor: 'ring-amber-400'  },
+  unpaid:  { bg: 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800/40',         icon: '✕', label: 'Borc',        textColor: 'text-rose-700 dark:text-rose-400',     ringColor: 'ring-rose-400'   },
+  new:     { bg: 'bg-white dark:bg-[#1e2130] border-gray-200 dark:border-gray-700/60',             icon: '·', label: 'Yeni',        textColor: 'text-gray-500 dark:text-gray-400',     ringColor: 'ring-primary'    },
+  free:    { bg: 'bg-gray-100 dark:bg-gray-800/40 border-gray-200 dark:border-gray-700/60',        icon: '–', label: 'Ödənişsiz',   textColor: 'text-gray-400 dark:text-gray-500',     ringColor: 'ring-gray-400'   },
+};
 
 const MONTH_OPTIONS = [
   { value: '1', label: 'Yanvar' },  { value: '2', label: 'Fevral' },
@@ -102,6 +120,12 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [receiptLoading, setReceiptLoading] = useState(false);
   const [lastRecordedPaymentId, setLastRecordedPaymentId] = useState<number | null>(null);
+
+  // Multi-month ödəniş rejimi
+  const [mode, setMode] = useState<'single' | 'bulk'>('single');
+  const [bulkYear, setBulkYear] = useState<number>(new Date().getFullYear());
+  const [bulkSelectedMonths, setBulkSelectedMonths] = useState<Set<number>>(new Set());
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -237,6 +261,8 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const watchedMonth = useWatch({ control, name: 'month' });
   const watchedYear = useWatch({ control, name: 'year' });
   const watchedAmount = useWatch({ control, name: 'amount' });
+  const watchedCashboxId = useWatch({ control, name: 'cashboxId' });
+  const watchedNotes = useWatch({ control, name: 'notes' });
 
   const effectiveChildId =
     typeof watchedChildId === 'number' && watchedChildId > 0
@@ -341,6 +367,124 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
     // Re-enable submit when user switches child or period for a new payment.
     setLastRecordedPaymentId(null);
   }, [effectiveChildId, watchedMonth, watchedYear]);
+
+  // Bulk: il dəyişəndə və ya uşaq dəyişəndə seçilmiş ayları sıfırla
+  useEffect(() => {
+    setBulkSelectedMonths(new Set());
+  }, [bulkYear, effectiveChildId, mode]);
+
+  const currentYear = new Date().getFullYear();
+  const yearOptions = useMemo(() => {
+    const years = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
+    return years.map((y) => ({ value: String(y), label: String(y) }));
+  }, [currentYear]);
+
+  const bulkMonthsState = useMemo<Record<number, BulkMonthState>>(() => {
+    const map: Record<number, BulkMonthState> = {};
+    const isFreeChild = currentChildDiscount === 100;
+    const fallbackFee = currentChildMonthlyFee > 0 ? currentChildMonthlyFee : 0;
+
+    for (let m = 1; m <= 12; m += 1) {
+      const p = history.find((x) => x.month === m && x.year === bulkYear);
+      if (p) {
+        const finalAmt = p.finalAmount ?? 0;
+        const paid = p.paidAmount ?? 0;
+        const remaining = p.remainingDebt ?? Math.max(0, finalAmt - paid);
+
+        if (isFreeChild || finalAmt <= 0) {
+          map[m] = { status: 'free', amountDue: 0, paidSoFar: paid, finalAmount: finalAmt };
+        } else if (remaining <= 0) {
+          map[m] = { status: 'paid', amountDue: 0, paidSoFar: paid, finalAmount: finalAmt };
+        } else if (paid > 0) {
+          map[m] = { status: 'partial', amountDue: remaining, paidSoFar: paid, finalAmount: finalAmt };
+        } else {
+          map[m] = { status: 'unpaid', amountDue: finalAmt, paidSoFar: 0, finalAmount: finalAmt };
+        }
+      } else {
+        map[m] = {
+          status: isFreeChild ? 'free' : 'new',
+          amountDue: isFreeChild ? 0 : fallbackFee,
+          paidSoFar: 0,
+          finalAmount: isFreeChild ? 0 : fallbackFee,
+        };
+      }
+    }
+    return map;
+  }, [history, bulkYear, currentChildMonthlyFee, currentChildDiscount]);
+
+  const bulkTotal = useMemo(() => {
+    let total = 0;
+    bulkSelectedMonths.forEach((m) => {
+      total += bulkMonthsState[m]?.amountDue ?? 0;
+    });
+    return total;
+  }, [bulkSelectedMonths, bulkMonthsState]);
+
+  const bulkAvailableMonths = useMemo(() => {
+    return Object.entries(bulkMonthsState)
+      .filter(([, s]) => s.status !== 'paid' && s.status !== 'free')
+      .map(([k]) => Number(k));
+  }, [bulkMonthsState]);
+
+  const toggleBulkMonth = (m: number) => {
+    const state = bulkMonthsState[m];
+    if (!state) return;
+    if (state.status === 'paid' || state.status === 'free') return;
+    setBulkSelectedMonths((prev) => {
+      const next = new Set(prev);
+      if (next.has(m)) next.delete(m);
+      else next.add(m);
+      return next;
+    });
+  };
+
+  const selectAllBulkMonths = () => {
+    setBulkSelectedMonths(new Set(bulkAvailableMonths));
+  };
+
+  const clearBulkSelection = () => {
+    setBulkSelectedMonths(new Set());
+  };
+
+  const handleBulkSubmit = async () => {
+    if (!effectiveChildId) {
+      toast.error('Əvvəlcə uşaq seçin');
+      return;
+    }
+    if (bulkSelectedMonths.size === 0) {
+      toast.error('Ən azı bir ay seçin');
+      return;
+    }
+    const cashboxIdNum = typeof watchedCashboxId === 'number' ? watchedCashboxId : Number(watchedCashboxId);
+    if (!cashboxIdNum || cashboxIdNum <= 0) {
+      toast.error('Kassa seçin');
+      return;
+    }
+
+    setBulkSubmitting(true);
+    try {
+      const res = await paymentsApi.recordBulk({
+        childId: effectiveChildId,
+        year: bulkYear,
+        cashboxId: cashboxIdNum,
+        months: Array.from(bulkSelectedMonths).sort((a, b) => a - b),
+        notes: typeof watchedNotes === 'string' && watchedNotes.trim() ? watchedNotes.trim() : undefined,
+      });
+      toast.success(`${res.paidCount} ay üçün ${formatCurrency(res.totalPaid)} qeyd edildi`);
+      // Refresh history so the grid updates instantly
+      try {
+        const fresh = await paymentsApi.getChildHistory(effectiveChildId);
+        setHistory(fresh);
+      } catch {/* ignore */}
+      setBulkSelectedMonths(new Set());
+      onSuccess?.();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Xəta baş verdi';
+      toast.error(message);
+    } finally {
+      setBulkSubmitting(false);
+    }
+  };
 
   const filteredChildOptions = useMemo(() => {
     if (!childSearch.trim()) {
@@ -560,6 +704,37 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
           )}
         </div>
       )}
+
+      {/* Mode toggle: Bir ay / Çoxlu ay */}
+      <div className="flex items-center gap-1 rounded-xl border border-white-border dark:border-gray-700/60 bg-gray-50 dark:bg-[#252836] p-1">
+        <button
+          type="button"
+          onClick={() => setMode('single')}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all',
+            mode === 'single'
+              ? 'bg-white dark:bg-[#1e2130] text-primary shadow-sm ring-1 ring-primary/15'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+          )}
+        >
+          <CalendarDays size={13} /> Bir ay
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('bulk')}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all',
+            mode === 'bulk'
+              ? 'bg-white dark:bg-[#1e2130] text-primary shadow-sm ring-1 ring-primary/15'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+          )}
+        >
+          <Layers size={13} /> Çoxlu ay
+        </button>
+      </div>
+
+      {mode === 'single' && (
+        <>
       <div className="grid grid-cols-2 gap-3">
         <Select
           {...register('month', { valueAsNumber: true })}
@@ -636,6 +811,156 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
         </div>
         {errors.amount && <p className="mt-1 text-xs text-accent-rose">⚠ {errors.amount.message}</p>}
       </div>
+        </>
+      )}
+
+      {mode === 'bulk' && (
+        <div className="space-y-3">
+          {!effectiveChildId ? (
+            <div className="rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
+              Çoxlu ay seçimi üçün əvvəlcə uşaq seçin.
+            </div>
+          ) : (
+            <>
+              {/* Year selector */}
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white-border dark:border-gray-700/60 bg-gray-50/60 dark:bg-[#252836] px-3 py-2.5">
+                <div className="flex items-center gap-2">
+                  <CalendarDays size={14} className="text-gray-400" />
+                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">İl</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {yearOptions.map((y) => (
+                    <button
+                      type="button"
+                      key={y.value}
+                      onClick={() => setBulkYear(Number(y.value))}
+                      className={cn(
+                        'min-w-[56px] rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all',
+                        bulkYear === Number(y.value)
+                          ? 'bg-primary text-white shadow-sm'
+                          : 'bg-white dark:bg-[#1e2130] text-gray-500 dark:text-gray-400 border border-white-border dark:border-gray-700/60 hover:text-gray-700 dark:hover:text-gray-200'
+                      )}
+                    >
+                      {y.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bulk actions */}
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Ayları seçin
+                </p>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={selectAllBulkMonths}
+                    disabled={historyLoading || bulkAvailableMonths.length === 0}
+                    className="font-semibold text-primary hover:underline disabled:opacity-50 disabled:no-underline"
+                  >
+                    Hamısını seç
+                  </button>
+                  <span className="text-gray-300 dark:text-gray-600">|</span>
+                  <button
+                    type="button"
+                    onClick={clearBulkSelection}
+                    disabled={bulkSelectedMonths.size === 0}
+                    className="font-semibold text-gray-500 dark:text-gray-400 hover:underline disabled:opacity-50 disabled:no-underline"
+                  >
+                    Sıfırla
+                  </button>
+                </div>
+              </div>
+
+              {/* 12-month grid */}
+              {historyLoading ? (
+                <div className="rounded-xl border border-white-border dark:border-gray-700/60 bg-gray-50/60 dark:bg-[#252836] p-3 text-center text-xs text-gray-400">
+                  Yüklənir...
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
+                    const state = bulkMonthsState[m];
+                    if (!state) return null;
+                    const style = BULK_MONTH_STYLES[state.status];
+                    const isSelected = bulkSelectedMonths.has(m);
+                    const isDisabled = state.status === 'paid' || state.status === 'free';
+                    const monthLabel = MONTH_OPTIONS[m - 1].label;
+
+                    return (
+                      <button
+                        type="button"
+                        key={m}
+                        onClick={() => toggleBulkMonth(m)}
+                        disabled={isDisabled}
+                        className={cn(
+                          'relative rounded-xl border-2 p-2.5 text-left transition-all overflow-hidden',
+                          style.bg,
+                          isSelected && !isDisabled ? 'ring-2 ring-primary border-primary scale-[1.02] shadow-md' : 'border-transparent',
+                          isDisabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:shadow-sm hover:-translate-y-px active:scale-[0.98]'
+                        )}
+                      >
+                        {isSelected && !isDisabled && (
+                          <span className="absolute top-1.5 right-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white shadow-sm">
+                            <Check size={12} strokeWidth={3} />
+                          </span>
+                        )}
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-bold text-gray-800 dark:text-gray-100">{monthLabel}</span>
+                        </div>
+                        <div className={cn('mt-1 inline-flex items-center gap-1 text-[10px] font-semibold', style.textColor)}>
+                          <span>{style.icon}</span>
+                          <span>{style.label}</span>
+                        </div>
+                        <div className="mt-1 text-sm font-bold font-mono-nums text-gray-800 dark:text-gray-100">
+                          {state.amountDue > 0 ? formatCurrency(state.amountDue) : '—'}
+                        </div>
+                        {state.status === 'partial' && state.paidSoFar > 0 && (
+                          <div className="mt-0.5 text-[9px] text-gray-500 dark:text-gray-400 font-mono-nums truncate">
+                            Ödənilib: {formatCurrency(state.paidSoFar)}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Summary */}
+              <div className={cn(
+                'rounded-xl border p-3 flex items-center justify-between transition-all',
+                bulkSelectedMonths.size > 0
+                  ? 'border-primary/40 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent shadow-sm'
+                  : 'border-white-border dark:border-gray-700/60 bg-gray-50/60 dark:bg-[#252836]'
+              )}>
+                <div>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wide font-semibold">Seçilmiş</p>
+                  <p className="text-sm font-bold text-gray-800 dark:text-gray-100 mt-0.5">
+                    {bulkSelectedMonths.size} ay
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wide font-semibold">Toplam məbləğ</p>
+                  <p className={cn(
+                    'text-2xl font-extrabold font-mono-nums leading-none mt-0.5',
+                    bulkSelectedMonths.size > 0 ? 'text-primary' : 'text-gray-400 dark:text-gray-500'
+                  )}>
+                    {formatCurrency(bulkTotal)}
+                  </p>
+                </div>
+              </div>
+
+              {currentChildDiscount > 0 && currentChildDiscount < 100 && (
+                <div className="rounded-lg border border-rose-100 bg-rose-50/60 dark:bg-rose-900/10 dark:border-rose-900/40 px-3 py-2 text-[11px] text-rose-700 dark:text-rose-400">
+                  Bu uşağa <b>{currentChildDiscount}%</b> endirim tətbiq olunub — məbləğlər endirimli göstərilir.
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       <Select
         {...register('cashboxId', { valueAsNumber: true })}
         label="Kassa *"
@@ -644,7 +969,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
         error={errors.cashboxId?.message}
       />
       <Input {...register('notes')} label="Qeyd (opsional)" placeholder="Əlave məlumat..." />
-      {currentPayment && currentPayment.paidAmount > 0 && (
+      {mode === 'single' && currentPayment && currentPayment.paidAmount > 0 && (
         <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
           <p className="text-xs text-rose-700 mb-2">Bu ay üçün mövcud ödəniş qeydi üçün çeki görə və silə bilərsiniz.</p>
           <div className="flex flex-wrap gap-2">
@@ -672,18 +997,35 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
         >
           {lastRecordedPaymentId ? 'Bağla' : 'Ləğv et'}
         </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={!lastRecordedPaymentId}
-          loading={receiptLoading}
-          onClick={() => lastRecordedPaymentId && handleShowReceipt(lastRecordedPaymentId)}
-        >
-          <ReceiptText size={14} /> Çeki göstər
-        </Button>
-        <Button type="submit" className="flex-1" loading={isSubmitting} disabled={!!lastRecordedPaymentId}>
-          <DollarSign size={14} /> Qeyd et
-        </Button>
+        {mode === 'single' && (
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!lastRecordedPaymentId}
+            loading={receiptLoading}
+            onClick={() => lastRecordedPaymentId && handleShowReceipt(lastRecordedPaymentId)}
+          >
+            <ReceiptText size={14} /> Çeki göstər
+          </Button>
+        )}
+        {mode === 'single' ? (
+          <Button type="submit" className="flex-1" loading={isSubmitting} disabled={!!lastRecordedPaymentId}>
+            <DollarSign size={14} /> Qeyd et
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            className="flex-1"
+            loading={bulkSubmitting}
+            disabled={bulkSelectedMonths.size === 0 || !effectiveChildId}
+            onClick={handleBulkSubmit}
+          >
+            <DollarSign size={14} />
+            {bulkSelectedMonths.size > 0
+              ? `${bulkSelectedMonths.size} ay üçün qeyd et`
+              : 'Qeyd et'}
+          </Button>
+        )}
       </div>
     </form>
 

@@ -56,6 +56,17 @@ export const paymentsApi = {
     return unwrap<Payment>(res);
   },
 
+  recordBulk: async (data: {
+    childId: number;
+    year: number;
+    cashboxId: number;
+    months: number[];
+    notes?: string;
+  }) => {
+    const res = await apiClient.post('/api/paymentses/record-bulk', data);
+    return unwrap<{ paidCount: number; totalPaid: number; payments: Payment[] }>(res);
+  },
+
   generateMonthly: async (month: number, year: number) => {
     const res = await apiClient.post('/api/paymentses/generate-monthly', null, { params: { month, year } });
     return unwrap(res);
