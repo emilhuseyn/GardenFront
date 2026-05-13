@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
@@ -47,6 +48,7 @@ function formatDateAz(dateStr?: string | null): string | undefined {
 }
 
 export function InactivePaymentList({ refreshKey = 0, onRecord, onInitialLoadDone }: InactivePaymentListProps) {
+  const router = useRouter();
   const [rows, setRows] = useState<InactiveRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -271,55 +273,69 @@ export function InactivePaymentList({ refreshKey = 0, onRecord, onInitialLoadDon
                 )}
               >
                 <div className="flex flex-wrap items-start gap-3">
-                  <Avatar name={name} size="md" />
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => router.push(`/children/${row.child.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        router.push(`/children/${row.child.id}`);
+                      }
+                    }}
+                    title="Uşağın detal səhifəsinə keç"
+                    className="flex items-start gap-3 flex-1 min-w-0 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary/30 focus:rounded-lg -mx-1 px-1 -my-0.5 py-0.5"
+                  >
+                    <Avatar name={name} size="md" />
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{name}</h3>
-                      <Badge variant="inactive" size="xs">Deaktiv</Badge>
-                      {row.child.discountPercentage && row.child.discountPercentage > 0 && row.child.discountPercentage < 100 && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200/60 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50">
-                          -{row.child.discountPercentage}%
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
-                      <span>{row.child.groupName}</span>
-                      {row.deactivationDateLabel && (
-                        <>
-                          <span className="text-gray-300 dark:text-gray-600">·</span>
-                          <span className="inline-flex items-center gap-1">
-                            <CalendarX size={10} /> {row.deactivationDateLabel}
-                          </span>
-                        </>
-                      )}
-                      {row.child.parentFullName && (
-                        <>
-                          <span className="text-gray-300 dark:text-gray-600">·</span>
-                          <span className="truncate">Valideyn: {row.child.parentFullName}</span>
-                        </>
-                      )}
-                    </div>
-
-                    {row.unpaidMonths.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {row.unpaidMonths.slice(0, 6).map((m) => (
-                          <span
-                            key={`${m.year}-${m.month}`}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-rose-50 text-rose-700 border border-rose-200/60 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800/40"
-                            title={`Cəmi: ${formatCurrency(m.final)} · Ödənilib: ${formatCurrency(m.paid)}`}
-                          >
-                            <b>{AZ_MONTHS[m.month - 1]}</b> {formatCurrency(m.remaining)}
-                          </span>
-                        ))}
-                        {row.unpaidMonths.length > 6 && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/40">
-                            +{row.unpaidMonths.length - 6} ay
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100 group-hover:text-primary transition-colors truncate">{name}</h3>
+                        <Badge variant="inactive" size="xs">Deaktiv</Badge>
+                        {row.child.discountPercentage && row.child.discountPercentage > 0 && row.child.discountPercentage < 100 && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200/60 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50">
+                            -{row.child.discountPercentage}%
                           </span>
                         )}
                       </div>
-                    )}
+
+                      <div className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
+                        <span>{row.child.groupName}</span>
+                        {row.deactivationDateLabel && (
+                          <>
+                            <span className="text-gray-300 dark:text-gray-600">·</span>
+                            <span className="inline-flex items-center gap-1">
+                              <CalendarX size={10} /> {row.deactivationDateLabel}
+                            </span>
+                          </>
+                        )}
+                        {row.child.parentFullName && (
+                          <>
+                            <span className="text-gray-300 dark:text-gray-600">·</span>
+                            <span className="truncate">Valideyn: {row.child.parentFullName}</span>
+                          </>
+                        )}
+                      </div>
+
+                      {row.unpaidMonths.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {row.unpaidMonths.slice(0, 6).map((m) => (
+                            <span
+                              key={`${m.year}-${m.month}`}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-rose-50 text-rose-700 border border-rose-200/60 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800/40"
+                              title={`Cəmi: ${formatCurrency(m.final)} · Ödənilib: ${formatCurrency(m.paid)}`}
+                            >
+                              <b>{AZ_MONTHS[m.month - 1]}</b> {formatCurrency(m.remaining)}
+                            </span>
+                          ))}
+                          {row.unpaidMonths.length > 6 && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/40">
+                              +{row.unpaidMonths.length - 6} ay
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex flex-col items-end gap-2 ml-auto">
