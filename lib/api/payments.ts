@@ -51,7 +51,7 @@ export const paymentsApi = {
     return unwrap<MonthlyPaymentReport>(res);
   },
 
-  record: async (data: PaymentFormData) => {
+  record: async (data: PaymentFormData & { roundingDiscount?: number }) => {
     const res = await apiClient.post('/api/paymentses/record', data);
     return unwrap<Payment>(res);
   },

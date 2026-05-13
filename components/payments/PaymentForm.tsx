@@ -12,7 +12,7 @@ import { paymentsApi } from '@/lib/api/payments';
 import { childrenApi } from '@/lib/api/children';
 import { cashboxesApi } from '@/lib/api/cashboxes';
 import { formatCurrency } from '@/lib/utils/format';
-import { DollarSign, ReceiptText, Trash2, Search, X, ChevronDown, User, Check, CalendarDays, Layers } from 'lucide-react';
+import { DollarSign, ReceiptText, Trash2, Search, X, ChevronDown, User, Check, CalendarDays, Layers, ArrowDownToLine } from 'lucide-react';
 import { cn } from '@/lib/utils/constants';
 import type { Payment, Cashbox } from '@/types';
 
@@ -126,6 +126,11 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const [bulkYear, setBulkYear] = useState<number>(new Date().getFullYear());
   const [bulkSelectedMonths, setBulkSelectedMonths] = useState<Set<number>>(new Set());
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
+
+  // Admin "Yuvarlaqlaşdır" courtesy discount tracking
+  // When admin clicks the button we remember the original + rounded value so we can
+  // compute the discount and detect if the admin manually overrides the amount.
+  const [roundingState, setRoundingState] = useState<{ original: number; rounded: number } | null>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -368,6 +373,41 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
     setLastRecordedPaymentId(null);
   }, [effectiveChildId, watchedMonth, watchedYear]);
 
+  // Reset rounding state when context changes
+  useEffect(() => {
+    setRoundingState(null);
+  }, [effectiveChildId, watchedMonth, watchedYear, mode]);
+
+  // Active rounding discount: only applies as long as the form amount equals the rounded value
+  const effectiveRoundingDiscount = useMemo(() => {
+    if (!roundingState) return 0;
+    if (typeof watchedAmount !== 'number' || !Number.isFinite(watchedAmount)) return 0;
+    if (watchedAmount !== roundingState.rounded) return 0;
+    return Math.max(0, roundingState.original - roundingState.rounded);
+  }, [roundingState, watchedAmount]);
+
+  // Can we suggest rounding down? Need a positive amount whose floor-to-10 is meaningful.
+  const canRoundDown = useMemo(() => {
+    const amt = typeof watchedAmount === 'number' && Number.isFinite(watchedAmount) ? watchedAmount : 0;
+    if (amt <= 10) return false;                       // too small to round
+    const rounded = Math.floor(amt / 10) * 10;
+    return rounded > 0 && rounded < amt;               // must actually reduce
+  }, [watchedAmount]);
+
+  const handleRoundDown = () => {
+    const amt = typeof watchedAmount === 'number' && Number.isFinite(watchedAmount) ? watchedAmount : 0;
+    const rounded = Math.floor(amt / 10) * 10;
+    if (rounded <= 0 || rounded >= amt) return;
+    setValue('amount', rounded, { shouldValidate: true, shouldDirty: false, shouldTouch: false });
+    setRoundingState({ original: amt, rounded });
+  };
+
+  const handleClearRounding = () => {
+    if (!roundingState) return;
+    setValue('amount', roundingState.original, { shouldValidate: true, shouldDirty: false, shouldTouch: false });
+    setRoundingState(null);
+  };
+
   // Bulk: il dəyişəndə və ya uşaq dəyişəndə seçilmiş ayları sıfırla
   useEffect(() => {
     setBulkSelectedMonths(new Set());
@@ -499,9 +539,17 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
 
   const onSubmit = async (data: PaymentFormValues) => {
     try {
-      const recorded = await paymentsApi.record(data);
+      const recorded = await paymentsApi.record({
+        ...data,
+        roundingDiscount: effectiveRoundingDiscount > 0 ? effectiveRoundingDiscount : undefined,
+      });
       setLastRecordedPaymentId(recorded.id);
-      toast.success('Ödəniş uğurla qeyd edildi');
+      setRoundingState(null);
+      toast.success(
+        effectiveRoundingDiscount > 0
+          ? `Ödəniş qeyd edildi (yuvarlaqlaşdırma endirimi: ${formatCurrency(effectiveRoundingDiscount)})`
+          : 'Ödəniş uğurla qeyd edildi'
+      );
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Xəta baş verdi';
       toast.error(message);
@@ -790,18 +838,36 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
       </div>
 
       <div className="relative">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-          Məbləğ (₼) *
-          {currentChildDiscount > 0 && (
-            <span className="ml-1.5 inline-flex items-center rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-600 border border-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20">
-              Endirimli
-            </span>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Məbləğ (₼) *
+            {currentChildDiscount > 0 && (
+              <span className="ml-1.5 inline-flex items-center rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-600 border border-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20">
+                Endirimli
+              </span>
+            )}
+          </label>
+          {canRoundDown && !effectiveRoundingDiscount && (
+            <button
+              type="button"
+              onClick={handleRoundDown}
+              title="Ən yaxın 10 ₼-ə aşağı yuvarlaqlaşdır"
+              className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 transition-colors dark:bg-amber-900/20 dark:border-amber-800/40 dark:text-amber-400 dark:hover:bg-amber-900/30"
+            >
+              <ArrowDownToLine size={11} /> Yuvarlaqlaşdır
+            </button>
           )}
-        </label>
+        </div>
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">₼</span>
           <input
-            {...register('amount', { valueAsNumber: true })}
+            {...register('amount', {
+              valueAsNumber: true,
+              onChange: () => {
+                // If admin manually edits the amount, drop any active rounding state.
+                if (roundingState) setRoundingState(null);
+              },
+            })}
             type="number"
             step="0.01"
             className="w-full h-10 pl-8 pr-4 text-sm border border-white-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400"
@@ -810,6 +876,20 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
           />
         </div>
         {errors.amount && <p className="mt-1 text-xs text-accent-rose">⚠ {errors.amount.message}</p>}
+        {effectiveRoundingDiscount > 0 && (
+          <div className="mt-1.5 flex items-center justify-between rounded-md border border-amber-200 bg-amber-50/70 px-2.5 py-1.5 text-[11px] dark:bg-amber-900/15 dark:border-amber-800/40">
+            <span className="text-amber-800 dark:text-amber-300">
+              <b>Yuvarlaqlaşdırma endirimi:</b> {formatCurrency(effectiveRoundingDiscount)} bağışlanacaq
+            </span>
+            <button
+              type="button"
+              onClick={handleClearRounding}
+              className="text-[10px] font-semibold text-amber-700 hover:underline dark:text-amber-400"
+            >
+              Geri qaytar
+            </button>
+          </div>
+        )}
       </div>
         </>
       )}
