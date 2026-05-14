@@ -133,6 +133,9 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const [bulkPartialEnabled, setBulkPartialEnabled] = useState(false);
   const [bulkPartialEndDay, setBulkPartialEndDay] = useState<number>(15);
 
+  // Bulk partial mode-da "Yuvarlaqlaşdır" courtesy discount tracking
+  const [bulkRoundingState, setBulkRoundingState] = useState<{ original: number; rounded: number } | null>(null);
+
   // Admin "Yuvarlaqlaşdır" courtesy discount tracking
   // When admin clicks the button we remember the original + rounded value so we can
   // compute the discount and detect if the admin manually overrides the amount.
@@ -530,17 +533,56 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
     return { baseAmount, finalAmount, daysActive: bulkPartialEndDay };
   }, [bulkPartialEnabled, bulkLastSelectedMonth, bulkPartialEndDay, bulkLastMonthDays, currentChildRawMonthlyFee, currentChildDiscount]);
 
+  // Active rounding discount for the partial month — only valid as long as preview matches
+  const bulkPartialRoundingDiscount = useMemo(() => {
+    if (!bulkRoundingState || !bulkPartialPreview) return 0;
+    if (bulkPartialPreview.finalAmount !== bulkRoundingState.original) return 0;
+    return Math.max(0, bulkRoundingState.original - bulkRoundingState.rounded);
+  }, [bulkRoundingState, bulkPartialPreview]);
+
+  // Effective partial amount after applying rounding (if any)
+  const bulkPartialEffectiveAmount = useMemo(() => {
+    if (!bulkPartialPreview) return 0;
+    if (bulkPartialRoundingDiscount > 0) {
+      return bulkPartialPreview.finalAmount - bulkPartialRoundingDiscount;
+    }
+    return bulkPartialPreview.finalAmount;
+  }, [bulkPartialPreview, bulkPartialRoundingDiscount]);
+
+  const canBulkRoundDown = useMemo(() => {
+    if (!bulkPartialPreview) return false;
+    if (bulkPartialRoundingDiscount > 0) return false;            // artıq tətbiq olunub
+    if (bulkPartialPreview.finalAmount <= 10) return false;
+    const rounded = Math.floor(bulkPartialPreview.finalAmount / 10) * 10;
+    return rounded > 0 && rounded < bulkPartialPreview.finalAmount;
+  }, [bulkPartialPreview, bulkPartialRoundingDiscount]);
+
+  const handleBulkRoundDown = () => {
+    if (!bulkPartialPreview) return;
+    const amt = bulkPartialPreview.finalAmount;
+    const rounded = Math.floor(amt / 10) * 10;
+    if (rounded <= 0 || rounded >= amt) return;
+    setBulkRoundingState({ original: amt, rounded });
+  };
+
+  const clearBulkRounding = () => setBulkRoundingState(null);
+
+  // Reset rounding when partial config changes
+  useEffect(() => {
+    setBulkRoundingState(null);
+  }, [bulkPartialEndDay, bulkPartialEnabled, bulkLastSelectedMonth, bulkYear, effectiveChildId]);
+
   const bulkTotal = useMemo(() => {
     let total = 0;
     bulkSelectedMonths.forEach((m) => {
       if (m === bulkLastSelectedMonth && bulkPartialPreview) {
-        total += bulkPartialPreview.finalAmount;
+        total += bulkPartialEffectiveAmount;
       } else {
         total += bulkMonthsState[m]?.amountDue ?? 0;
       }
     });
     return total;
-  }, [bulkSelectedMonths, bulkMonthsState, bulkLastSelectedMonth, bulkPartialPreview]);
+  }, [bulkSelectedMonths, bulkMonthsState, bulkLastSelectedMonth, bulkPartialPreview, bulkPartialEffectiveAmount]);
 
   const bulkAvailableMonths = useMemo(() => {
     return Object.entries(bulkMonthsState)
@@ -586,7 +628,11 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
     setBulkSubmitting(true);
     try {
       const overrides = bulkPartialPreview && bulkLastSelectedMonth
-        ? [{ month: bulkLastSelectedMonth, endDay: bulkPartialEndDay }]
+        ? [{
+            month: bulkLastSelectedMonth,
+            endDay: bulkPartialEndDay,
+            ...(bulkPartialRoundingDiscount > 0 ? { roundingDiscount: bulkPartialRoundingDiscount } : {}),
+          }]
         : undefined;
 
       const res = await paymentsApi.recordBulk({
@@ -1167,14 +1213,36 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
 
                       {bulkPartialPreview ? (
                         <div className="rounded-md border border-blue-200 dark:border-blue-800/40 bg-blue-50/70 dark:bg-blue-900/15 px-2.5 py-2">
-                          <p className="text-[11px] text-blue-900 dark:text-blue-300">
-                            <b>{MONTH_OPTIONS[bulkLastSelectedMonth - 1]?.label} 1-{bulkPartialEndDay} ({bulkPartialPreview.daysActive} gün)</b>
-                            {' = '}
-                            <b>{formatCurrency(bulkPartialPreview.finalAmount)}</b>
-                            <span className="text-blue-700/70 dark:text-blue-400/70">
-                              {' '}(tam {formatCurrency(bulkMonthsState[bulkLastSelectedMonth]?.amountDue ?? 0)} əvəzinə)
-                            </span>
-                          </p>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-[11px] text-blue-900 dark:text-blue-300 flex-1">
+                              <b>{MONTH_OPTIONS[bulkLastSelectedMonth - 1]?.label} 1-{bulkPartialEndDay} ({bulkPartialPreview.daysActive} gün)</b>
+                              {' = '}
+                              <b className={bulkPartialRoundingDiscount > 0 ? 'line-through text-blue-700/60 dark:text-blue-400/60 font-normal' : ''}>
+                                {formatCurrency(bulkPartialPreview.finalAmount)}
+                              </b>
+                              {bulkPartialRoundingDiscount > 0 && (
+                                <>
+                                  {' → '}
+                                  <b className="text-amber-700 dark:text-amber-400">
+                                    {formatCurrency(bulkPartialEffectiveAmount)}
+                                  </b>
+                                </>
+                              )}
+                              <span className="text-blue-700/70 dark:text-blue-400/70">
+                                {' '}(tam {formatCurrency(bulkMonthsState[bulkLastSelectedMonth]?.amountDue ?? 0)} əvəzinə)
+                              </span>
+                            </p>
+                            {canBulkRoundDown && (
+                              <button
+                                type="button"
+                                onClick={handleBulkRoundDown}
+                                title="Ən yaxın 10 ₼-ə aşağı yuvarlaqlaşdır"
+                                className="shrink-0 inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 hover:bg-amber-100 transition-colors dark:bg-amber-900/20 dark:border-amber-800/40 dark:text-amber-400"
+                              >
+                                <ArrowDownToLine size={10} /> Yuvarlaqlaşdır
+                              </button>
+                            )}
+                          </div>
                           <p className="mt-0.5 text-[11px] text-blue-700/80 dark:text-blue-400/80 font-mono-nums">
                             {currentChildRawMonthlyFee} ₼ × {bulkPartialEndDay} ÷ {bulkLastMonthDays}
                             {currentChildDiscount > 0 && currentChildDiscount < 100 && (
@@ -1182,6 +1250,20 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
                             )}
                             {' = '}{formatCurrency(bulkPartialPreview.finalAmount)}
                           </p>
+                          {bulkPartialRoundingDiscount > 0 && (
+                            <div className="mt-1.5 flex items-center justify-between gap-2 rounded border border-amber-200 bg-amber-50/80 px-2 py-1 dark:bg-amber-900/20 dark:border-amber-800/40">
+                              <span className="text-[11px] text-amber-800 dark:text-amber-300">
+                                <b>Yuvarlaqlaşdırma endirimi:</b> {formatCurrency(bulkPartialRoundingDiscount)} bağışlanacaq
+                              </span>
+                              <button
+                                type="button"
+                                onClick={clearBulkRounding}
+                                className="text-[10px] font-semibold text-amber-700 hover:underline dark:text-amber-400"
+                              >
+                                Geri qaytar
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ) : bulkPartialEndDay >= bulkLastMonthDays ? (
                         <div className="rounded-md border border-amber-200 dark:border-amber-800/40 bg-amber-50/70 dark:bg-amber-900/15 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">

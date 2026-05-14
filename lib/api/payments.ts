@@ -69,7 +69,7 @@ export const paymentsApi = {
     cashboxId: number;
     months: number[];
     notes?: string;
-    monthOverrides?: Array<{ month: number; startDay?: number; endDay?: number }>;
+    monthOverrides?: Array<{ month: number; startDay?: number; endDay?: number; roundingDiscount?: number }>;
   }) => {
     const res = await apiClient.post('/api/paymentses/record-bulk', data);
     return unwrap<{ paidCount: number; totalPaid: number; payments: Payment[] }>(res);
