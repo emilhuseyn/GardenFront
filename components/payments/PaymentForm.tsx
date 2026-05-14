@@ -129,6 +129,10 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const [bulkSelectedMonths, setBulkSelectedMonths] = useState<Set<number>>(new Set());
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
 
+  // "Tarixə kimi" gün diapazonu — sonuncu seçilmiş aya tətbiq olunur
+  const [bulkPartialEnabled, setBulkPartialEnabled] = useState(false);
+  const [bulkPartialEndDay, setBulkPartialEndDay] = useState<number>(15);
+
   // Admin "Yuvarlaqlaşdır" courtesy discount tracking
   // When admin clicks the button we remember the original + rounded value so we can
   // compute the discount and detect if the admin manually overrides the amount.
@@ -487,13 +491,56 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
     return map;
   }, [history, bulkYear, currentChildMonthlyFee, currentChildDiscount]);
 
+  // Sonuncu seçilmiş ay (gün diapazonu üçün)
+  const bulkLastSelectedMonth = useMemo(() => {
+    if (bulkSelectedMonths.size === 0) return null;
+    return Math.max(...Array.from(bulkSelectedMonths));
+  }, [bulkSelectedMonths]);
+
+  const bulkLastMonthDays = useMemo(() => {
+    if (!bulkLastSelectedMonth) return 0;
+    return new Date(bulkYear, bulkLastSelectedMonth, 0).getDate();
+  }, [bulkLastSelectedMonth, bulkYear]);
+
+  // Seçim dəyişəndə partial-i sıfırla / day-i hüdudlara sıxışdır
+  useEffect(() => {
+    if (!bulkLastSelectedMonth) {
+      setBulkPartialEnabled(false);
+      return;
+    }
+    setBulkPartialEndDay((d) => {
+      if (d < 1) return Math.min(15, bulkLastMonthDays);
+      if (d > bulkLastMonthDays) return bulkLastMonthDays;
+      return d;
+    });
+  }, [bulkLastSelectedMonth, bulkLastMonthDays]);
+
+  // Sonuncu ay üçün hissəvi məbləğ önizləməsi
+  const bulkPartialPreview = useMemo(() => {
+    if (!bulkPartialEnabled || !bulkLastSelectedMonth || bulkPartialEndDay < 1) return null;
+    if (currentChildRawMonthlyFee <= 0 || bulkLastMonthDays <= 0) return null;
+    if (bulkPartialEndDay >= bulkLastMonthDays) return null;       // tam ay — partial mənası yox
+
+    const baseAmount = Math.round((currentChildRawMonthlyFee * bulkPartialEndDay) / bulkLastMonthDays);
+    const discount = currentChildDiscount > 0 ? currentChildDiscount : 0;
+    const finalAmount = discount > 0
+      ? Math.round(baseAmount * (1 - discount / 100))
+      : baseAmount;
+
+    return { baseAmount, finalAmount, daysActive: bulkPartialEndDay };
+  }, [bulkPartialEnabled, bulkLastSelectedMonth, bulkPartialEndDay, bulkLastMonthDays, currentChildRawMonthlyFee, currentChildDiscount]);
+
   const bulkTotal = useMemo(() => {
     let total = 0;
     bulkSelectedMonths.forEach((m) => {
-      total += bulkMonthsState[m]?.amountDue ?? 0;
+      if (m === bulkLastSelectedMonth && bulkPartialPreview) {
+        total += bulkPartialPreview.finalAmount;
+      } else {
+        total += bulkMonthsState[m]?.amountDue ?? 0;
+      }
     });
     return total;
-  }, [bulkSelectedMonths, bulkMonthsState]);
+  }, [bulkSelectedMonths, bulkMonthsState, bulkLastSelectedMonth, bulkPartialPreview]);
 
   const bulkAvailableMonths = useMemo(() => {
     return Object.entries(bulkMonthsState)
@@ -538,12 +585,17 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
 
     setBulkSubmitting(true);
     try {
+      const overrides = bulkPartialPreview && bulkLastSelectedMonth
+        ? [{ month: bulkLastSelectedMonth, endDay: bulkPartialEndDay }]
+        : undefined;
+
       const res = await paymentsApi.recordBulk({
         childId: effectiveChildId,
         year: bulkYear,
         cashboxId: cashboxIdNum,
         months: Array.from(bulkSelectedMonths).sort((a, b) => a - b),
         notes: typeof watchedNotes === 'string' && watchedNotes.trim() ? watchedNotes.trim() : undefined,
+        monthOverrides: overrides,
       });
       toast.success(`${res.paidCount} ay üçün ${formatCurrency(res.totalPaid)} qeyd edildi`);
       // Refresh history so the grid updates instantly
@@ -1062,6 +1114,86 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
                       </button>
                     );
                   })}
+                </div>
+              )}
+
+              {/* "Tarixə kimi" gün diapazonu — sonuncu seçilmiş aya tətbiq olunur */}
+              {bulkSelectedMonths.size > 0 && bulkLastSelectedMonth && (
+                <div className="rounded-xl border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#1e2130] p-3">
+                  <label className="flex items-start gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={bulkPartialEnabled}
+                      onChange={(e) => {
+                        setBulkPartialEnabled(e.target.checked);
+                        if (e.target.checked) {
+                          setBulkPartialEndDay((d) => (d < 1 || d > bulkLastMonthDays ? Math.min(15, bulkLastMonthDays) : d));
+                        }
+                      }}
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30"
+                    />
+                    <div className="flex-1">
+                      <div className="text-xs font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
+                        <CalendarDays size={12} className="text-gray-400" />
+                        Konkret günə kimi ödəniş
+                      </div>
+                      <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
+                        Sonuncu seçilmiş ay (<b>{MONTH_OPTIONS[bulkLastSelectedMonth - 1]?.label}</b>) hissəvi ödənilsin
+                        — məs. valideyn ayın 11-ə kimi ödəyibsə.
+                      </div>
+                    </div>
+                  </label>
+
+                  {bulkPartialEnabled && (
+                    <div className="mt-3 ml-6 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-gray-700 dark:text-gray-200">
+                          <b>{MONTH_OPTIONS[bulkLastSelectedMonth - 1]?.label} {bulkYear}</b> üçün:
+                        </span>
+                        <span className="text-xs text-gray-500">1-dən</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={bulkLastMonthDays}
+                          value={bulkPartialEndDay}
+                          onChange={(e) => {
+                            const v = Number(e.target.value) || 0;
+                            setBulkPartialEndDay(Math.max(1, Math.min(bulkLastMonthDays, v)));
+                          }}
+                          className="w-16 px-2 py-1 text-sm font-mono-nums text-center border border-white-border dark:border-gray-700/60 rounded-md bg-white dark:bg-[#252836] focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                        <span className="text-xs text-gray-500">gününə kimi ({bulkLastMonthDays} gündən)</span>
+                      </div>
+
+                      {bulkPartialPreview ? (
+                        <div className="rounded-md border border-blue-200 dark:border-blue-800/40 bg-blue-50/70 dark:bg-blue-900/15 px-2.5 py-2">
+                          <p className="text-[11px] text-blue-900 dark:text-blue-300">
+                            <b>{MONTH_OPTIONS[bulkLastSelectedMonth - 1]?.label} 1-{bulkPartialEndDay} ({bulkPartialPreview.daysActive} gün)</b>
+                            {' = '}
+                            <b>{formatCurrency(bulkPartialPreview.finalAmount)}</b>
+                            <span className="text-blue-700/70 dark:text-blue-400/70">
+                              {' '}(tam {formatCurrency(bulkMonthsState[bulkLastSelectedMonth]?.amountDue ?? 0)} əvəzinə)
+                            </span>
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-blue-700/80 dark:text-blue-400/80 font-mono-nums">
+                            {currentChildRawMonthlyFee} ₼ × {bulkPartialEndDay} ÷ {bulkLastMonthDays}
+                            {currentChildDiscount > 0 && currentChildDiscount < 100 && (
+                              <> × (1 − {currentChildDiscount}%)</>
+                            )}
+                            {' = '}{formatCurrency(bulkPartialPreview.finalAmount)}
+                          </p>
+                        </div>
+                      ) : bulkPartialEndDay >= bulkLastMonthDays ? (
+                        <div className="rounded-md border border-amber-200 dark:border-amber-800/40 bg-amber-50/70 dark:bg-amber-900/15 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+                          Gün = ayın son günü olduğu üçün hissəvi ödəniş mənası yoxdur (tam ay olacaq).
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-gray-400">
+                          Uşağın aylıq qiyməti yüklənir...
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
