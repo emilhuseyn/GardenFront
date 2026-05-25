@@ -61,7 +61,7 @@ export interface GroupDetailChild {
   id: number;
   fullName: string;
   status: ChildStatus;
-  scheduleType: 'FullDay' | 'HalfDay';
+  scheduleType: string;
 }
 
 export interface GroupDetail extends Group {
@@ -81,7 +81,9 @@ export interface GroupLogResponse {
 
 // ─── Child ────────────────────────────────────────────────────────────────────
 export type ChildStatus = 'Active' | 'Inactive';
-export type ScheduleType = 'FullDay' | 'HalfDay';
+// Admin yeni schedule yarada bildiyi üçün artıq qapalı union deyil — istənilən code.
+// Geriyə uyğunluq üçün literal default-ları da saxlayırıq, amma string genişləndirilir.
+export type ScheduleType = 'FullDay' | 'HalfDay' | (string & {});
 
 export interface Child {
   id: number;
@@ -115,7 +117,7 @@ export interface ChildFormData {
   lastName: string;
   dateOfBirth: string;
   groupId: number;
-  scheduleType: 0 | 1; // POST body uses numbers
+  scheduleType: string; // ScheduleConfig.code (e.g. 'FullDay', 'HalfDay', 'Evening')
   monthlyFee: number;
   discountPercentage?: number | null;
   paymentDay: number;
@@ -325,10 +327,26 @@ export interface ActiveInactive {
 // ─── Schedule ─────────────────────────────────────────────────────────────────
 export interface ScheduleConfig {
   id: number;
-  scheduleType: ScheduleType;
-  startTime: string; // HH:MM
-  endTime: string;
-  updatedAt: string;
+  code: string;          // unique slug: 'FullDay', 'HalfDay', 'Evening', ...
+  name: string;          // displayed: 'Tam gün', 'Yarım gün', ...
+  startTime: string;     // HH:MM
+  endTime: string;       // HH:MM
+  isActive: boolean;
+  updatedAt?: string;
+}
+
+export interface CreateScheduleData {
+  code: string;
+  name: string;
+  startTime: string;     // HH:MM
+  endTime: string;       // HH:MM
+}
+
+export interface UpdateScheduleData {
+  name?: string;
+  startTime?: string;
+  endTime?: string;
+  isActive?: boolean;
 }
 
 // ─── Users (Admin) ────────────────────────────────────────────────────────────

@@ -68,7 +68,7 @@ export function AttendanceGrid() {
           HalfDay: { startTime: '09:00', endTime: '13:00' },
         };
         configs.forEach((c: ScheduleConfig) => {
-          map[c.scheduleType] = { startTime: c.startTime, endTime: c.endTime };
+          map[c.code] = { startTime: c.startTime, endTime: c.endTime };
         });
         setScheduleMap(map);
       })

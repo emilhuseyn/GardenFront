@@ -49,7 +49,7 @@ interface PaymentTableProps {
   search?: string;
   statusFilter?: 'all' | 'has-debt' | 'has-partial' | 'full' | 'free';
   discountFilter?: 'all' | 'has_discount' | 'no_discount';
-  scheduleFilter?: 'all' | 'FullDay' | 'HalfDay';
+  scheduleFilter?: string;   // 'all' or any ScheduleConfig.code
   sortBy?: 'name' | 'fee';
   onInitialLoadDone?: () => void;
 }
@@ -204,9 +204,8 @@ export function PaymentTable({
     : rows;
 
   const scheduleFiltered = searchFiltered.filter((r) => {
-    if (scheduleFilter === 'FullDay') return r.scheduleType === 'FullDay' || (r.scheduleType as any) === 0;
-    if (scheduleFilter === 'HalfDay') return r.scheduleType === 'HalfDay' || (r.scheduleType as any) === 1;
-    return true;
+    if (!scheduleFilter || scheduleFilter === 'all') return true;
+    return String(r.scheduleType ?? '') === scheduleFilter;
   });
 
   const discountFiltered = scheduleFiltered.filter((r) => {

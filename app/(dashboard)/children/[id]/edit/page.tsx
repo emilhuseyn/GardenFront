@@ -38,9 +38,10 @@ export default function EditChildPage() {
   const [dobYear, setDobYear]   = useState('');
   const [registrationDate, setRegistrationDate] = useState('');
   const [deactivationDate, setDeactivationDate] = useState('');
-  const [scheduleMap, setScheduleMap] = useState<Record<string, { startTime: string; endTime: string }>>({
-    FullDay: { startTime: '09:00', endTime: '18:00' },
-    HalfDay: { startTime: '09:00', endTime: '13:00' },
+  const [schedules, setSchedules] = useState<ScheduleConfig[]>([]);
+  const [scheduleMap, setScheduleMap] = useState<Record<string, { startTime: string; endTime: string; name: string }>>({
+    FullDay: { startTime: '09:00', endTime: '18:00', name: 'Tam günlük' },
+    HalfDay: { startTime: '09:00', endTime: '13:00', name: 'Yarım günlük' },
   });
   const [discountMode, setDiscountMode] = useState<'percentage' | 'amount'>('percentage');
   const [discountAmount, setDiscountAmount] = useState<number | ''>('');
@@ -74,12 +75,13 @@ export default function EditChildPage() {
       setChild(c);
       setGroups(g);
       if (schedules.length > 0) {
-        const map: Record<string, { startTime: string; endTime: string }> = {
-          FullDay: { startTime: '09:00', endTime: '18:00' },
-          HalfDay: { startTime: '09:00', endTime: '13:00' },
+        setSchedules(schedules);
+        const map: Record<string, { startTime: string; endTime: string; name: string }> = {
+          FullDay: { startTime: '09:00', endTime: '18:00', name: 'Tam günlük' },
+          HalfDay: { startTime: '09:00', endTime: '13:00', name: 'Yarım günlük' },
         };
         schedules.forEach((config) => {
-          map[config.scheduleType] = { startTime: config.startTime, endTime: config.endTime };
+          map[config.code] = { startTime: config.startTime, endTime: config.endTime, name: config.name };
         });
         setScheduleMap(map);
       }
@@ -104,7 +106,7 @@ export default function EditChildPage() {
         lastName:       c.lastName,
         dateOfBirth:    c.dateOfBirth?.split('T')[0] ?? '',
         groupId:        matchedGroup?.id ?? 0,
-        scheduleType:   c.scheduleType === 'FullDay' ? 0 : 1,
+        scheduleType:   c.scheduleType ?? 'FullDay',
         monthlyFee:     c.monthlyFee,
         discountPercentage: c.discountPercentage ?? null,
         paymentDay:     c.paymentDay ?? 1,
@@ -170,10 +172,20 @@ export default function EditChildPage() {
 
   const groupOptions = groups.map((g) => ({ value: String(g.id), label: g.name }));
   const formatTime = (value: string) => value.split(':').slice(0, 2).join(':');
-  const buildScheduleLabel = (type: 'FullDay' | 'HalfDay') => {
-    const entry = scheduleMap[type];
-    return entry ? `${formatTime(entry.startTime)} – ${formatTime(entry.endTime)}` : '';
-  };
+
+  // Dinamik schedule options — defaultu açıq saxlayırıq əgər API boşdursa.
+  const scheduleOptions = (schedules.length > 0
+    ? schedules.filter((s) => s.isActive)
+    : [
+        { id: 0, code: 'FullDay', name: 'Tam günlük', startTime: '09:00', endTime: '18:00', isActive: true } as ScheduleConfig,
+        { id: 1, code: 'HalfDay', name: 'Yarım günlük', startTime: '09:00', endTime: '13:00', isActive: true } as ScheduleConfig,
+      ]
+  ).map((s) => ({
+    value: s.code,
+    label: s.name,
+    time: `${formatTime(s.startTime)} – ${formatTime(s.endTime)}`,
+    icon: s.code === 'FullDay' ? '☀️' : s.code === 'HalfDay' ? '🌤️' : '🕒',
+  }));
   const feeValue = typeof monthlyFee === 'number' && Number.isFinite(monthlyFee) ? monthlyFee : null;
   const discountPercentValue = typeof discountPercentage === 'number' && Number.isFinite(discountPercentage)
     ? discountPercentage
@@ -342,10 +354,7 @@ export default function EditChildPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Qrafik növü *</label>
                 <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { value: 0 as const, label: 'Tam günlük',   time: buildScheduleLabel('FullDay'), icon: '☀️' },
-                    { value: 1 as const, label: 'Yarım günlük', time: buildScheduleLabel('HalfDay'), icon: '🌤️' },
-                  ].map((s) => (
+                  {scheduleOptions.map((s) => (
                     <button
                       key={s.value}
                       type="button"

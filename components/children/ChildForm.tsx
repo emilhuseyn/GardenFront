@@ -32,9 +32,10 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
   const [step, setStep] = useState(1);
   const [done, setDone] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [scheduleMap, setScheduleMap] = useState<Record<string, { startTime: string; endTime: string }>>({
-    FullDay: { startTime: '09:00', endTime: '18:00' },
-    HalfDay: { startTime: '09:00', endTime: '13:00' },
+  const [schedules, setSchedules] = useState<ScheduleConfig[]>([]);
+  const [scheduleMap, setScheduleMap] = useState<Record<string, { startTime: string; endTime: string; name: string }>>({
+    FullDay: { startTime: '09:00', endTime: '18:00', name: 'Tam günlük' },
+    HalfDay: { startTime: '09:00', endTime: '13:00', name: 'Yarım günlük' },
   });
   const [dobDay, setDobDay] = useState('');
   const [dobMonth, setDobMonth] = useState('');
@@ -57,12 +58,13 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
     schedulesApi
       .getAll()
       .then((configs) => {
-        const map: Record<string, { startTime: string; endTime: string }> = {
-          FullDay: { startTime: '09:00', endTime: '18:00' },
-          HalfDay: { startTime: '09:00', endTime: '13:00' },
+        setSchedules(configs);
+        const map: Record<string, { startTime: string; endTime: string; name: string }> = {
+          FullDay: { startTime: '09:00', endTime: '18:00', name: 'Tam günlük' },
+          HalfDay: { startTime: '09:00', endTime: '13:00', name: 'Yarım günlük' },
         };
         configs.forEach((c: ScheduleConfig) => {
-          map[c.scheduleType] = { startTime: c.startTime, endTime: c.endTime };
+          map[c.code] = { startTime: c.startTime, endTime: c.endTime, name: c.name };
         });
         setScheduleMap(map);
       })
@@ -77,7 +79,7 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
     mode: 'onChange',
     reValidateMode: 'onChange',
     defaultValues: {
-      scheduleType: 0,
+      scheduleType: 'FullDay',
       monthlyFee: 300,
       discountPercentage: null,
       paymentDay: defaultPaymentDay,
@@ -101,10 +103,20 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
 
   const groupOptions = groups.map((g) => ({ value: String(g.id), label: g.name }));
   const formatTime = (value: string) => value.split(':').slice(0, 2).join(':');
-  const buildScheduleLabel = (type: 'FullDay' | 'HalfDay') => {
-    const entry = scheduleMap[type];
-    return entry ? `${formatTime(entry.startTime)} – ${formatTime(entry.endTime)}` : '';
-  };
+
+  // API-dan gələn schedule list (yalnız aktivləri). Boşdursa default-ları göstər.
+  const scheduleOptions = (schedules.length > 0
+    ? schedules.filter((s) => s.isActive)
+    : [
+        { id: 0, code: 'FullDay', name: 'Tam günlük', startTime: '09:00', endTime: '18:00', isActive: true } as ScheduleConfig,
+        { id: 1, code: 'HalfDay', name: 'Yarım günlük', startTime: '09:00', endTime: '13:00', isActive: true } as ScheduleConfig,
+      ]
+  ).map((s) => ({
+    value: s.code,
+    label: s.name,
+    time: `${formatTime(s.startTime)} – ${formatTime(s.endTime)}`,
+    icon: s.code === 'FullDay' ? '☀️' : s.code === 'HalfDay' ? '🌤️' : '🕒',
+  }));
   const feeValue = typeof monthlyFee === 'number' && Number.isFinite(monthlyFee) ? monthlyFee : null;
   const discountPercentValue = typeof discountPercentage === 'number' && Number.isFinite(discountPercentage)
     ? discountPercentage
@@ -368,14 +380,11 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
                 error={errors.groupId?.message}
               />
 
-              {/* Schedule radio cards */}
+              {/* Schedule radio cards — dinamik (admin yeni qrafiklər əlavə edə bilir) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Qrafik növü *</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { value: 0 as const, label: 'Tam günlük',  time: buildScheduleLabel('FullDay'), icon: '☀️' },
-                    { value: 1 as const, label: 'Yarım günlük', time: buildScheduleLabel('HalfDay'), icon: '🌤️' },
-                  ].map((s) => (
+                <div className={cn('grid gap-3', scheduleOptions.length <= 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3')}>
+                  {scheduleOptions.map((s) => (
                     <button
                       key={s.value}
                       type="button"

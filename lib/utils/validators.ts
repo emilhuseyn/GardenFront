@@ -33,7 +33,7 @@ export const childSchema = z.object({
   lastName: z.string().min(2, 'Ən azı 2 hərf olmalıdır').max(50, 'Ən çox 50 hərf ola bilər'),
   dateOfBirth: z.string().min(1, 'Bu sahə mütləqdir'),
   groupId: z.number().min(1, 'Qrup seçin'),
-  scheduleType: z.union([z.literal(0), z.literal(1)]),
+  scheduleType: z.string().min(1, 'Qrafik seçin').max(50),
   monthlyFee: z.number().min(1, 'Ödəniş məbləği mütləqdir').max(10000, 'Ən çox 10000 ₼ ola bilər'),
   discountPercentage: z.number().min(0, 'Endirim faizi 0 ilə 100 arasında olmalıdır').max(100, 'Endirim faizi 0 ilə 100 arasında olmalıdır').nullable().optional(),
   paymentDay: z.number().min(1, 'Ödəniş günü seçin').max(28, 'Maksimum 28 ola bilər'),

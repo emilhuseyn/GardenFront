@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils/constants';
 import { childrenApi } from '@/lib/api/children';
 import { paymentsApi } from '@/lib/api/payments';
 import { groupsApi } from '@/lib/api/groups';
+import { schedulesApi } from '@/lib/api/schedules';
 import type { DebtorInfo, MonthlyPaymentReport, DailyPaymentReport, Payment } from '@/types';
 
 const TABS = ['Ödənişlər', 'Borclular', 'Deaktivlər', 'Günlük', 'Hesabat'] as const;
@@ -90,7 +91,8 @@ export default function PaymentsPage() {
   const [paymentSearch, setPaymentSearch] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<'all' | 'has-debt' | 'has-partial' | 'full' | 'free'>('all');
   const [paymentDiscount, setPaymentDiscount] = useState<'all' | 'has_discount' | 'no_discount'>('all');
-  const [paymentSchedule, setPaymentSchedule] = useState<'all' | 'FullDay' | 'HalfDay'>('all');
+  const [paymentSchedule, setPaymentSchedule] = useState<string>('all');
+  const [schedules, setSchedules] = useState<{ code: string; name: string }[]>([]);
   const [paymentSort, setPaymentSort] = useState<'name' | 'fee'>('name');
   const [debtorSearch, setDebtorSearch] = useState('');
   const [debtorSort, setDebtorSort] = useState<'debt-desc' | 'debt-asc' | 'months-desc' | 'months-asc' | 'name-asc'>('debt-desc');
@@ -111,6 +113,10 @@ export default function PaymentsPage() {
     groupsApi.getAll().then((gs) => {
       setGroups([{ value: '', label: 'Bütün qruplar' }, ...gs.map((g) => ({ value: String(g.id), label: g.name }))]);
     }).catch(() => {}).finally(() => setLoadingGroups(false));
+
+    schedulesApi.getAll()
+      .then((list) => setSchedules(list.filter((s) => s.isActive).map((s) => ({ code: s.code, name: s.name }))))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -415,7 +421,7 @@ export default function PaymentsPage() {
           plannedAmount,
           discount,
           childStatus: child.status,
-          scheduleType: (child as any).scheduleType ?? 0,
+          scheduleType: (child as any).scheduleType ?? 'FullDay',
           monthCells,
         };
       });
@@ -436,7 +442,10 @@ export default function PaymentsPage() {
         return true;
       });
 
-      const scheduleFiltered = discountFiltered.filter((r) => { if (paymentSchedule === 'FullDay') return r.scheduleType === 'FullDay' || r.scheduleType === 0; if (paymentSchedule === 'HalfDay') return r.scheduleType === 'HalfDay' || r.scheduleType === 1; return true; });
+      const scheduleFiltered = discountFiltered.filter((r) => {
+        if (paymentSchedule === 'all') return true;
+        return String(r.scheduleType ?? '') === paymentSchedule;
+      });
       const statusFiltered = scheduleFiltered.filter((r) => {
         if (paymentStatus === 'all') return true;
         const hasDebt = r.monthCells.some((c) => c.status === 'debt');
@@ -817,13 +826,12 @@ export default function PaymentsPage() {
                 />
                 <Select
                   value={paymentSchedule}
-                  onChange={(e) => setPaymentSchedule(e.target.value as 'all' | 'FullDay' | 'HalfDay')}
+                  onChange={(e) => setPaymentSchedule(e.target.value)}
                   options={[
                     { value: 'all', label: 'Bütün (Qrafik)' },
-                    { value: 'FullDay', label: 'Tam Gün' },
-                    { value: 'HalfDay', label: 'Yarım Gün' }
+                    ...schedules.map((s) => ({ value: s.code, label: s.name })),
                   ]}
-                  className="w-36"
+                  className="w-44"
                 />
               <select
                 value={paymentSort}
@@ -899,7 +907,7 @@ export default function PaymentsPage() {
                   )}
                   {paymentSchedule !== 'all' && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
-                      Qrafik: {paymentSchedule === 'FullDay' ? 'Tam Gün' : 'Yarım Gün'}
+                      Qrafik: {schedules.find((s) => s.code === paymentSchedule)?.name ?? paymentSchedule}
                       <button onClick={() => setPaymentSchedule('all')} className="hover:opacity-70"><X size={10} /></button>
                     </span>
                   )}
