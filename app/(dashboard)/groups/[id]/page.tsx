@@ -13,6 +13,7 @@ import { ChildStatusBadge } from '@/components/children/ChildStatusBadge';
 import { ChildForm } from '@/components/children/ChildForm';
 import { groupsApi } from '@/lib/api/groups';
 import { usersApi } from '@/lib/api/users';
+import { schedulesApi } from '@/lib/api/schedules';
 import { useAuthStore, getPermissions } from '@/lib/stores/authStore';
 import { formatDate } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/constants';
@@ -31,6 +32,17 @@ export default function GroupDetailPage() {
   const [logs, setLogs] = useState<GroupLogResponse[]>([]);
   const [groupTeachers, setGroupTeachers] = useState<GroupTeacher[]>([]);
   const [teachers, setTeachers] = useState<UserResponse[]>([]);
+  const [scheduleLabelByCode, setScheduleLabelByCode] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    schedulesApi.getAll(true)
+      .then((list) => {
+        const map: Record<string, string> = {};
+        list.forEach((s) => { map[s.code] = s.name; });
+        setScheduleLabelByCode(map);
+      })
+      .catch(() => {});
+  }, []);
   const [teacherManageOpen, setTeacherManageOpen] = useState(false);
   const [teacherSelection, setTeacherSelection] = useState('');
   const [teachersLoading, setTeachersLoading] = useState(false);
@@ -325,12 +337,15 @@ export default function GroupDetailPage() {
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <ChildStatusBadge isActive={child.status === 'Active'} size="xs" />
-                        <Badge 
-                          variant={child.scheduleType === 'FullDay' ? 'blue' : 'amber'} 
+                        <Badge
+                          variant={child.scheduleType === 'FullDay' ? 'blue' : child.scheduleType === 'HalfDay' ? 'amber' : 'gray'}
                           size="xs"
                           className="font-medium"
                         >
-                          {child.scheduleType === 'FullDay' ? '☀️ Tam Gün' : '🌤 Yarım Gün'}
+                          {scheduleLabelByCode[child.scheduleType ?? '']
+                            ?? (child.scheduleType === 'FullDay' ? '☀️ Tam Gün'
+                                : child.scheduleType === 'HalfDay' ? '🌤 Yarım Gün'
+                                : (child.scheduleType ?? '—'))}
                         </Badge>
                       </div>
                     </div>

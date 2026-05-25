@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils/constants';
 import { childrenApi } from '@/lib/api/children';
 import { divisionsApi, groupsApi } from '@/lib/api/groups';
 import { reportsApi } from '@/lib/api/reports';
+import { schedulesApi } from '@/lib/api/schedules';
 import { useDebounce } from '@/lib/hooks/useDebounce';
 import { equalsNormalizedText, getAge } from '@/lib/utils/format';
 import { toast } from 'sonner';
@@ -25,12 +26,6 @@ import type { ActiveInactive, Child, ChildFilters, Division, Group } from '@/typ
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Aktivlər' },
-];
-
-const SCHEDULE_OPTIONS = [
-  { value: '', label: 'Bütün qrafiklər' },
-  { value: 'FullDay', label: 'Tam günlük' },
-  { value: 'HalfDay', label: 'Yarım günlük' },
 ];
 
 const INSIGHT_OPTIONS = [
@@ -61,6 +56,7 @@ export default function ChildrenPage() {
   const [groupFilter, setGroupFilter] = useState('');
   const [statusFilter, setStatus]   = useState('');
   const [schedFilter, setSched]     = useState('');
+  const [schedules, setSchedules]   = useState<{ code: string; name: string }[]>([]);
   const [discountFilter, setDiscountFilter] = useState('');
   const [ageMin, setAgeMin]         = useState('');
   const [ageMax, setAgeMax]         = useState('');
@@ -88,6 +84,13 @@ export default function ChildrenPage() {
     if (saved === 'grid' || saved === 'table') {
       setViewInternal(saved);
     }
+  }, []);
+
+  // Schedule siyahısı — admin yeni qrafiklər əlavə edə bildiyi üçün dinamik
+  useEffect(() => {
+    schedulesApi.getAll()
+      .then((list) => setSchedules(list.filter((s) => s.isActive).map((s) => ({ code: s.code, name: s.name }))))
+      .catch(() => {});
   }, []);
 
   const refreshSummary = useCallback(async () => {
@@ -299,8 +302,7 @@ export default function ChildrenPage() {
       if (selectedDivisionName && !equalsNormalizedText(child.divisionName, selectedDivisionName)) return false;
       if (groupFilter && !equalsNormalizedText(child.groupName, groupFilter)) return false;
       if (statusFilter && child.status !== statusFilter) return false;
-      if (schedFilter === 'FullDay' && child.scheduleType !== 'FullDay') return false;
-      if (schedFilter === 'HalfDay' && child.scheduleType !== 'HalfDay') return false;
+      if (schedFilter && child.scheduleType !== schedFilter) return false;
       if (discountFilter === 'has_discount' && (!child.discountPercentage || child.discountPercentage <= 0)) return false;
       if (discountFilter === 'no_discount' && child.discountPercentage && child.discountPercentage > 0) return false;
       if (minAge !== undefined && Number.isFinite(minAge) && childAge < minAge) return false;
@@ -458,49 +460,18 @@ export default function ChildrenPage() {
           <Select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} options={groupOptions} />
           <Select value={statusFilter} onChange={(e) => setStatus(e.target.value)} options={STATUS_OPTIONS} />
           <Select value={discountFilter} onChange={(e) => setDiscountFilter(e.target.value)} options={DISCOUNT_OPTIONS} />
-          <div className="flex bg-gray-50 dark:bg-gray-800/40 p-1 rounded-xl border border-gray-100 dark:border-gray-700/50 min-h-[42px]">
-            <button
-              onClick={() => setSched('')}
-              className={cn(
-                'flex-[1.35] flex items-center justify-center px-1.5 rounded-lg text-[11px] leading-tight font-medium transition-all',
-                schedFilter === ''
-                  ? 'bg-white text-gray-800 shadow-sm border border-gray-200 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50 dark:text-gray-400 dark:hover:text-gray-300'
-              )}
-            >
-              Bütün qrafiklər
-            </button>
-            <button
-              onClick={() => setSched('FullDay')}
-              className={cn(
-                'flex-1 flex items-center justify-center gap-1 px-1.5 rounded-lg text-[12px] font-medium transition-all',
-                schedFilter === 'FullDay'
-                  ? 'bg-amber-100 text-amber-700 shadow-sm border border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800/50'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50 dark:text-gray-400 dark:hover:text-gray-300'
-              )}
-            >
-              Tam
-              <span className={cn(
-                'px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none',
-                schedFilter === 'FullDay' ? 'bg-amber-200/60 text-amber-800 dark:bg-amber-800/60 dark:text-amber-200' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-              )}>{fullDayCount}</span>
-            </button>
-            <button
-              onClick={() => setSched('HalfDay')}
-              className={cn(
-                'flex-1 flex items-center justify-center gap-1 px-1.5 rounded-lg text-[12px] font-medium transition-all',
-                schedFilter === 'HalfDay'
-                  ? 'bg-violet-100 text-violet-700 shadow-sm border border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800/50'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50 dark:text-gray-400 dark:hover:text-gray-300'
-              )}
-            >
-              Yarım
-              <span className={cn(
-                'px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none',
-                schedFilter === 'HalfDay' ? 'bg-violet-200/60 text-violet-800 dark:bg-violet-800/60 dark:text-violet-200' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-              )}>{halfDayCount}</span>
-            </button>
-          </div>
+          {/* Schedule filter — dinamik, admin yeni qrafik əlavə edə bilir */}
+          <Select
+            value={schedFilter}
+            onChange={(e) => setSched(e.target.value)}
+            options={[
+              { value: '', label: `Bütün qrafiklər (${baseForScheduleCounts.length})` },
+              ...schedules.map((s) => {
+                const count = baseForScheduleCounts.filter((c) => c.scheduleType === s.code).length;
+                return { value: s.code, label: `${s.name} (${count})` };
+              }),
+            ]}
+          />
           <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} options={SORT_OPTIONS} />
           
           <Input
@@ -553,7 +524,7 @@ export default function ChildrenPage() {
             )}
             {schedFilter && (
               <button onClick={() => setSched('')} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-amber-50 text-amber-700 rounded-full hover:bg-amber-100">
-                {schedFilter === 'FullDay' ? 'Tam günlük' : 'Yarım günlük'} ×
+                {schedules.find((s) => s.code === schedFilter)?.name ?? schedFilter} ×
               </button>
             )}
             {discountFilter && (

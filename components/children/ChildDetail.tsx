@@ -20,6 +20,7 @@ import { childrenApi } from '@/lib/api/children';
 import { paymentsApi } from '@/lib/api/payments';
 import { attendanceApi } from '@/lib/api/attendance';
 import { groupsApi } from '@/lib/api/groups';
+import { schedulesApi } from '@/lib/api/schedules';
 import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -111,6 +112,17 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
   const [monthAttendance, setMonthAttendance] = useState<AttendanceEntry[]>([]);
+  const [scheduleNameByCode, setScheduleNameByCode] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    schedulesApi.getAll(true)
+      .then((list) => {
+        const map: Record<string, string> = {};
+        list.forEach((s) => { map[s.code] = s.name; });
+        setScheduleNameByCode(map);
+      })
+      .catch(() => {});
+  }, []);
   const [monthAttLoading, setMonthAttLoading] = useState(false);
   const [downloadingAgreement, setDownloadingAgreement] = useState(false);
   const [downloadingContract, setDownloadingContract] = useState(false);
@@ -524,7 +536,10 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
                   <Badge variant="violet" size="sm" className="px-2.5 py-1 text-xs">{child.groupName}</Badge>
                 )}
                 <Badge variant="teal" size="sm" className="px-2.5 py-1 text-xs">
-                  {child.scheduleType === 'FullDay' ? 'Tam günlük' : 'Yarım günlük'}
+                  {scheduleNameByCode[child.scheduleType ?? '']
+                    ?? (child.scheduleType === 'FullDay' ? 'Tam günlük'
+                       : child.scheduleType === 'HalfDay' ? 'Yarım günlük'
+                       : (child.scheduleType ?? '—'))}
                 </Badge>
               </div>
             </div>
