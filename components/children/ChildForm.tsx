@@ -451,7 +451,7 @@ export function ChildForm({ onSuccess, onCancel, defaultGroupId }: ChildFormProp
                     className="w-full h-10 pl-8 pr-4 text-sm border border-white-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400"
                     placeholder="300"
                     min="0"
-                    step="10"
+                    step="1"
                   />
                 </div>
                 {errors.monthlyFee && (
