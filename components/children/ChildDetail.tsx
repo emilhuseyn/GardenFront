@@ -405,7 +405,10 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
   }
 
   for (const p of payments) {
-    const paymentDate = format(new Date(p.year, Math.max(0, p.month - 1), 1), 'yyyy-MM-dd');
+    // Ödənilibsə real ödəniş tarixini göstər; borc/ödənilməyibsə ayın 1-i (fallback).
+    const paymentDate = p.paymentDate
+      ? format(new Date(p.paymentDate), 'yyyy-MM-dd')
+      : format(new Date(p.year, Math.max(0, p.month - 1), 1), 'yyyy-MM-dd');
     const { statusLabel, isPaid, isPartial } = getPaymentMeta(p.status);
     const cbInfo = p.cashboxName ? ` • Kassa: ${p.cashboxName}` : '';
     timelineEvents.push({
