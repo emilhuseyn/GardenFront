@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, LayoutGrid, List, Users } from 'lucide-react';
+import { Plus, LayoutGrid, List, Users, Download } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SearchBar } from '@/components/ui/SearchBar';
@@ -20,7 +20,8 @@ import { divisionsApi, groupsApi } from '@/lib/api/groups';
 import { reportsApi } from '@/lib/api/reports';
 import { schedulesApi } from '@/lib/api/schedules';
 import { useDebounce } from '@/lib/hooks/useDebounce';
-import { equalsNormalizedText, getAge } from '@/lib/utils/format';
+import { equalsNormalizedText, getAge, formatDateShort } from '@/lib/utils/format';
+import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import type { ActiveInactive, Child, ChildFilters, Division, Group } from '@/types';
 
@@ -402,6 +403,46 @@ export default function ChildrenPage() {
   const fullDayCount = baseForScheduleCounts.filter((c) => c.scheduleType === 'FullDay').length;
   const halfDayCount = baseForScheduleCounts.filter((c) => c.scheduleType === 'HalfDay').length;
 
+  // Ekranda görünən (filtrlənmiş) siyahını Excel-ə çıxarır.
+  // Telefonlar mətn kimi yazılır ki, baş sıfır (0503030400) itməsin.
+  const exportToExcel = () => {
+    if (processedChildren.length === 0) return;
+    const rows = processedChildren.map((child) => ({
+      ID: child.id,
+      Soyad: child.lastName,
+      Ad: child.firstName,
+      'Doğum tarixi': child.dateOfBirth ? formatDateShort(child.dateOfBirth) : '',
+      Yaş: child.dateOfBirth ? getAge(child.dateOfBirth) : '',
+      Valideyn: child.parentFullName ?? '',
+      'Valideyn telefonu': child.parentPhone ?? '',
+      'İkinci valideyn': child.secondParentFullName ?? '',
+      'İkinci valideyn telefonu': child.secondParentPhone ?? '',
+      Bölmə: child.divisionName ?? '',
+      Qrup: child.groupName ?? '',
+      Qrafik: child.scheduleType === 'FullDay' ? 'Tam gün' : child.scheduleType === 'HalfDay' ? 'Yarım gün' : '',
+      'Aylıq ödəniş': child.monthlyFee ?? '',
+      'Ödəniş günü': child.paymentDay ?? '',
+      'Qeydiyyat tarixi': child.registrationDate ? formatDateShort(child.registrationDate) : '',
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Uşaqlar');
+
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `usaqlar-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -414,6 +455,15 @@ export default function ChildrenPage() {
                 <Users size={16} className="mr-2" /> Deaktiv Uşaqlar
               </Button>
             </Link>
+            <Button
+              variant="outline"
+              className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+              onClick={exportToExcel}
+              disabled={loading || processedChildren.length === 0}
+            >
+              <Download size={15} className="mr-2" />
+              Excel export
+            </Button>
             <Link href={newChildHref}>
               <Button>
                 <Plus size={16} className="mr-2" /> Uşaq əlavə et
