@@ -2,19 +2,31 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { Loader2, ReceiptText } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { Modal, ModalContent, ModalHeader, ModalTitle } from '@/components/ui/Modal';
 import { formatCurrency } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/constants';
 import { childrenApi } from '@/lib/api/children';
-import { paymentsApi } from '@/lib/api/payments';
-import type { ChildStatus, Payment } from '@/types';
+import { paymentsApi, type PaymentWithBatch } from '@/lib/api/payments';
+import { openReceiptBlob } from '@/components/payments/receipt';
+import type { ChildStatus } from '@/types';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const MONTHS_SHORT = ['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'];
 
 export type PaymentCell = 'paid' | 'partial' | 'unpaid' | 'free' | null;
+
+/** Bir kütləvi ödəniş paketi — vahid çeki tarixçədən təkrar çap etmək üçün */
+interface ReceiptBatch {
+  batchId: string;
+  label: string;
+  monthCount: number;
+  total: number;
+  sortKey: number;
+}
 
 interface ChildPayRow {
   id: string;
@@ -30,6 +42,46 @@ interface ChildPayRow {
   payments: Record<number, PaymentCell>;
   amounts: Record<number, { paid: number; remaining: number; final: number; notes?: string }>;
   cashboxNames: Record<number, string | undefined>;
+  batches: ReceiptBatch[];
+}
+
+/**
+ * Uşağın bütün ödəniş tarixçəsindən kütləvi ödəniş paketlərini çıxarır.
+ * Cədvəl yalnız cari ili göstərsə də, paketlər bütün illər üzrə toplanır —
+ * keçən ilin vahid çeki də təkrar çap oluna bilsin.
+ */
+function buildReceiptBatches(payments: PaymentWithBatch[]): ReceiptBatch[] {
+  const grouped = new Map<string, PaymentWithBatch[]>();
+
+  payments.forEach((p) => {
+    if (!p.paymentBatchId) return;
+    const list = grouped.get(p.paymentBatchId);
+    if (list) list.push(p);
+    else grouped.set(p.paymentBatchId, [p]);
+  });
+
+  return Array.from(grouped.entries())
+    .map(([batchId, items]) => {
+      const ordered = [...items].sort((a, b) => (a.year - b.year) || (a.month - b.month));
+      const first = ordered[0];
+      const last = ordered[ordered.length - 1];
+
+      const label =
+        first.year !== last.year
+          ? `${MONTHS_SHORT[first.month - 1]} ${first.year} – ${MONTHS_SHORT[last.month - 1]} ${last.year}`
+          : first.month === last.month
+            ? `${MONTHS_SHORT[first.month - 1]} ${first.year}`
+            : `${MONTHS_SHORT[first.month - 1]}–${MONTHS_SHORT[last.month - 1]} ${first.year}`;
+
+      return {
+        batchId,
+        label,
+        monthCount: ordered.length,
+        total: ordered.reduce((sum, p) => sum + (p.paidAmount ?? 0), 0),
+        sortKey: last.year * 100 + last.month,
+      };
+    })
+    .sort((a, b) => b.sortKey - a.sortKey);   // ən son ödəniş yuxarıda
 }
 
 const CELL_CLASS: Record<string, string> = {
@@ -69,6 +121,9 @@ export function PaymentTable({
   const [rows, setRows] = useState<ChildPayRow[]>([]);
   const [loading, setLoading] = useState(true);
   const initialLoadNotifiedRef = useRef(false);
+  // Vahid çekin təkrar çapı — bir neçə paket varsa seçim pəncərəsi açılır
+  const [batchPicker, setBatchPicker] = useState<{ childName: string; batches: ReceiptBatch[] } | null>(null);
+  const [batchLoadingId, setBatchLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -108,7 +163,7 @@ export function PaymentTable({
           new Map(activeResult.map((child) => [child.id, child])).values()
         );
         const paymentHistories = await Promise.all(
-          children.map((c) => paymentsApi.getChildHistory(c.id).catch(() => [] as Payment[]))
+          children.map((c) => paymentsApi.getChildHistory(c.id).catch(() => [] as PaymentWithBatch[]))
         );
 
         const mapped: ChildPayRow[] = children.map((child, i) => {
@@ -145,6 +200,7 @@ export function PaymentTable({
             payments,
             amounts,
             cashboxNames,
+            batches: buildReceiptBatches(paymentHistories[i]),
           };
         });
 
@@ -168,6 +224,25 @@ export function PaymentTable({
     };
   }, [refreshKey, groupId]);
 
+  const handleDownloadBatch = async (batchId: string) => {
+    setBatchLoadingId(batchId);
+    try {
+      const ok = await openReceiptBlob(() => paymentsApi.downloadBatchReceipt(batchId));
+      if (ok) setBatchPicker(null);
+    } finally {
+      setBatchLoadingId(null);
+    }
+  };
+
+  const handleReceiptClick = (row: ChildPayRow) => {
+    if (row.batches.length === 0) return;
+    if (row.batches.length === 1) {
+      void handleDownloadBatch(row.batches[0].batchId);
+      return;
+    }
+    setBatchPicker({ childName: `${row.firstName} ${row.lastName}`, batches: row.batches });
+  };
+
   if (loading) {
     return (
       <div className="bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-2xl overflow-x-auto">
@@ -177,6 +252,7 @@ export function PaymentTable({
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Uşaq</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Məbləğ</th>
               {MONTHS_SHORT.map((m) => <th key={m} className="px-2 py-3 text-center text-xs font-semibold text-gray-500">{m}</th>)}
+              <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Çek</th>
             </tr>
           </thead>
           <tbody>
@@ -185,6 +261,7 @@ export function PaymentTable({
                 <td className="px-4 py-3"><Skeleton className="h-4 w-36" /></td>
                 <td className="px-4 py-3"><Skeleton className="h-4 w-16 ml-auto" /></td>
                 {MONTHS_SHORT.map((_, mi) => <td key={mi} className="px-2 py-3"><Skeleton className="h-7 w-7 rounded-md mx-auto" /></td>)}
+                <td className="px-3 py-3"><Skeleton className="h-7 w-20 rounded-md mx-auto" /></td>
               </tr>
             ))}
           </tbody>
@@ -228,6 +305,7 @@ export function PaymentTable({
   );
 
   return (
+    <>
     <div className="bg-white dark:bg-[#1e2130] border border-white-border dark:border-gray-700/60 rounded-2xl overflow-x-auto">
       <table className="w-full min-w-[900px]">
         <thead>
@@ -243,11 +321,14 @@ export function PaymentTable({
                 {m}
               </th>
             ))}
+            <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              Çek
+            </th>
           </tr>
         </thead>
         <tbody>
           {filteredRows.length === 0 && !loading ? (
-            <tr><td colSpan={14} className="text-center text-sm text-gray-400 py-8">Nəticə tapılmadı</td></tr>
+            <tr><td colSpan={15} className="text-center text-sm text-gray-400 py-8">Nəticə tapılmadı</td></tr>
           ) : filteredRows.map((row, ri) => (
             <motion.tr
               key={row.id}
@@ -347,10 +428,79 @@ export function PaymentTable({
                   </td>
                 );
               })}
+              {/* Vahid çek — kütləvi ödəniş paketini həftələr sonra da təkrar çap etmək üçün */}
+              <td className="px-2 py-2 text-center">
+                {row.batches.length === 0 ? (
+                  <span className="text-xs text-gray-300 dark:text-gray-600">–</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleReceiptClick(row)}
+                    disabled={batchLoadingId !== null}
+                    title={
+                      row.batches.length === 1
+                        ? `Vahid çek: ${row.batches[0].label} (${row.batches[0].monthCount} ay)`
+                        : `${row.batches.length} kütləvi ödəniş — vahid çeki seçin`
+                    }
+                    className="mx-auto inline-flex items-center gap-1 rounded-md border border-white-border dark:border-gray-700/60 bg-white dark:bg-[#252836] px-2 py-1 text-[11px] font-semibold text-gray-600 dark:text-gray-300 hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {batchLoadingId !== null && row.batches.some((b) => b.batchId === batchLoadingId) ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <ReceiptText size={12} />
+                    )}
+                    Vahid çek
+                    {row.batches.length > 1 && (
+                      <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary/10 px-1 text-[9px] font-bold text-primary">
+                        {row.batches.length}
+                      </span>
+                    )}
+                  </button>
+                )}
+              </td>
             </motion.tr>
           ))}
         </tbody>
       </table>
     </div>
+
+    {/* Bir uşağın bir neçə kütləvi ödənişi varsa — hansının çeki çap olunsun */}
+    <Modal
+      open={Boolean(batchPicker)}
+      onOpenChange={(open) => { if (!open && !batchLoadingId) setBatchPicker(null); }}
+    >
+      <ModalContent size="sm">
+        <ModalHeader>
+          <ModalTitle>Vahid çek</ModalTitle>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            <span className="font-medium text-gray-700 dark:text-gray-200">{batchPicker?.childName}</span> üçün
+            {' '}kütləvi ödənişlər. Çeki çap etmək üçün birini seçin.
+          </p>
+        </ModalHeader>
+
+        <div className="space-y-2">
+          {batchPicker?.batches.map((b) => (
+            <button
+              key={b.batchId}
+              type="button"
+              onClick={() => handleDownloadBatch(b.batchId)}
+              disabled={batchLoadingId !== null}
+              className="w-full flex items-center justify-between gap-3 rounded-xl border border-white-border dark:border-gray-700/60 px-3 py-2.5 text-left hover:border-primary/40 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{b.label}</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 font-mono-nums">
+                  {b.monthCount} ay · {formatCurrency(b.total)}
+                </p>
+              </div>
+              {batchLoadingId === b.batchId
+                ? <Loader2 size={15} className="shrink-0 animate-spin text-primary" />
+                : <ReceiptText size={15} className="shrink-0 text-gray-400" />}
+            </button>
+          ))}
+        </div>
+      </ModalContent>
+    </Modal>
+    </>
   );
 }

@@ -8,13 +8,14 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from '@/components/ui/Modal';
 import { paymentSchema, type PaymentFormValues } from '@/lib/utils/validators';
-import { paymentsApi } from '@/lib/api/payments';
+import { paymentsApi, type PaymentWithBatch } from '@/lib/api/payments';
+import { openReceiptBlob } from '@/components/payments/receipt';
 import { childrenApi } from '@/lib/api/children';
 import { cashboxesApi } from '@/lib/api/cashboxes';
 import { formatCurrency } from '@/lib/utils/format';
 import { DollarSign, ReceiptText, Trash2, Search, X, ChevronDown, User, Check, CalendarDays, Layers, ArrowDownToLine, Info } from 'lucide-react';
 import { cn } from '@/lib/utils/constants';
-import type { Payment, Cashbox, ChildStatus } from '@/types';
+import type { Cashbox, ChildStatus } from '@/types';
 
 type BulkMonthStatus = 'paid' | 'partial' | 'unpaid' | 'new' | 'free';
 
@@ -114,7 +115,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const [currentChildRawMonthlyFee, setCurrentChildRawMonthlyFee] = useState(0);
   const [currentChildDiscount, setCurrentChildDiscount] = useState(0);
   const [currentChildStatus, setCurrentChildStatus] = useState<ChildStatus | null>(null);
-  const [history, setHistory] = useState<Payment[]>([]);
+  const [history, setHistory] = useState<PaymentWithBatch[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [cashboxes, setCashboxes] = useState<{ value: string; label: string }[]>([]);
   const [cashboxesLoading, setCashboxesLoading] = useState(true);
@@ -128,6 +129,12 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const [bulkYear, setBulkYear] = useState<number>(new Date().getFullYear());
   const [bulkSelectedMonths, setBulkSelectedMonths] = useState<Set<number>>(new Set());
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
+
+  // Sonuncu kütləvi ödəniş — vahid çek bu sətirlərdən (və ya paket ID-sindən) yaradılır
+  const [lastBulkPaymentIds, setLastBulkPaymentIds] = useState<number[]>([]);
+  const [lastBulkBatchId, setLastBulkBatchId] = useState<string | null>(null);
+  const [lastBulkMonths, setLastBulkMonths] = useState<number[]>([]);
+  const [bulkReceiptLoading, setBulkReceiptLoading] = useState(false);
 
   // "Tarixə kimi" gün diapazonu — sonuncu seçilmiş aya tətbiq olunur
   const [bulkPartialEnabled, setBulkPartialEnabled] = useState(false);
@@ -350,20 +357,6 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const remainingBefore = currentPayment?.remainingDebt ?? 0;
   const monthTotal = currentPayment?.finalAmount ?? currentPayment?.originalAmount ?? 0;
 
-  // Detect pro-rated period info stored in Notes: "Dövr: {startDay}-{endDay} ({daysActive} gün)"
-  // Backend writes this whenever a payment was billed for a partial month (mid-month entry or exit).
-  const periodInfo = useMemo(() => {
-    const notes = currentPayment?.notes;
-    if (!notes) return null;
-    const match = notes.match(/Dövr:\s*(\d+)\s*-\s*(\d+)\s*\(\s*(\d+)\s*gün\s*\)/i);
-    if (!match) return null;
-    return {
-      startDay: Number(match[1]),
-      endDay: Number(match[2]),
-      daysActive: Number(match[3]),
-    };
-  }, [currentPayment?.notes]);
-
   const monthLabel = useMemo(() => {
     const m = typeof watchedMonth === 'number' ? watchedMonth : 0;
     return MONTH_OPTIONS[m - 1]?.label ?? '';
@@ -374,6 +367,28 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
     const m = typeof watchedMonth === 'number' ? watchedMonth : 1;
     return new Date(y, m, 0).getDate();
   }, [watchedMonth, watchedYear]);
+
+  // Yarımçıq ay məlumatı SÜTUNLARDAN oxunur (periodStartDay/periodEndDay) — qeyd mətnindən DEYİL.
+  // Qeyd köhnə "Dövr:" hissələrini də saxlaya bilir, ona görə regex parse edilən dövr sətrin
+  // əsl məbləği ilə ziddiyyət yaradırdı (bərpa olunmuş tam ay "tam aylıq deyil" kimi görünürdü).
+  // Backend-dəki PaymentService.BuildPeriodMarker ilə eyni qayda: tam ay üçün heç nə göstərilmir.
+  const periodInfo = useMemo(() => {
+    if (!currentPayment) return null;
+    // Sıfırlanmış (0 ₼) sətrin dövrü köhnə hesablamadan qala bilər — 0 məbləği izah etməyə çalışmırıq.
+    if (currentPayment.finalAmount <= 0) return null;
+
+    const startDay = currentPayment.periodStartDay;
+    const endDay = currentPayment.periodEndDay;
+    if (typeof startDay !== 'number' || typeof endDay !== 'number') return null;
+
+    // Tam ay — izah paneli göstərilmir (BuildPeriodMarker də bu halda null qaytarır).
+    if (startDay <= 1 && endDay >= daysInMonthCount) return null;
+
+    const daysActive = endDay - startDay + 1;
+    if (daysActive <= 0) return null;
+
+    return { startDay, endDay, daysActive };
+  }, [currentPayment, daysInMonthCount]);
 
   useEffect(() => {
     // If there is an existing monthly record, prefill with that month's total amount.
@@ -410,6 +425,9 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   useEffect(() => {
     // Re-enable submit when user switches child or period for a new payment.
     setLastRecordedPaymentId(null);
+    setLastBulkPaymentIds([]);
+    setLastBulkBatchId(null);
+    setLastBulkMonths([]);
   }, [effectiveChildId, watchedMonth, watchedYear]);
 
   // Reset rounding state when context changes
@@ -453,6 +471,9 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   // Bulk: il dəyişəndə və ya uşaq dəyişəndə seçilmiş ayları sıfırla
   useEffect(() => {
     setBulkSelectedMonths(new Set());
+    setLastBulkPaymentIds([]);
+    setLastBulkBatchId(null);
+    setLastBulkMonths([]);
   }, [bulkYear, effectiveChildId, mode]);
 
   const currentYear = new Date().getFullYear();
@@ -590,6 +611,11 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
       .map(([k]) => Number(k));
   }, [bulkMonthsState]);
 
+  const lastBulkMonthsLabel = useMemo(
+    () => lastBulkMonths.map((m) => MONTH_OPTIONS[m - 1]?.label ?? String(m)).join(', '),
+    [lastBulkMonths]
+  );
+
   const toggleBulkMonth = (m: number) => {
     const state = bulkMonthsState[m];
     if (!state) return;
@@ -644,13 +670,21 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
         monthOverrides: overrides,
       });
       toast.success(`${res.paidCount} ay üçün ${formatCurrency(res.totalPaid)} qeyd edildi`);
+
+      // Vahid çek üçün qeyd olunan sətirləri saxla — drawer bağlanmır, çek düyməsi əlçatan qalır
+      const recorded = res.payments ?? [];
+      setLastBulkPaymentIds(recorded.map((p) => p.id).filter((id) => typeof id === 'number'));
+      setLastBulkBatchId(res.paymentBatchId ?? null);
+      setLastBulkMonths(recorded.map((p) => p.month).sort((a, b) => a - b));
+
       // Refresh history so the grid updates instantly
       try {
         const fresh = await paymentsApi.getChildHistory(effectiveChildId);
         setHistory(fresh);
       } catch {/* ignore */}
       setBulkSelectedMonths(new Set());
-      onSuccess?.();
+      // onSuccess çağırılmır — valideynə vahid çeki vermək üçün pəncərə açıq qalır.
+      // İstifadəçi "Bağla" düyməsi ilə bağlayanda cədvəl yenilənir (tək aylıq rejimdəki kimi).
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Xəta baş verdi';
       toast.error(message);
@@ -658,6 +692,10 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
       setBulkSubmitting(false);
     }
   };
+
+  // Hər iki rejimdə "Ləğv et" düyməsi ödəniş qeyd olunandan sonra "Bağla"ya çevrilir
+  // (bağlananda valideyn cədvəli yenilənir).
+  const hasRecordedPayment = Boolean(lastRecordedPaymentId) || lastBulkPaymentIds.length > 0;
 
   const filteredChildOptions = useMemo(() => {
     if (!childSearch.trim()) {
@@ -728,23 +766,25 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const handleShowReceipt = async (paymentId: number) => {
     setReceiptLoading(true);
     try {
-      const receipt = await paymentsApi.downloadReceipt(paymentId);
-      const receiptUrl = URL.createObjectURL(receipt.blob);
-      const opened = window.open(receiptUrl, '_blank', 'noopener,noreferrer');
-
-      if (!opened) {
-        const a = document.createElement('a');
-        a.href = receiptUrl;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        a.click();
-      }
-
-      window.setTimeout(() => URL.revokeObjectURL(receiptUrl), 300000);
-    } catch {
-      toast.error('Çek yüklənmədi');
+      await openReceiptBlob(() => paymentsApi.downloadReceipt(paymentId));
     } finally {
       setReceiptLoading(false);
+    }
+  };
+
+  // Vahid çek — kütləvi ödənişin bütün ayları tək PDF-də.
+  // Paket ID-si varsa onunla (tarixçədən çap ilə eyni yol), yoxdursa sətir ID-ləri ilə.
+  const handleShowBulkReceipt = async () => {
+    if (lastBulkPaymentIds.length === 0) return;
+    setBulkReceiptLoading(true);
+    try {
+      await openReceiptBlob(() =>
+        lastBulkBatchId
+          ? paymentsApi.downloadBatchReceipt(lastBulkBatchId)
+          : paymentsApi.downloadBulkReceipt(lastBulkPaymentIds)
+      );
+    } finally {
+      setBulkReceiptLoading(false);
     }
   };
 
@@ -1303,6 +1343,19 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
                 </div>
               </div>
 
+              {/* Ödəniş qeyd olunandan sonra pəncərə açıq qalır ki, vahid çek çap edilə bilsin */}
+              {lastBulkPaymentIds.length > 0 && (
+                <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2.5 dark:border-green-800/40 dark:bg-green-900/20">
+                  <p className="text-[11px] font-semibold text-green-800 dark:text-green-300 flex items-center gap-1.5">
+                    <Check size={12} strokeWidth={3} /> {lastBulkPaymentIds.length} ay qeyd edildi
+                    {lastBulkMonthsLabel ? `: ${lastBulkMonthsLabel}` : ''}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-green-700/80 dark:text-green-400/80">
+                    Aşağıdakı <b>Vahid çek</b> düyməsi bütün bu ayları tək çekdə çap edir.
+                  </p>
+                </div>
+              )}
+
               {currentChildDiscount > 0 && currentChildDiscount < 100 && (
                 <div className="rounded-lg border border-rose-100 bg-rose-50/60 dark:bg-rose-900/10 dark:border-rose-900/40 px-3 py-2 text-[11px] text-rose-700 dark:text-rose-400">
                   Bu uşağa <b>{currentChildDiscount}%</b> endirim tətbiq olunub — məbləğlər endirimli göstərilir.
@@ -1345,9 +1398,9 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
           type="button"
           variant="secondary"
           className="flex-1"
-          onClick={() => lastRecordedPaymentId ? onSuccess?.() : onCancel?.()}
+          onClick={() => hasRecordedPayment ? onSuccess?.() : onCancel?.()}
         >
-          {lastRecordedPaymentId ? 'Bağla' : 'Ləğv et'}
+          {hasRecordedPayment ? 'Bağla' : 'Ləğv et'}
         </Button>
         {mode === 'single' && (
           <Button
@@ -1358,6 +1411,22 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
             onClick={() => lastRecordedPaymentId && handleShowReceipt(lastRecordedPaymentId)}
           >
             <ReceiptText size={14} /> Çeki göstər
+          </Button>
+        )}
+        {mode === 'bulk' && (
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={lastBulkPaymentIds.length === 0}
+            loading={bulkReceiptLoading}
+            onClick={handleShowBulkReceipt}
+            title={
+              lastBulkPaymentIds.length === 0
+                ? 'Əvvəlcə kütləvi ödənişi qeyd edin'
+                : 'Seçilmiş bütün aylar üçün tək çek'
+            }
+          >
+            <ReceiptText size={14} /> Vahid çek
           </Button>
         )}
         {mode === 'single' ? (

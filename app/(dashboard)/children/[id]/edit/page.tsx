@@ -15,6 +15,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { childSchema, type ChildFormValues } from '@/lib/utils/validators';
 import { childrenApi } from '@/lib/api/children';
+import { warnSkippedPaidMonths } from '@/components/children/deactivationNotices';
 import { groupsApi } from '@/lib/api/groups';
 import { schedulesApi } from '@/lib/api/schedules';
 import { cn } from '@/lib/utils/constants';
@@ -155,7 +156,7 @@ export default function EditChildPage() {
         }
       }
 
-      await childrenApi.update(numId, {
+      const updated = await childrenApi.update(numId, {
         ...data,
         personId: normalizedPersonId,
         parentEmail: null,
@@ -164,6 +165,9 @@ export default function EditChildPage() {
         ...(child?.status === 'Inactive' && deactivationDate ? { deactivationDate: toIsoDate(deactivationDate) } : {}),
       });
       toast.success('Məlumatlar yeniləndi');
+      // Çıxış tarixi bu formadan düzəldilir — ödənişi olan aylar, artıq ödəniş və bərpa
+      // olunan aylar deaktivasiya modalı ilə eyni bildiriş yolundan keçməlidir (D4).
+      warnSkippedPaidMonths([updated.recalculation]);
       router.push(`/children/${id}`);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Xəta baş verdi');

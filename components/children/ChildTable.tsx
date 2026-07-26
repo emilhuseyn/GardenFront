@@ -15,9 +15,11 @@ interface ChildTableProps {
   onToggleStatus?: (id: number, current: string) => Promise<void> | void;
   onDelete?: (id: number) => void;
   onDeleteBulk?: (ids: number[]) => void;
+  /** Toplu deaktivləşdirmə — çıxış tarixi bir dəfə soruşulur (verilməsə bir-bir onToggleStatus çağırılır) */
+  onDeactivateBulk?: (ids: number[]) => void;
 }
 
-export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDeleteBulk }: ChildTableProps) {
+export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDeleteBulk, onDeactivateBulk }: ChildTableProps) {
   const [openMenu, setOpenMenu] = useState<number | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
@@ -104,8 +106,12 @@ export function ChildTable({ rows: childList, onToggleStatus, onDelete, onDelete
                 className="text-rose-500 hover:text-rose-600 font-medium"
                 onClick={async () => {
                   const targets = selectedChildren.filter(c => c.status === 'Active');
-                  for (const child of targets) {
-                    await onToggleStatus?.(child.id, child.status);
+                  if (onDeactivateBulk) {
+                    onDeactivateBulk(targets.map(c => c.id));
+                  } else {
+                    for (const child of targets) {
+                      await onToggleStatus?.(child.id, child.status);
+                    }
                   }
                   setSelected(new Set());
                 }}

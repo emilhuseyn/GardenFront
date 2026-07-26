@@ -18,6 +18,14 @@ function extractFileName(contentDisposition: string | null): string | null {
   return basicMatch[1].trim().replace(/^"|"$/g, '');
 }
 
+/**
+ * Backend Payment sətrində kütləvi ödənişin paket ID-si saxlanılır —
+ * vahid çeki sonradan tarixçədən təkrar çap etmək üçün.
+ */
+export interface PaymentWithBatch extends Payment {
+  paymentBatchId?: string | null;
+}
+
 export const paymentsApi = {
   getDebtors: async (options?: { silentError?: boolean }) => {
     const res = await apiClient.get('/api/paymentses/debtors', {
@@ -35,7 +43,7 @@ export const paymentsApi = {
 
   getChildHistory: async (childId: number) => {
     const res = await apiClient.get(`/api/paymentses/child/${childId}`);
-    return unwrap<Payment[]>(res);
+    return unwrap<PaymentWithBatch[]>(res);
   },
 
   getDailyReport: async (date: string) => {
@@ -72,7 +80,13 @@ export const paymentsApi = {
     monthOverrides?: Array<{ month: number; startDay?: number; endDay?: number; roundingDiscount?: number }>;
   }) => {
     const res = await apiClient.post('/api/paymentses/record-bulk', data);
-    return unwrap<{ paidCount: number; totalPaid: number; payments: Payment[] }>(res);
+    // paymentBatchId — heç bir ay emal olunmayıbsa (hamısı artıq ödənilib) null qayıdır
+    return unwrap<{
+      paidCount: number;
+      totalPaid: number;
+      paymentBatchId?: string | null;
+      payments: PaymentWithBatch[];
+    }>(res);
   },
 
   generateMonthly: async (month: number, year: number) => {
@@ -105,6 +119,39 @@ export const paymentsApi = {
 
     const contentDisposition = (res.headers['content-disposition'] as string | undefined) ?? null;
     const fileName = extractFileName(contentDisposition) || `receipt_${id}.pdf`;
+    return { blob: res.data as Blob, fileName };
+  },
+
+  // Vahid çek — bir uşağın bir neçə ayı üçün tək PDF.
+  // 12 ID sorğu sətrinə sığmadığı üçün backend POST gözləyir.
+  downloadBulkReceipt: async (paymentIds: number[]): Promise<{ blob: Blob; fileName: string }> => {
+    const res = await apiClient.post(
+      '/api/paymentses/receipt/bulk',
+      { paymentIds },
+      {
+        responseType: 'blob',
+        headers: {
+          Accept: 'application/pdf,*/*',
+        },
+      }
+    );
+
+    const contentDisposition = (res.headers['content-disposition'] as string | undefined) ?? null;
+    const fileName = extractFileName(contentDisposition) || `receipt_bulk_${paymentIds.length}_ay.pdf`;
+    return { blob: res.data as Blob, fileName };
+  },
+
+  // Tarixçədən təkrar çap — kütləvi ödənişin paket ID-si ilə
+  downloadBatchReceipt: async (batchId: string): Promise<{ blob: Blob; fileName: string }> => {
+    const res = await apiClient.get(`/api/paymentses/receipt/batch/${batchId}`, {
+      responseType: 'blob',
+      headers: {
+        Accept: 'application/pdf,*/*',
+      },
+    });
+
+    const contentDisposition = (res.headers['content-disposition'] as string | undefined) ?? null;
+    const fileName = extractFileName(contentDisposition) || `receipt_batch_${batchId}.pdf`;
     return { blob: res.data as Blob, fileName };
   },
 };

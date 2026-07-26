@@ -280,6 +280,13 @@ export interface Payment {
   parentPhone?: string;
   totalDebt?: number;
   unpaidMonths?: number[];
+  /**
+   * Hesablanan dövrün başlanğıc/bitiş günü (hər ikisi daxil). Null/undefined = tam ay.
+   * Bu, backend-dəki Payment.PeriodStartDay/PeriodEndDay sütunlarıdır — "Dövr:" qeyd mətni
+   * artıq parse olunmur, çünki qeyd köhnə hissələri də saxlaya bilir.
+   */
+  periodStartDay?: number | null;
+  periodEndDay?: number | null;
 }
 
 export interface DailyPaymentReport {

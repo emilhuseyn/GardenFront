@@ -1290,7 +1290,14 @@ export default function PaymentsPage() {
       </Modal>
 
       {/* Payment drawer */}
-      <Drawer open={drawerOpen} onOpenChange={setOpen}>
+      {/* Kütləvi ödənişdən sonra forma açıq qalır (vahid çek üçün) — X/Esc ilə bağlananda da cədvəl yenilənsin */}
+      <Drawer
+        open={drawerOpen}
+        onOpenChange={(open) => {
+          setOpen(open);
+          if (!open) setTableRefreshKey((k) => k + 1);
+        }}
+      >
         <DrawerContent>
           <DrawerHeader>
             <DrawerTitle>Ödəniş qeyd et</DrawerTitle>

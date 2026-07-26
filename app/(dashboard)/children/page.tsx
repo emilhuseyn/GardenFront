@@ -14,8 +14,10 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
 import { ChildCard } from '@/components/children/ChildCard';
 import { ChildTable } from '@/components/children/ChildTable';
+import { DeactivateChildModal } from '@/components/children/DeactivateChildModal';
+import { warnSkippedPaidMonths } from '@/components/children/deactivationNotices';
 import { cn } from '@/lib/utils/constants';
-import { childrenApi } from '@/lib/api/children';
+import { childrenApi, type DeactivationRecalcResult } from '@/lib/api/children';
 import { divisionsApi, groupsApi } from '@/lib/api/groups';
 import { reportsApi } from '@/lib/api/reports';
 import { schedulesApi } from '@/lib/api/schedules';
@@ -23,7 +25,7 @@ import { useDebounce } from '@/lib/hooks/useDebounce';
 import { equalsNormalizedText, getAge, formatDateShort } from '@/lib/utils/format';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
-import type { ActiveInactive, Child, ChildFilters, Division, Group } from '@/types';
+import type { ActiveInactive, Child, ChildFilters, ChildStatus, Division, Group } from '@/types';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Aktivlər' },
@@ -72,6 +74,8 @@ export default function ChildrenPage() {
   const [summary, setSummary]       = useState<ActiveInactive | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<Child[]>([]);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deactivateTargets, setDeactivateTargets] = useState<Child[]>([]);
+  const [deactivateLoading, setDeactivateLoading] = useState(false);
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -142,30 +146,80 @@ export default function ChildrenPage() {
     }
   };
 
+  const applyStatusChange = (ids: number[], status: ChildStatus, deactivationDate?: string) => {
+    const idSet = new Set(ids);
+    setChildren((prev) => {
+      const updated = prev.map((c) =>
+        idSet.has(c.id)
+          ? { ...c, status, ...(deactivationDate ? { deactivationDate } : {}) }
+          : c
+      );
+      // Invalidate all children caches so next load is fresh
+      Object.keys(sessionStorage)
+        .filter((k) => k.startsWith('children_cache_'))
+        .forEach((k) => sessionStorage.removeItem(k));
+      return updated;
+    });
+  };
+
   const handleToggleStatus = async (id: number, currentStatus: string) => {
+    // Deaktivləşdirmədə əvvəlcə uşağın gəldiyi sonuncu gün soruşulur
+    if (currentStatus === 'Active') {
+      const target = children.find((c) => c.id === id);
+      if (target) setDeactivateTargets([target]);
+      return;
+    }
     try {
-      if (currentStatus === 'Active') {
-        await childrenApi.deactivate(id);
-        toast.success('Uşaq deaktiv edildi');
-      } else {
-        await childrenApi.activate(id);
-        toast.success('Uşaq aktiv edildi');
-      }
-      setChildren((prev) => {
-        const updated = prev.map((c) =>
-          c.id === id
-            ? { ...c, status: (currentStatus === 'Active' ? 'Inactive' : 'Active') as import('@/types').ChildStatus }
-            : c
-        );
-        // Invalidate all children caches so next load is fresh
-        Object.keys(sessionStorage)
-          .filter((k) => k.startsWith('children_cache_'))
-          .forEach((k) => sessionStorage.removeItem(k));
-        return updated;
-      });
+      await childrenApi.activate(id);
+      toast.success('Uşaq aktiv edildi');
+      applyStatusChange([id], 'Active');
       void refreshSummary();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Xəta baş verdi, adminlə əlaqə saxlayın');
+    }
+  };
+
+  const handleDeactivateBulkRequest = (ids: number[]) => {
+    const targets = children.filter((c) => ids.includes(c.id) && c.status === 'Active');
+    if (targets.length) setDeactivateTargets(targets);
+  };
+
+  // Toplu deaktivləşdirmə: seçilmiş tarix bütün uşaqlara tətbiq olunur.
+  const handleDeactivateConfirm = async (effectiveDate: string) => {
+    if (!deactivateTargets.length) return;
+    setDeactivateLoading(true);
+    const results: DeactivationRecalcResult[] = [];
+    const succeededIds: number[] = [];
+    const failures: string[] = [];
+    try {
+      for (const target of deactivateTargets) {
+        try {
+          const result = await childrenApi.deactivate(target.id, effectiveDate);
+          if (result) results.push(result);
+          succeededIds.push(target.id);
+        } catch (error) {
+          failures.push(`${target.lastName} ${target.firstName}: ${error instanceof Error ? error.message : 'xəta'}`);
+        }
+      }
+
+      if (succeededIds.length) {
+        applyStatusChange(succeededIds, 'Inactive', `${effectiveDate}T00:00:00Z`);
+        toast.success(
+          succeededIds.length > 1
+            ? `${succeededIds.length} uşaq deaktiv edildi (${formatDateShort(effectiveDate)})`
+            : `Uşaq deaktiv edildi (${formatDateShort(effectiveDate)})`
+        );
+        warnSkippedPaidMonths(results);
+        void refreshSummary();
+      }
+
+      if (failures.length) {
+        toast.error(failures.join('\n'));
+      } else {
+        setDeactivateTargets([]);
+      }
+    } finally {
+      setDeactivateLoading(false);
     }
   };
 
@@ -402,6 +456,14 @@ export default function ChildrenPage() {
 
   const fullDayCount = baseForScheduleCounts.filter((c) => c.scheduleType === 'FullDay').length;
   const halfDayCount = baseForScheduleCounts.filter((c) => c.scheduleType === 'HalfDay').length;
+
+  // Toplu əməliyyatda ən gec qeydiyyat tarixi limit olur — heç bir uşaq üçün qəbuldan əvvəl olmasın.
+  const deactivateMinDate = useMemo(() => {
+    const dates = deactivateTargets
+      .map((c) => c.registrationDate?.slice(0, 10))
+      .filter((d): d is string => Boolean(d));
+    return dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : null;
+  }, [deactivateTargets]);
 
   // Ekranda görünən (filtrlənmiş) siyahını Excel-ə çıxarır.
   // Telefonlar mətn kimi yazılır ki, baş sıfır (0503030400) itməsin.
@@ -662,7 +724,13 @@ export default function ChildrenPage() {
           ))}
         </div>
       ) : (
-        <ChildTable rows={processedChildren} onToggleStatus={handleToggleStatus} onDelete={handleDeleteRequest} onDeleteBulk={handleDeleteBulkRequest} />
+        <ChildTable
+          rows={processedChildren}
+          onToggleStatus={handleToggleStatus}
+          onDelete={handleDeleteRequest}
+          onDeleteBulk={handleDeleteBulkRequest}
+          onDeactivateBulk={handleDeactivateBulkRequest}
+        />
       )}
 
       <ConfirmDeleteModal
@@ -675,6 +743,19 @@ export default function ChildrenPage() {
             : `${deleteTargets.length} uşaq`
         }
         loading={deleteLoading}
+      />
+
+      <DeactivateChildModal
+        open={deactivateTargets.length > 0}
+        onClose={() => setDeactivateTargets([])}
+        onConfirm={handleDeactivateConfirm}
+        childName={
+          deactivateTargets.length === 1
+            ? `${deactivateTargets[0].firstName} ${deactivateTargets[0].lastName}`
+            : `${deactivateTargets.length} uşaq`
+        }
+        minDate={deactivateMinDate}
+        loading={deactivateLoading}
       />
     </div>
   );

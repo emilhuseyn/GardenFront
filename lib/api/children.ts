@@ -6,6 +6,107 @@ type ChildUpdateData = Partial<ChildFormData> & {
   deactivationDate?: string | null;
 };
 
+/** Deaktivləşdirmədə sıfırlanmayıb keçilən (real ödənişi olan) ay — geri qaytarma əl ilə edilməlidir. */
+export interface SkippedPaidMonth {
+  paymentId: number;
+  month: number;
+  year: number;
+  paidAmount: number;
+}
+
+/**
+ * BAĞLANMIŞ qeydiyyat epizodunda yekunlaşdırıldığı üçün sıfırlanmayan ay (G2). Sətir QƏSDƏN
+ * toxunulmaz qalır — ştab isə onun yenidən hesablanmadığını GÖRMƏLİDİR.
+ */
+export interface SkippedConfirmedMonth {
+  paymentId: number;
+  month: number;
+  year: number;
+  finalAmount: number;
+  paidAmount: number;
+}
+
+/** Əvvəlki səhv çıxış tarixi ilə sıfırlanmış, indi yenidən hesablanan ay. */
+export interface RestoredMonth {
+  paymentId: number;
+  month: number;
+  year: number;
+  finalAmount: number;
+  /** Bərpa anındakı real ödəniş — 0-dan böyükdürsə ödənişi olan ay yenidən hesablanıb. */
+  paidAmount?: number;
+}
+
+/** Çıxış ayının yenidən bölünməsi nəticəsində yaranan artıq ödəniş — geri qaytarma əl ilə edilməlidir. */
+export interface ExitMonthOverpayment {
+  paymentId: number;
+  month: number;
+  year: number;
+  paidAmount: number;
+  newFinalAmount: number;
+  difference: number;
+}
+
+/**
+ * Çıxış tarixi İRƏLİ düzəldildikdə yaranan az hesablanma (F5): sətir tam ödənildiyi üçün
+ * məbləği yenidən yazılmır, fərq valideyndən əl ilə alınmalıdır.
+ */
+export interface ExitMonthUnderpayment {
+  paymentId: number;
+  month: number;
+  year: number;
+  paidAmount: number;
+  newFinalAmount: number;
+  difference: number;
+}
+
+/**
+ * Bərpa pəncərəsində hesabı ÜMUMİYYƏTLƏ olmayan ay (F1). Backend belə ayı QƏSDƏN yaratmır —
+ * "uşaq həmin ay gəlməyib" ilə "sətir sadəcə generasiya olunmayıb" bir-birindən seçilmir və
+ * avtomatik yaratmaq valideynə uydurma borc yazardı. Ştab siyahını görür, lazım olsa əl ilə yaradır.
+ */
+export interface MissingMonth {
+  month: number;
+  year: number;
+}
+
+/** Çıxış ayının yekun vəziyyəti (F3) — hər deaktivasiyada qayıdır. */
+export interface ExitMonthOutcome {
+  paymentId: number;
+  month: number;
+  year: number;
+  finalAmount: number;
+  paidAmount: number;
+  periodStartDay: number;
+  periodEndDay: number;
+  /** Sətir bu əməliyyatla YARADILDI (əvvəllər mövcud deyildi). */
+  created: boolean;
+  /** Məbləğə toxunulmadı (real ödəniş və ya təsdiqlənmiş yoxluq) — əl ilə yoxlanmalıdır. */
+  needsManualReview: boolean;
+  reason?: string | null;
+}
+
+/** Backend DeactivationRecalcResult — çıxış tarixindən sonra hesabların yenidən qurulmasının nəticəsi. */
+export interface DeactivationRecalcResult {
+  childId: number;
+  childFullName: string;
+  effectiveDate: string;
+  zeroedMonths: number;
+  skippedPaidMonths: SkippedPaidMonth[];
+  /** Yekunlaşdırıldığı üçün sıfırlanmayan aylar — toxunulmur, yalnız bildirilir (G2). */
+  skippedConfirmedMonths?: SkippedConfirmedMonth[];
+  restoredMonths?: RestoredMonth[];
+  restoredMonthsCount?: number;
+  exitMonthOverpayment?: ExitMonthOverpayment | null;
+  exitMonthUnderpayment?: ExitMonthUnderpayment | null;
+  /** Hesabı olmayan aylar — yaradılmır, yalnız bildirilir (F1). */
+  missingMonths?: MissingMonth[];
+  /** Çıxış ayının nəticəsi (F3). */
+  exitMonth?: ExitMonthOutcome | null;
+}
+
+/** Redaktə cavabı — çıxış tarixi dəyişdirilibsə hesabların yenidən qurulması da qayıdır (D4). */
+export type ChildUpdateResponse = Child & { recalculation?: DeactivationRecalcResult | null };
+
 function extractFileName(contentDisposition: string | null): string | null {
   if (!contentDisposition) return null;
 
@@ -64,7 +165,7 @@ export const childrenApi = {
 
   update: async (id: number, data: ChildUpdateData) => {
     const res = await apiClient.put(`/api/childrens/${id}`, data);
-    return unwrap<Child>(res);
+    return unwrap<ChildUpdateResponse>(res);
   },
 
   activate: async (id: number) => {
@@ -72,9 +173,14 @@ export const childrenApi = {
     return unwrap(res);
   },
 
-  deactivate: async (id: number) => {
-    const res = await apiClient.patch(`/api/childrens/${id}/deactivate`);
-    return unwrap(res);
+  // effectiveDate — uşağın gəldiyi SONUNCU gün ('yyyy-MM-dd'). Verilməsə gövdə göndərilmir
+  // və backend köhnə davranışla bugünü götürür.
+  deactivate: async (id: number, effectiveDate?: string) => {
+    const res = await apiClient.patch(
+      `/api/childrens/${id}/deactivate`,
+      effectiveDate ? { effectiveDate: `${effectiveDate}T00:00:00Z` } : undefined
+    );
+    return unwrap<DeactivationRecalcResult>(res);
   },
 
   delete: async (id: number) => {

@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ChildStatusBadge } from '@/components/children/ChildStatusBadge';
-import { formatDate, formatCurrency, formatPhone, AZ_MONTHS } from '@/lib/utils/format';
+import { formatDate, formatDateShort, formatCurrency, formatPhone, AZ_MONTHS } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/constants';
 import { childrenApi } from '@/lib/api/children';
 import { paymentsApi } from '@/lib/api/payments';
@@ -22,6 +22,8 @@ import { attendanceApi } from '@/lib/api/attendance';
 import { groupsApi } from '@/lib/api/groups';
 import { schedulesApi } from '@/lib/api/schedules';
 import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
+import { DeactivateChildModal } from '@/components/children/DeactivateChildModal';
+import { warnSkippedPaidMonths } from '@/components/children/deactivationNotices';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import type { Child, Group, Payment, AttendanceEntry } from '@/types';
@@ -110,6 +112,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
   const [loading, setLoading]           = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
   const [monthAttendance, setMonthAttendance] = useState<AttendanceEntry[]>([]);
   const [scheduleNameByCode, setScheduleNameByCode] = useState<Record<string, string>>({});
@@ -134,17 +137,34 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
 
   const handleToggleStatus = async () => {
     if (!child) return;
+    // Deaktivləşdirmədə əvvəlcə uşağın gəldiyi sonuncu gün soruşulur
+    if (child.status === 'Active') {
+      setDeactivateModalOpen(true);
+      return;
+    }
     setActionLoading(true);
     try {
-      if (child.status === 'Active') {
-        await childrenApi.deactivate(numId);
-        setChild((c) => c ? { ...c, status: 'Inactive' } : c);
-        toast.success('Uşaq deaktiv edildi');
-      } else {
-        await childrenApi.activate(numId);
-        setChild((c) => c ? { ...c, status: 'Active' } : c);
-        toast.success('Uşaq aktiv edildi');
-      }
+      await childrenApi.activate(numId);
+      setChild((c) => c ? { ...c, status: 'Active' } : c);
+      toast.success('Uşaq aktiv edildi');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Xəta baş verdi');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeactivateConfirm = async (effectiveDate: string) => {
+    if (!child) return;
+    setActionLoading(true);
+    try {
+      const result = await childrenApi.deactivate(numId, effectiveDate);
+      setChild((c) => c ? { ...c, status: 'Inactive', deactivationDate: `${effectiveDate}T00:00:00Z` } : c);
+      toast.success(`Uşaq deaktiv edildi (${formatDateShort(effectiveDate)})`);
+      warnSkippedPaidMonths([result]);
+      setDeactivateModalOpen(false);
+      // Ödənişlər yenidən hesablandığı üçün siyahını təzələyirik
+      paymentsApi.getChildHistory(numId).then(setPayments).catch(() => {});
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Xəta baş verdi');
     } finally {
@@ -509,6 +529,14 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
         onClose={() => setDeleteModalOpen(false)}
         onConfirm={handleDelete}
         childName={`${child.firstName} ${child.lastName}`}
+        loading={actionLoading}
+      />
+      <DeactivateChildModal
+        open={deactivateModalOpen}
+        onClose={() => setDeactivateModalOpen(false)}
+        onConfirm={handleDeactivateConfirm}
+        childName={`${child.firstName} ${child.lastName}`}
+        minDate={child.registrationDate ? child.registrationDate.slice(0, 10) : null}
         loading={actionLoading}
       />
       <div className="relative rounded-2xl overflow-hidden mb-6 p-6 bg-gradient-to-br from-green-400/10 to-accent-blue/5 dark:from-green-400/5 dark:to-accent-blue/5 border border-white-border dark:border-gray-700/60">
