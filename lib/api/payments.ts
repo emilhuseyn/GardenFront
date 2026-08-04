@@ -85,6 +85,16 @@ export const paymentsApi = {
       paidCount: number;
       totalPaid: number;
       paymentBatchId?: string | null;
+      // Yenidən hesablanan məbləği artıq ödənilmişdən AZ çıxan aylar — real pula toxunulmur,
+      // amma kassir fərqi görməlidir (geri qaytarma lazım ola bilər).
+      overpaidMonths?: Array<{
+        paymentId: number;
+        month: number;
+        year: number;
+        paidAmount: number;
+        newFinalAmount: number;
+        difference: number;
+      }>;
       payments: PaymentWithBatch[];
     }>(res);
   },

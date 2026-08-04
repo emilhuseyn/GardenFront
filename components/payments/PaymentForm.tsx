@@ -12,7 +12,7 @@ import { paymentsApi, type PaymentWithBatch } from '@/lib/api/payments';
 import { openReceiptBlob } from '@/components/payments/receipt';
 import { childrenApi } from '@/lib/api/children';
 import { cashboxesApi } from '@/lib/api/cashboxes';
-import { formatCurrency } from '@/lib/utils/format';
+import { formatCurrency, AZ_MONTHS } from '@/lib/utils/format';
 import { DollarSign, ReceiptText, Trash2, Search, X, ChevronDown, User, Check, CalendarDays, Layers, ArrowDownToLine, Info } from 'lucide-react';
 import { cn } from '@/lib/utils/constants';
 import type { Cashbox, ChildStatus } from '@/types';
@@ -670,6 +670,23 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
         monthOverrides: overrides,
       });
       toast.success(`${res.paidCount} ay üçün ${formatCurrency(res.totalPaid)} qeyd edildi`);
+
+      // Yenidən hesablama nəticəsində məbləğ artıq ödənilmişdən aşağı düşübsə, kassir bunu
+      // MÜTLƏQ görməlidir — real pula toxunulmayıb, amma fərq geri qaytarılmalı ola bilər.
+      const overpaid = res.overpaidMonths ?? [];
+      if (overpaid.length > 0) {
+        const detay = overpaid
+          .slice(0, 4)
+          .map((m) => `${AZ_MONTHS[m.month - 1]} ${m.year}: ödənilib ${formatCurrency(m.paidAmount)}, yeni məbləğ ${formatCurrency(m.newFinalAmount)} (fərq ${formatCurrency(m.difference)})`)
+          .join('\n');
+        toast.warning(
+          `${overpaid.length} ayda artıq ödəniş aşkarlandı — məbləği yoxlayın`,
+          {
+            description: overpaid.length > 4 ? `${detay}\n+${overpaid.length - 4} ay` : detay,
+            duration: 15000,
+          }
+        );
+      }
 
       // Vahid çek üçün qeyd olunan sətirləri saxla — drawer bağlanmır, çek düyməsi əlçatan qalır
       const recorded = res.payments ?? [];
