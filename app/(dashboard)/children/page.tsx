@@ -465,6 +465,28 @@ export default function ChildrenPage() {
     return dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : null;
   }, [deactivateTargets]);
 
+  // Modaldakı canlı "Bu ay üçün: N gün" sayımı yalnız DƏQİQ olduqda göndərilir:
+  // seçilmiş uşaqların hamısının qəbul tarixi eynidirsə. Fərqlidirsə modal ayın 1-indən sayır
+  // və bunu özü bildirir (yanlış rəqəm göstərilməsin).
+  const deactivateRegistrationDate = useMemo(() => {
+    const dates = deactivateTargets.map((c) => c.registrationDate?.slice(0, 10) ?? null);
+    if (!dates.length || dates.some((d) => d === null)) return null;
+    return dates.every((d) => d === dates[0]) ? dates[0] : null;
+  }, [deactivateTargets]);
+
+  // Məbləğ yalnız bütün seçilmiş uşaqların qiyməti və endirimi eyni olduqda göstərilir.
+  const deactivateFee = useMemo(() => {
+    if (!deactivateTargets.length) return null;
+    const first = deactivateTargets[0];
+    const same = deactivateTargets.every(
+      (c) => c.monthlyFee === first.monthlyFee
+        && (c.discountPercentage ?? 0) === (first.discountPercentage ?? 0)
+    );
+    return same
+      ? { monthlyFee: first.monthlyFee, discountPercentage: first.discountPercentage ?? 0 }
+      : null;
+  }, [deactivateTargets]);
+
   // Ekranda görünən (filtrlənmiş) siyahını Excel-ə çıxarır.
   // Telefonlar mətn kimi yazılır ki, baş sıfır (0503030400) itməsin.
   const exportToExcel = () => {
@@ -755,6 +777,9 @@ export default function ChildrenPage() {
             : `${deactivateTargets.length} uşaq`
         }
         minDate={deactivateMinDate}
+        registrationDate={deactivateRegistrationDate}
+        monthlyFee={deactivateFee?.monthlyFee ?? null}
+        discountPercentage={deactivateFee?.discountPercentage ?? null}
         loading={deactivateLoading}
       />
     </div>

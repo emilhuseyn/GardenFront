@@ -168,8 +168,11 @@ export default function DashboardPage() {
           prefix="₼"
           delay={isAccountant ? 0 : 0.14}
         />
+        {/* C1: güzəşt artıq borcu GİZLƏTMİR — siyahıya ödəniş günü hələ gəlməmiş uşaqlar da düşür,
+            ona görə başlıq "gecikmiş" demir. Rəqəm borclu uşaqların sayıdır (gecikmə yalnız
+            WhatsApp işində hesablanır). */}
         <StatCard
-          title="Gecikmiş ödəniş"
+          title="Borclu uşaq"
           value={debtors.length}
           icon={AlertCircle}
           trend={{ value: 12, isPositive: false }}

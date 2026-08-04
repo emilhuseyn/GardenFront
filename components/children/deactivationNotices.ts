@@ -5,6 +5,14 @@ import type { DeactivationRecalcResult } from '@/lib/api/children';
 const period = (month: number, year: number) => `${AZ_MONTHS[month - 1] ?? month} ${year}`;
 
 /**
+ * Çıxış ayının hesablanan dövrü. Backend-də bitiş günü İNKLÜZİVDİR (son hesablanan gün), uşaq
+ * həmin ay heç gəlməyibsə isə aralıq BOŞ olur və bitiş başlanğıcdan kiçik gəlir (məs. 1/0) —
+ * o halda "1-0 gün" yazmaq əvəzinə açıq şəkildə "0 gün" göstərilir.
+ */
+const periodDays = (startDay: number, endDay: number) =>
+  endDay < startDay ? '0 gün' : `${startDay}-${endDay} (${endDay - startDay + 1} gün)`;
+
+/**
  * Çıxış tarixi dəyişdikdə ştabın bilməli olduğu hər şeyi göstərir:
  *  1) real pul ödənildiyi üçün sıfırlanmayan aylar (geri qaytarma əl ilə),
  *  2) çıxış ayının yenidən bölünməsindən yaranan artıq ödəniş (D2),
@@ -150,7 +158,7 @@ export function warnSkippedPaidMonths(results: (DeactivationRecalcResult | undef
         description: exitWritten
           .map(({ child, e }) =>
             `${child} — ${period(e.month, e.year)}: ${formatCurrency(e.finalAmount)} `
-            + `(${e.periodStartDay}-${e.periodEndDay} gün)${e.created ? ' • yeni' : ''}`)
+            + `(${periodDays(e.periodStartDay, e.periodEndDay)})${e.created ? ' • yeni' : ''}`)
           .join(' • ') + zeroedSuffix,
         duration: 12000,
       }

@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { childrenApi } from '@/lib/api/children';
 import { useDebounce } from '@/lib/hooks/useDebounce';
+import { formatLastAttendedDate } from '@/lib/utils/format';
 import { toast } from 'sonner';
 import type { Child } from '@/types';
 
@@ -106,7 +107,7 @@ export default function InactiveChildrenPage() {
       'İkinci valideyn telefonu': child.secondParentPhone ?? '',
       Qrup: child.groupName ?? '',
       Bölmə: child.divisionName ?? '',
-      'Deaktiv tarix': child.deactivationDate ?? '',
+      'Son gəldiyi gün': formatLastAttendedDate(child.deactivationDate, 'dd.MM.yyyy'),
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(rows);

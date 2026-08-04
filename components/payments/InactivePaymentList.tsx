@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { SearchBar } from '@/components/ui/SearchBar';
-import { formatCurrency } from '@/lib/utils/format';
+import { formatCurrency, toLastAttendedDate } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/constants';
 import { childrenApi } from '@/lib/api/children';
 import { paymentsApi } from '@/lib/api/payments';
@@ -40,10 +40,10 @@ interface InactivePaymentListProps {
   onInitialLoadDone?: () => void;
 }
 
-function formatDateAz(dateStr?: string | null): string | undefined {
-  if (!dateStr) return undefined;
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return undefined;
+/** Deaktiv tarixindən uşağın SON GƏLDİYİ günü hazırlayır (bir gün geri — bax toLastAttendedDate). */
+function formatLastAttendedAz(dateStr?: string | null): string | undefined {
+  const d = toLastAttendedDate(dateStr);
+  if (!d) return undefined;
   return `${d.getDate()} ${AZ_MONTHS_FULL[d.getMonth()]} ${d.getFullYear()}`;
 }
 
@@ -101,14 +101,14 @@ export function InactivePaymentList({ refreshKey = 0, onRecord, onInitialLoadDon
 
           const totalDebt = unpaid.reduce((sum, m) => sum + m.remaining, 0);
 
+          // Deaktiv tarixi "artıq gəlmədiyi ilk gün"dür — çıxış AYI son gəldiyi günə görə
+          // müəyyən olunur, yoxsa 31.07-də sonuncu gələn uşaq avqustda çıxmış görünərdi.
           let deactivationMonth: number | undefined;
           let deactivationYear: number | undefined;
-          if (child.deactivationDate) {
-            const d = new Date(child.deactivationDate);
-            if (!Number.isNaN(d.getTime())) {
-              deactivationMonth = d.getMonth() + 1;
-              deactivationYear = d.getFullYear();
-            }
+          const lastAttended = toLastAttendedDate(child.deactivationDate);
+          if (lastAttended) {
+            deactivationMonth = lastAttended.getMonth() + 1;
+            deactivationYear = lastAttended.getFullYear();
           }
 
           return {
@@ -117,7 +117,7 @@ export function InactivePaymentList({ refreshKey = 0, onRecord, onInitialLoadDon
             unpaidMonths: unpaid,
             deactivationMonth,
             deactivationYear,
-            deactivationDateLabel: formatDateAz(child.deactivationDate),
+            deactivationDateLabel: formatLastAttendedAz(child.deactivationDate),
           };
         });
 

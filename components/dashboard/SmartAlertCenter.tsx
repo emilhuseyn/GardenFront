@@ -111,10 +111,13 @@ export function SmartAlertCenter() {
 
             const debtor = debtorByChildId.get(child.id);
             if (debtor) {
-              const overdueMonths = debtor.unpaidMonths.length;
-              const paymentScore = Math.min(50, overdueMonths * 12 + Math.min(18, Math.floor(debtor.totalDebt / 150) * 4));
+              // C1: unpaidMonths ödənilməmiş ayların sayıdır — GECİKMİŞ ayların yox. Güzəşt artıq
+              // borcu gizlətmədiyi üçün buraya ödəniş günü hələ gəlməmiş cari ay da düşür,
+              // ona görə mətn "gecikmə" demir. Risk balı ARİFMETİKASI dəyişmir.
+              const unpaidMonths = debtor.unpaidMonths.length;
+              const paymentScore = Math.min(50, unpaidMonths * 12 + Math.min(18, Math.floor(debtor.totalDebt / 150) * 4));
               score += paymentScore;
-              reasons.push(`Ödəniş gecikməsi: ${overdueMonths} ay, borc məbləği`);
+              reasons.push(`Ödənilməmiş ay: ${unpaidMonths}, borc məbləği`);
             }
 
           const history = attendanceByChild.get(child.id) ?? [];

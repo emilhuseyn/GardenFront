@@ -6,7 +6,7 @@ import { Phone, Clock, MoreVertical, UserX, UserCheck, Trash2 } from 'lucide-rea
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { formatDate, formatPhone, getAge, getDivisionAccent, getDivisionBadgeVariant, getDivisionFlag } from '@/lib/utils/format';
+import { formatDate, formatPhone, formatLastAttendedDate, getAge, getDivisionAccent, getDivisionBadgeVariant, getDivisionFlag } from '@/lib/utils/format';
 import { SCHEDULE_LABELS } from '@/lib/utils/constants';
 import type { Child } from '@/types';
 
@@ -147,7 +147,7 @@ export function ChildCard({ child, index = 0, onToggleStatus, onDelete }: ChildC
             Qeydiyyat tarixi: {child.registrationDate ? formatDate(child.registrationDate, 'dd MMM yyyy') : '-'}
           </p>
           <p>
-            Deaktiv tarixi: {child.deactivationDate ? formatDate(child.deactivationDate, 'dd MMM yyyy') : '-'}
+            Son gəldiyi gün: {formatLastAttendedDate(child.deactivationDate, 'dd MMM yyyy')}
           </p>
         </div>
 

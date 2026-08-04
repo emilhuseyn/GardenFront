@@ -19,6 +19,28 @@ export function formatFullDate(date: string | Date): string {
   return formatDate(date, 'EEEE, d MMMM yyyy');
 }
 
+/**
+ * Deaktiv tarixi backend-də uşağın ARTIQ GƏLMƏDİYİ İLK gündür (eksklüziv) — həmin gün hesablanmır.
+ * Ekranlarda isə ştab "son gəldiyi gün" kimi oxuyur, ona görə göstərəndə bir gün geri çəkirik.
+ * Belə olmasa işçi ekrandakı tarixi deaktiv pəncərəsinə köçürüb bir gün artıq hesablayardı.
+ */
+export function toLastAttendedDate(deactivationDate: string | Date | null | undefined): Date | null {
+  if (!deactivationDate) return null;
+  const d = typeof deactivationDate === 'string' ? parseISO(deactivationDate) : new Date(deactivationDate);
+  if (Number.isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() - 1);
+  return d;
+}
+
+/** Son gəldiyi günü hazır mətn kimi qaytarır (boşdursa '-'). */
+export function formatLastAttendedDate(
+  deactivationDate: string | Date | null | undefined,
+  pattern = 'd MMMM yyyy'
+): string {
+  const d = toLastAttendedDate(deactivationDate);
+  return d ? formatDate(d, pattern) : '-';
+}
+
 export function formatMonthYear(month: number, year: number): string {
   const d = new Date(year, month - 1, 1);
   return format(d, 'MMMM yyyy', { locale: az });

@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ChildStatusBadge } from '@/components/children/ChildStatusBadge';
-import { formatDate, formatDateShort, formatCurrency, formatPhone, AZ_MONTHS } from '@/lib/utils/format';
+import { formatDate, formatDateShort, formatCurrency, formatPhone, formatLastAttendedDate, AZ_MONTHS } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/constants';
 import { childrenApi } from '@/lib/api/children';
 import { paymentsApi } from '@/lib/api/payments';
@@ -537,6 +537,9 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
         onConfirm={handleDeactivateConfirm}
         childName={`${child.firstName} ${child.lastName}`}
         minDate={child.registrationDate ? child.registrationDate.slice(0, 10) : null}
+        registrationDate={child.registrationDate ? child.registrationDate.slice(0, 10) : null}
+        monthlyFee={child.monthlyFee}
+        discountPercentage={child.discountPercentage}
         loading={actionLoading}
       />
       <div className="relative rounded-2xl overflow-hidden mb-6 p-6 bg-gradient-to-br from-green-400/10 to-accent-blue/5 dark:from-green-400/5 dark:to-accent-blue/5 border border-white-border dark:border-gray-700/60">
@@ -746,7 +749,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
               <InfoCard icon={User}       label="IVMS ID"          value={child.personId ? String(child.personId) : '-'} />
               <InfoCard icon={Calendar}   label="Doğum tarixi"      value={formatDate(new Date(child.dateOfBirth), 'dd MMMM yyyy')} />
               <InfoCard icon={Calendar}   label="Qeydiyyat tarixi"  value={child.registrationDate ? formatDate(new Date(child.registrationDate), 'dd MMMM yyyy') : '-'} />
-              <InfoCard icon={Calendar}   label="Deaktiv tarixi"    value={child.deactivationDate ? formatDate(new Date(child.deactivationDate), 'dd MMMM yyyy') : '-'} />
+              <InfoCard icon={Calendar}   label="Son gəldiyi gün"   value={formatLastAttendedDate(child.deactivationDate, 'dd MMMM yyyy')} />
               <InfoCard icon={Phone}      label="Valideyn telefonu" value={formatPhone(child.parentPhone)} />
               <InfoCard icon={User}       label="Valideyn adı"      value={child.parentFullName} />
               <InfoCard icon={User}       label="Əlavə valideyn"    value={child.secondParentFullName || '-'} />

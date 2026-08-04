@@ -26,6 +26,16 @@ const AZ_MONTHS = [
   'İyul', 'Avqust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr',
 ];
 
+/**
+ * C2: deaktiv tarixi "artıq gəlmədiyi ilk gün"dür, ona görə bu gün gələn uşaq üçün
+ * düzgün dəyər SABAHDIR — backend də sabaha qədər qəbul edir.
+ */
+const tomorrowIso = () => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 export default function EditChildPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -46,6 +56,7 @@ export default function EditChildPage() {
   });
   const [discountMode, setDiscountMode] = useState<'percentage' | 'amount'>('percentage');
   const [discountAmount, setDiscountAmount] = useState<number | ''>('');
+  const maxDeactivationDate = tomorrowIso();
 
   const currentYear = new Date().getFullYear();
   const dayOptions   = Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1).padStart(2, '0'), label: String(i + 1) }));
@@ -511,9 +522,11 @@ export default function EditChildPage() {
               {child?.status === 'Inactive' ? (
                 <Input
                   type="date"
-                  label="Deaktiv tarixi"
+                  label="Deaktiv tarixi (artıq gəlmədiyi ilk gün)"
                   value={deactivationDate}
+                  max={maxDeactivationDate}
                   onChange={(e) => setDeactivationDate(e.target.value)}
+                  hint="Seçilən gün ARTIQ hesablanmır — 1 avqust yazsanız avqust ayı 0 ₼ olur."
                 />
               ) : (
                 <Input

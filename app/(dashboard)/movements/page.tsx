@@ -10,7 +10,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { childrenApi } from '@/lib/api/children';
 import { divisionsApi, groupsApi } from '@/lib/api/groups';
-import { equalsNormalizedText, formatDate, formatMonthYear } from '@/lib/utils/format';
+import { equalsNormalizedText, formatDate, formatMonthYear, toLastAttendedDate, formatLastAttendedDate } from '@/lib/utils/format';
 import type { Child, ChildFilters, Division, Group } from '@/types';
 import { UserMinus, UserPlus, Users, ArrowUpRight, ArrowDownRight, Activity, TrendingUp, ChevronRight } from 'lucide-react';
 
@@ -128,12 +128,20 @@ export default function MovementsPage() {
     [filteredChildren, isInMonth]
   );
 
+  // Çıxış GƏLDİYİ SON günə görə aylara bölünür. Deaktiv tarixi "artıq gəlmədiyi ilk gün"
+  // olduğu üçün 31.07-də sonuncu gələn uşağın tarixi 01.08-dir — xam dəyərlə hesablasaq
+  // avqustda ayrılmış görünərdi və iyul hesabatı özü ilə uyğunlaşmazdı.
   const left = useMemo(
-    () => filteredChildren.filter((c) => isInMonth(c.deactivationDate)).sort((a, b) => {
-      const aDate = new Date(a.deactivationDate ?? 0).getTime();
-      const bDate = new Date(b.deactivationDate ?? 0).getTime();
-      return bDate - aDate;
-    }),
+    () => filteredChildren
+      .filter((c) => {
+        const last = toLastAttendedDate(c.deactivationDate);
+        return last ? isInMonth(last.toISOString()) : false;
+      })
+      .sort((a, b) => {
+        const aDate = toLastAttendedDate(a.deactivationDate)?.getTime() ?? 0;
+        const bDate = toLastAttendedDate(b.deactivationDate)?.getTime() ?? 0;
+        return bDate - aDate;
+      }),
     [filteredChildren, isInMonth]
   );
 
@@ -161,9 +169,9 @@ export default function MovementsPage() {
         return !Number.isNaN(d.getTime()) && d >= start && d < end;
       }).length;
       const leaveCount = filteredChildren.filter((c) => {
-        if (!c.deactivationDate) return false;
-        const d = new Date(c.deactivationDate);
-        return !Number.isNaN(d.getTime()) && d >= start && d < end;
+        // Yuxarıdakı ilə eyni qayda — son gəldiyi günə görə.
+        const d = toLastAttendedDate(c.deactivationDate);
+        return d !== null && d >= start && d < end;
       }).length;
 
       return {
@@ -458,7 +466,7 @@ export default function MovementsPage() {
                       <div className="flex items-center gap-2">
                         <div className="flex flex-col items-end">
                           <p className="text-xs font-semibold text-gray-900 dark:text-gray-300">
-                            {child.deactivationDate ? formatDate(child.deactivationDate) : '-'}
+                            {formatLastAttendedDate(child.deactivationDate)}
                           </p>
                           <p className="text-[10px] uppercase tracking-wider font-semibold text-rose-600 bg-rose-50/80 dark:bg-rose-500/10 dark:text-rose-400 px-2 py-0.5 rounded-md mt-1">
                             Ayrıldı
