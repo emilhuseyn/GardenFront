@@ -23,7 +23,8 @@ import { groupsApi } from '@/lib/api/groups';
 import { schedulesApi } from '@/lib/api/schedules';
 import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
 import { DeactivateChildModal } from '@/components/children/DeactivateChildModal';
-import { warnSkippedPaidMonths } from '@/components/children/deactivationNotices';
+import { ActivateChildModal } from '@/components/children/ActivateChildModal';
+import { warnSkippedPaidMonths, notifyReactivation } from '@/components/children/deactivationNotices';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import type { Child, Group, Payment, AttendanceEntry } from '@/types';
@@ -113,6 +114,7 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
   const [actionLoading, setActionLoading] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
+  const [activateModalOpen, setActivateModalOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
   const [monthAttendance, setMonthAttendance] = useState<AttendanceEntry[]>([]);
   const [scheduleNameByCode, setScheduleNameByCode] = useState<Record<string, string>>({});
@@ -135,18 +137,24 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
 
   const numId = Number(childId);
 
-  const handleToggleStatus = async () => {
+  const handleToggleStatus = () => {
     if (!child) return;
-    // Deaktivləşdirmədə əvvəlcə uşağın gəldiyi sonuncu gün soruşulur
-    if (child.status === 'Active') {
-      setDeactivateModalOpen(true);
-      return;
-    }
+    // Hər iki istiqamətdə tarix soruşulur: çıxışda gəlmədiyi ilk gün, qayıtmada yenidən gəldiyi gün.
+    if (child.status === 'Active') setDeactivateModalOpen(true);
+    else setActivateModalOpen(true);
+  };
+
+  const handleActivateConfirm = async (returnDate: string) => {
+    if (!child) return;
     setActionLoading(true);
     try {
-      await childrenApi.activate(numId);
-      setChild((c) => c ? { ...c, status: 'Active' } : c);
-      toast.success('Uşaq aktiv edildi');
+      const result = await childrenApi.activate(numId, returnDate);
+      setChild((c) => c ? { ...c, status: 'Active', deactivationDate: null } : c);
+      toast.success(`Uşaq aktiv edildi (${formatDateShort(returnDate)})`);
+      notifyReactivation([result]);
+      setActivateModalOpen(false);
+      // Qayıdış ayı yenidən hesablandığı üçün ödəniş siyahısı təzələnir
+      paymentsApi.getChildHistory(numId).then(setPayments).catch(() => {});
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Xəta baş verdi');
     } finally {
@@ -529,6 +537,16 @@ export function ChildDetail({ childId, onEdit }: ChildDetailProps) {
         onClose={() => setDeleteModalOpen(false)}
         onConfirm={handleDelete}
         childName={`${child.firstName} ${child.lastName}`}
+        loading={actionLoading}
+      />
+      <ActivateChildModal
+        open={activateModalOpen}
+        onClose={() => setActivateModalOpen(false)}
+        onConfirm={handleActivateConfirm}
+        childName={`${child.firstName} ${child.lastName}`}
+        minDate={child.registrationDate ? child.registrationDate.slice(0, 10) : null}
+        monthlyFee={child.monthlyFee}
+        discountPercentage={child.discountPercentage}
         loading={actionLoading}
       />
       <DeactivateChildModal

@@ -104,6 +104,39 @@ export interface DeactivationRecalcResult {
   exitMonth?: ExitMonthOutcome | null;
 }
 
+/** Backend ReturnMonthOutcome — uşaq geri qayıdanda həmin ayın yekun vəziyyəti. */
+export interface ReturnMonthOutcome {
+  paymentId: number;
+  month: number;
+  year: number;
+  finalAmount: number;
+  paidAmount: number;
+  periodStartDay: number;
+  periodEndDay: number;
+  /** Hesablanan gün sayı — dövr iki hissəyə bölünübsə cəmi göstərir. */
+  billedDays: number;
+  created: boolean;
+  needsManualReview: boolean;
+  reason?: string | null;
+}
+
+/** Uşaq geri qayıdanda "həqiqətən gəlmədiyi ay" kimi yekunlaşdırılan sətir (A2). */
+export interface ConfirmedAbsenceMonth {
+  paymentId: number;
+  month: number;
+  year: number;
+}
+
+/** Backend ReactivationResult — qaytarmadan sonra hesabların vəziyyəti (H1). */
+export interface ReactivationResult {
+  childId: number;
+  childFullName: string;
+  returnDate: string;
+  returnMonth?: ReturnMonthOutcome | null;
+  confirmedMonths?: ConfirmedAbsenceMonth[];
+  restoredMonths?: RestoredMonth[];
+}
+
 /** Redaktə cavabı — çıxış tarixi dəyişdirilibsə hesabların yenidən qurulması da qayıdır (D4). */
 export type ChildUpdateResponse = Child & { recalculation?: DeactivationRecalcResult | null };
 
@@ -168,9 +201,14 @@ export const childrenApi = {
     return unwrap<ChildUpdateResponse>(res);
   },
 
-  activate: async (id: number) => {
-    const res = await apiClient.patch(`/api/childrens/${id}/activate`);
-    return unwrap(res);
+  // returnDate — uşağın YENİDƏN GƏLDİYİ İLK gün ('yyyy-MM-dd', həmin gün hesablanır).
+  // Verilməsə gövdə göndərilmir və backend bugünü götürür.
+  activate: async (id: number, returnDate?: string) => {
+    const res = await apiClient.patch(
+      `/api/childrens/${id}/activate`,
+      returnDate ? { returnDate: `${returnDate}T00:00:00Z` } : undefined
+    );
+    return unwrap<ReactivationResult>(res);
   },
 
   // effectiveDate — uşağın gəldiyi SONUNCU gün ('yyyy-MM-dd'). Verilməsə gövdə göndərilmir

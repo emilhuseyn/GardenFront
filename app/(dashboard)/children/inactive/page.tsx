@@ -8,11 +8,13 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { ChildTable } from '@/components/children/ChildTable';
+import { ActivateChildModal } from '@/components/children/ActivateChildModal';
+import { notifyReactivation } from '@/components/children/deactivationNotices';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { childrenApi } from '@/lib/api/children';
 import { useDebounce } from '@/lib/hooks/useDebounce';
-import { formatLastAttendedDate } from '@/lib/utils/format';
+import { formatDateShort, formatLastAttendedDate } from '@/lib/utils/format';
 import { toast } from 'sonner';
 import type { Child } from '@/types';
 
@@ -20,6 +22,8 @@ export default function InactiveChildrenPage() {
   const [childrenList, setChildrenList] = useState<Child[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [activateTarget, setActivateTarget] = useState<Child | null>(null);
+  const [activateLoading, setActivateLoading] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
   useEffect(() => {
@@ -60,15 +64,26 @@ export default function InactiveChildrenPage() {
     fetchInactive();
   }, [debouncedSearch]);
 
-  const handleToggleStatus = async (id: number, currentStatus: string) => {
+  // Qaytarmada uşağın yenidən gəldiyi gün soruşulur — həmin ay o gündən hesablanır.
+  const handleToggleStatus = (id: number, currentStatus: string) => {
+    if (currentStatus !== 'Inactive') return;
+    const target = childrenList.find(c => c.id === id);
+    if (target) setActivateTarget(target);
+  };
+
+  const handleActivateConfirm = async (returnDate: string) => {
+    if (!activateTarget) return;
+    setActivateLoading(true);
     try {
-      if (currentStatus === 'Inactive') {
-        await childrenApi.activate(id);
-        toast.success('Uşaq aktiv edildi');
-        setChildrenList(prev => prev.filter(c => c.id !== id));
-      }
+      const result = await childrenApi.activate(activateTarget.id, returnDate);
+      toast.success(`Uşaq aktiv edildi (${formatDateShort(returnDate)})`);
+      notifyReactivation([result]);
+      setChildrenList(prev => prev.filter(c => c.id !== activateTarget.id));
+      setActivateTarget(null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Xəta baş verdi');
+    } finally {
+      setActivateLoading(false);
     }
   };
 
@@ -141,6 +156,16 @@ export default function InactiveChildrenPage() {
       transition={{ duration: 0.3 }}
       className="space-y-6"
     >
+      <ActivateChildModal
+        open={activateTarget !== null}
+        onClose={() => setActivateTarget(null)}
+        onConfirm={handleActivateConfirm}
+        childName={activateTarget ? `${activateTarget.firstName} ${activateTarget.lastName}` : ''}
+        minDate={activateTarget?.registrationDate ? activateTarget.registrationDate.slice(0, 10) : null}
+        monthlyFee={activateTarget?.monthlyFee ?? null}
+        discountPercentage={activateTarget?.discountPercentage ?? null}
+        loading={activateLoading}
+      />
       <PageHeader
         title="Deaktiv Uşaqlar"
         description="Ayrılmış və ya deaktiv edilmiş uşaqların siyahısı."

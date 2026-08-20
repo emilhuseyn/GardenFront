@@ -15,7 +15,8 @@ import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
 import { ChildCard } from '@/components/children/ChildCard';
 import { ChildTable } from '@/components/children/ChildTable';
 import { DeactivateChildModal } from '@/components/children/DeactivateChildModal';
-import { warnSkippedPaidMonths } from '@/components/children/deactivationNotices';
+import { ActivateChildModal } from '@/components/children/ActivateChildModal';
+import { warnSkippedPaidMonths, notifyReactivation } from '@/components/children/deactivationNotices';
 import { cn } from '@/lib/utils/constants';
 import { childrenApi, type DeactivationRecalcResult } from '@/lib/api/children';
 import { divisionsApi, groupsApi } from '@/lib/api/groups';
@@ -76,6 +77,8 @@ export default function ChildrenPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deactivateTargets, setDeactivateTargets] = useState<Child[]>([]);
   const [deactivateLoading, setDeactivateLoading] = useState(false);
+  const [activateTarget, setActivateTarget] = useState<Child | null>(null);
+  const [activateLoading, setActivateLoading] = useState(false);
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -162,20 +165,28 @@ export default function ChildrenPage() {
     });
   };
 
-  const handleToggleStatus = async (id: number, currentStatus: string) => {
-    // Deaktivləşdirmədə əvvəlcə uşağın gəldiyi sonuncu gün soruşulur
-    if (currentStatus === 'Active') {
-      const target = children.find((c) => c.id === id);
-      if (target) setDeactivateTargets([target]);
-      return;
-    }
+  const handleToggleStatus = (id: number, currentStatus: string) => {
+    // Hər iki istiqamətdə tarix soruşulur: çıxışda gəlmədiyi ilk gün, qayıtmada yenidən gəldiyi gün.
+    const target = children.find((c) => c.id === id);
+    if (!target) return;
+    if (currentStatus === 'Active') setDeactivateTargets([target]);
+    else setActivateTarget(target);
+  };
+
+  const handleActivateConfirm = async (returnDate: string) => {
+    if (!activateTarget) return;
+    setActivateLoading(true);
     try {
-      await childrenApi.activate(id);
-      toast.success('Uşaq aktiv edildi');
-      applyStatusChange([id], 'Active');
+      const result = await childrenApi.activate(activateTarget.id, returnDate);
+      toast.success(`Uşaq aktiv edildi (${formatDateShort(returnDate)})`);
+      applyStatusChange([activateTarget.id], 'Active');
+      notifyReactivation([result]);
+      setActivateTarget(null);
       void refreshSummary();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Xəta baş verdi, adminlə əlaqə saxlayın');
+    } finally {
+      setActivateLoading(false);
     }
   };
 
@@ -767,6 +778,16 @@ export default function ChildrenPage() {
         loading={deleteLoading}
       />
 
+      <ActivateChildModal
+        open={activateTarget !== null}
+        onClose={() => setActivateTarget(null)}
+        onConfirm={handleActivateConfirm}
+        childName={activateTarget ? `${activateTarget.firstName} ${activateTarget.lastName}` : ''}
+        minDate={activateTarget?.registrationDate ? activateTarget.registrationDate.slice(0, 10) : null}
+        monthlyFee={activateTarget?.monthlyFee ?? null}
+        discountPercentage={activateTarget?.discountPercentage ?? null}
+        loading={activateLoading}
+      />
       <DeactivateChildModal
         open={deactivateTargets.length > 0}
         onClose={() => setDeactivateTargets([])}

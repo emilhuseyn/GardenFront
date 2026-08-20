@@ -1,6 +1,6 @@
 import { toast } from 'sonner';
 import { AZ_MONTHS, formatCurrency } from '@/lib/utils/format';
-import type { DeactivationRecalcResult } from '@/lib/api/children';
+import type { DeactivationRecalcResult, ReactivationResult } from '@/lib/api/children';
 
 const period = (month: number, year: number) => `${AZ_MONTHS[month - 1] ?? month} ${year}`;
 
@@ -206,5 +206,87 @@ export function warnSkippedPaidMonths(results: (DeactivationRecalcResult | undef
       `${missing.length} ay üçün hesab yoxdur (${inline}${missing.length > 3 ? ', ...' : ''}) — lazım olsa əl ilə yaradın`,
       { description: shown.join(' • '), duration: 15000 }
     );
+  }
+}
+
+/**
+ * Uşaq geri qayıdanda (H1) ştabın bilməli olduqları:
+ *  1) qayıdış ayının hesabı — yaradıldı / yenidən hesablandı (ən vacibi: həmin ay artıq borcdur),
+ *  2) qayıdış ayına TOXUNULMADI (real pul ödənilib və ya ay onsuz da tam hesablanıb),
+ *  3) qayıdışdan sonrakı sıfırlanmış ayların bərpası,
+ *  4) qayıdışdan ƏVVƏLKİ ayların "uşaq gəlmədi" kimi yekunlaşdırılması (bir daha bərpa olunmur).
+ */
+export function notifyReactivation(results: (ReactivationResult | undefined | null)[]) {
+  const confirmedCount = results.reduce((sum, r) => sum + (r?.confirmedMonths?.length ?? 0), 0);
+  const confirmedSuffix = confirmedCount > 0
+    ? ` • qayıdışdan əvvəlki ${confirmedCount} ay "gəlmədiyi ay" kimi yekunlaşdırıldı`
+    : '';
+
+  const written = results.flatMap((result) => {
+    const m = result?.returnMonth;
+    return m && !m.needsManualReview ? [{ child: result?.childFullName ?? '', m }] : [];
+  });
+
+  if (written.length > 0) {
+    const anyCreated = written.some(({ m }) => m.created);
+    toast.info(
+      anyCreated ? 'Qayıdış ayı üçün hesab yaradıldı' : 'Qayıdış ayı yenidən hesablandı',
+      {
+        description: written
+          .map(({ child, m }) =>
+            `${child} — ${period(m.month, m.year)}: ${formatCurrency(m.finalAmount)} `
+            + `(${m.periodStartDay}-${m.periodEndDay}, ${m.billedDays} gün)${m.created ? ' • yeni' : ''}`)
+          .join(' • ') + confirmedSuffix,
+        duration: 12000,
+      }
+    );
+  }
+
+  const review = results.flatMap((result) => {
+    const m = result?.returnMonth;
+    return m && m.needsManualReview ? [{ child: result?.childFullName ?? '', m }] : [];
+  });
+
+  if (review.length > 0) {
+    toast.warning(
+      'Qayıdış ayına toxunulmadı — əl ilə yoxlayın',
+      {
+        description: review
+          .map(({ child, m }) =>
+            `${child} — ${period(m.month, m.year)}: ${formatCurrency(m.finalAmount)}`
+            + `${m.reason ? ` (${m.reason})` : ''}`)
+          .join(' • ') + confirmedSuffix,
+        duration: 15000,
+      }
+    );
+  }
+
+  const restored = results.flatMap((result) =>
+    (result?.restoredMonths ?? []).map((m) => ({
+      child: result?.childFullName ?? '',
+      period: period(m.month, m.year),
+      finalAmount: m.finalAmount,
+      paidAmount: m.paidAmount ?? 0,
+    }))
+  );
+
+  if (restored.length > 0) {
+    const shown = restored.slice(0, 4).map((r) =>
+      r.paidAmount > 0
+        ? `${r.child} — ${r.period}: ${formatCurrency(r.finalAmount)} (ödənilib ${formatCurrency(r.paidAmount)})`
+        : `${r.child} — ${r.period}: ${formatCurrency(r.finalAmount)}`
+    );
+    if (restored.length > shown.length) shown.push(`+${restored.length - shown.length} ay`);
+
+    toast.info(
+      `Qayıdışdan sonrakı ${restored.length} ay bərpa olundu`,
+      { description: shown.join(' • '), duration: 12000 }
+    );
+  }
+
+  // Qayıdış ayı üçün heç bir hesabat yoxdursa (məs. sətir yaradılmayıb) ştab ən azı
+  // yekunlaşdırılan ayları görməlidir.
+  if (written.length === 0 && review.length === 0 && restored.length === 0 && confirmedCount > 0) {
+    toast.info(`Qayıdışdan əvvəlki ${confirmedCount} ay "gəlmədiyi ay" kimi yekunlaşdırıldı`, { duration: 10000 });
   }
 }
