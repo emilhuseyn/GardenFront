@@ -496,30 +496,44 @@ export default function CashboxesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Etiketlər QƏSDƏN uzundur: ştab "Cəm balans" ilə siyahıdakı "Cari balans"ı
+                eyni şey sanırdı və onların fərqli çıxmasını xəta bilirdi. Əslində biri BİR AYI,
+                digəri BÜTÜN VAXTI ölçür — ona görə ikisi də burada, yan-yana göstərilir. */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="rounded-xl border border-gray-100 dark:border-gray-700/50 p-3 bg-gray-50/60 dark:bg-gray-800/40">
-                <p className="text-xs text-gray-500">Açılış qalığı</p>
+                <p className="text-xs text-gray-500">Ayın açılış qalığı</p>
                 <p className="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100">
                   {monthlyLoading ? '...' : formatCurrency(monthlyBalance?.openingBalance ?? 0)}
                 </p>
               </div>
               <div className="rounded-xl border border-gray-100 dark:border-gray-700/50 p-3 bg-gray-50/60 dark:bg-gray-800/40">
-                <p className="text-xs text-gray-500">Aylıq gəlir</p>
+                <p className="text-xs text-gray-500">Bu ayın gəliri</p>
                 <p className="mt-1 text-sm font-semibold text-green-600 dark:text-green-400">
                   {monthlyLoading ? '...' : formatCurrency(monthlyBalance?.monthlyIncome ?? 0)}
                 </p>
               </div>
               <div className="rounded-xl border border-gray-100 dark:border-gray-700/50 p-3 bg-gray-50/60 dark:bg-gray-800/40">
-                <p className="text-xs text-gray-500">Cəm balans</p>
+                <p className="text-xs text-gray-500">Bu ayın yekunu</p>
                 <p className="mt-1 text-sm font-semibold text-blue-600 dark:text-blue-400">
                   {monthlyLoading ? '...' : formatCurrency(monthlyBalance?.totalBalance ?? 0)}
                 </p>
               </div>
+              <div className="rounded-xl border border-blue-200 dark:border-blue-800/50 p-3 bg-blue-50/60 dark:bg-blue-900/20">
+                <p className="text-xs text-blue-700 dark:text-blue-300">Ümumi qalıq (bütün vaxt)</p>
+                <p className="mt-1 text-sm font-semibold text-blue-700 dark:text-blue-300">
+                  {formatCurrency(balanceCashbox?.balance ?? 0)}
+                </p>
+              </div>
             </div>
+
+            <p className="text-xs text-gray-500 dark:text-gray-400 -mt-1">
+              &quot;Bu ayın yekunu&quot; yalnız seçilmiş ayı göstərir. Siyahıdakı &quot;Ümumi qalıq&quot; isə
+              bütün ayların cəmidir — ona görə bu iki rəqəm fərqli olur, bu normaldır.
+            </p>
 
             <div className="rounded-xl border border-gray-100 dark:border-gray-700/50 overflow-hidden">
               <div className="px-3 py-2 bg-gray-50/80 dark:bg-gray-800/40 border-b border-gray-100 dark:border-gray-700/50">
-                <p className="text-xs font-semibold text-gray-500">Balans tarixçəsi</p>
+                <p className="text-xs font-semibold text-gray-500">Ay-ay tarixçə (hər sətir yalnız bir ayı göstərir)</p>
               </div>
               <div className="max-h-56 overflow-y-auto">
                 {historyLoading ? (
@@ -533,7 +547,7 @@ export default function CashboxesPage() {
                         <th className="px-3 py-2">Ay</th>
                         <th className="px-3 py-2">Açılış</th>
                         <th className="px-3 py-2">Gəlir</th>
-                        <th className="px-3 py-2">Cəm</th>
+                        <th className="px-3 py-2">Ayın yekunu</th>
                       </tr>
                     </thead>
                     <tbody>

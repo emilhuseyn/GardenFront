@@ -23,7 +23,7 @@ export function CashboxesTable({ data, onEdit, onToggleStatus, onManageBalance, 
             <th className="py-3 px-4 font-medium w-16">ID</th>
             <th className="py-3 px-4 font-medium">Kassa Adı</th>
             <th className="py-3 px-4 font-medium">Növ</th>
-            <th className="py-3 px-4 font-medium">Cari balans</th>
+            <th className="py-3 px-4 font-medium">Ümumi qalıq</th>
             <th className="py-3 px-4 font-medium">Status</th>
             {(canEdit) && <th className="py-3 px-4 font-medium text-right">Əməliyyat</th>}
           </tr>
