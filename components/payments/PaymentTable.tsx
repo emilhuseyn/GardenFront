@@ -312,6 +312,24 @@ export function PaymentTable({
     return { due, paid };
   });
 
+  // R2: eyni uc reqem HER USAQ ucun de. Ay-ay yekun ümumi mənzərəni verir,
+  // bu isə "hansı uşaq nə qədər az/artıq ödəyib" sualına cavab verir.
+  const rowTotals = new Map<string, { due: number; paid: number }>();
+  for (const r of statusFiltered) {
+    let due = 0;
+    let paid = 0;
+    for (let mi = 0; mi < 12; mi++) {
+      const a2 = r.amounts[mi];
+      if (!a2 || a2.final <= 0) continue;
+      due += a2.final;
+      paid += a2.paid;
+    }
+    rowTotals.set(r.id, { due, paid });
+  }
+
+  const grandDue = monthTotals.reduce((acc, t) => acc + t.due, 0);
+  const grandPaid = monthTotals.reduce((acc, t) => acc + t.paid, 0);
+
   const filteredRows = [...statusFiltered].sort((a, b) =>
     sortBy === 'fee'
       ? b.monthlyFee - a.monthlyFee
@@ -335,6 +353,15 @@ export function PaymentTable({
                 {m}
               </th>
             ))}
+            <th className="px-2 py-3 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
+              Olmalı idi
+            </th>
+            <th className="px-2 py-3 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
+              Ödənilib
+            </th>
+            <th className="px-2 py-3 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
+              Fərq
+            </th>
             <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
               Çek
             </th>
@@ -342,7 +369,7 @@ export function PaymentTable({
         </thead>
         <tbody>
           {filteredRows.length === 0 && !loading ? (
-            <tr><td colSpan={15} className="text-center text-sm text-gray-400 py-8">Nəticə tapılmadı</td></tr>
+            <tr><td colSpan={18} className="text-center text-sm text-gray-400 py-8">Nəticə tapılmadı</td></tr>
           ) : filteredRows.map((row, ri) => (
             <motion.tr
               key={row.id}
@@ -450,6 +477,26 @@ export function PaymentTable({
                   </td>
                 );
               })}
+              {/* R2: bu uşağın il üzrə yekunu */}
+              <td className="px-2 py-2 text-right text-[10px] font-mono text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                {(rowTotals.get(row.id)?.due ?? 0) > 0 ? formatCurrency(rowTotals.get(row.id)!.due) : '·'}
+              </td>
+              <td className="px-2 py-2 text-right text-[10px] font-mono text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
+                {(rowTotals.get(row.id)?.due ?? 0) > 0 ? formatCurrency(rowTotals.get(row.id)!.paid) : '·'}
+              </td>
+              <td className={cn(
+                'px-2 py-2 text-right text-[10px] font-mono font-bold whitespace-nowrap',
+                ((rowTotals.get(row.id)?.due ?? 0) - (rowTotals.get(row.id)?.paid ?? 0)) > 0
+                  ? 'text-accent-rose'
+                  : ((rowTotals.get(row.id)?.due ?? 0) - (rowTotals.get(row.id)?.paid ?? 0)) < 0
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-gray-400'
+              )}>
+                {(rowTotals.get(row.id)?.due ?? 0) > 0
+                  ? formatCurrency((rowTotals.get(row.id)!.due) - (rowTotals.get(row.id)!.paid))
+                  : '·'}
+              </td>
+
               {/* Vahid çek — kütləvi ödəniş paketini həftələr sonra da təkrar çap etmək üçün */}
               <td className="px-2 py-2 text-center">
                 {row.batches.length === 0 ? (
@@ -498,6 +545,11 @@ export function PaymentTable({
                   {t.due > 0 ? formatCurrency(t.due) : '·'}
                 </td>
               ))}
+              <td className="px-2 py-2 text-right text-[10px] font-mono font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                {formatCurrency(grandDue)}
+              </td>
+              <td />
+              <td />
               <td />
             </tr>
             <tr className="bg-gray-50/70 dark:bg-gray-800/40">
@@ -510,6 +562,11 @@ export function PaymentTable({
                   {t.due > 0 ? formatCurrency(t.paid) : '·'}
                 </td>
               ))}
+              <td />
+              <td className="px-2 py-2 text-right text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
+                {formatCurrency(grandPaid)}
+              </td>
+              <td />
               <td />
             </tr>
             <tr className="bg-gray-50/70 dark:bg-gray-800/40 border-t border-gray-200 dark:border-gray-700/60">
@@ -535,6 +592,18 @@ export function PaymentTable({
                   </td>
                 );
               })}
+              <td />
+              <td />
+              <td className={cn(
+                'px-2 py-2 text-right text-[10px] font-mono font-bold whitespace-nowrap',
+                grandDue - grandPaid > 0
+                  ? 'text-accent-rose'
+                  : grandDue - grandPaid < 0
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-gray-400'
+              )}>
+                {formatCurrency(grandDue - grandPaid)}
+              </td>
               <td />
             </tr>
           </tfoot>
