@@ -18,6 +18,21 @@ import { TransferHistoryModal } from '@/components/cashboxes/TransferHistoryModa
 import { useRouter } from 'next/navigation';
 import { AZ_MONTHS, formatCurrency, formatDate, formatMonthYear } from '@/lib/utils/format';
 
+/**
+ * datetime-local sahesi ucun YEREL vaxt sətri (YYYY-MM-DDTHH:mm).
+ *
+ * T1: evvel `new Date().toISOString().slice(0,16)` islenirdi — o, UTC qaytarir.
+ * Baki UTC+4 oldugu ucun forma 4 saat GERI acilirdi (16:29 -> 12:29), sonra
+ * gonderilende `new Date(...)` hemin sətri YEREL kimi oxuyub yeniden UTC-ye
+ * cevirirdi (-4 daha), ve bazaya 08:29 dusurdu. Cemi 8 saat sehv.
+ * Backend her yerde BAKI yerli vaxtini saxlayir (_dt.Now), ona gore burada da
+ * yerli vaxt gonderilmelidir — UTC cevrilmesi YOXDUR.
+ */
+const toLocalDateTimeInput = (d: Date) => {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 export default function CashboxesPage() {
   const { user } = useAuthStore();
   const perms = getPermissions(user?.role);
@@ -47,7 +62,7 @@ export default function CashboxesPage() {
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [operationAmountInput, setOperationAmountInput] = useState('');
   const [operationNote, setOperationNote] = useState('');
-  const [operationDateInput, setOperationDateInput] = useState(() => new Date().toISOString().slice(0, 16));
+  const [operationDateInput, setOperationDateInput] = useState(() => toLocalDateTimeInput(new Date()));
 
   const loadData = async () => {
     try {
@@ -88,7 +103,7 @@ export default function CashboxesPage() {
     setOperations([]);
     setOperationAmountInput('');
     setOperationNote('');
-    setOperationDateInput(new Date().toISOString().slice(0, 16));
+    setOperationDateInput(toLocalDateTimeInput(new Date()));
     setBalanceError(null);
     setIsBalanceOpen(true);
   };
@@ -297,9 +312,9 @@ export default function CashboxesPage() {
       const payload = {
         amount,
         note: operationNote.trim() || undefined,
-        operationDate: operationDateInput
-          ? new Date(operationDateInput).toISOString()
-          : new Date().toISOString(),
+        // T1: UTC-ye CEVIRMIRIK. Backend Baki yerli vaxtini saxlayir; `toISOString()`
+        // burada sahenin yerli deyerini 4 saat geri sururdu.
+        operationDate: `${operationDateInput || toLocalDateTimeInput(new Date())}:00`,
       };
 
       if (kind === 'income') {
