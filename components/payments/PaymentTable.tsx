@@ -298,6 +298,20 @@ export function PaymentTable({
     statusFilter === 'free'        ? discountFiltered.filter((r) => r.discountPercentage === 100) :
     discountFiltered;
 
+  // R1: cədvəlin altındakı yekun sətirləri — ştabın istədiyi "ümumi analiz".
+  // Süzgəclərə TABEDİR: ekranda görünən sətirlər nə göstərirsə, yekun da onu toplayır.
+  const monthTotals = MONTHS_SHORT.map((_, mi) => {
+    let due = 0;
+    let paid = 0;
+    for (const r of statusFiltered) {
+      const a2 = r.amounts[mi];
+      if (!a2 || a2.final <= 0) continue;   // 100% endirimli aylar sayılmır
+      due += a2.final;
+      paid += a2.paid;
+    }
+    return { due, paid };
+  });
+
   const filteredRows = [...statusFiltered].sort((a, b) =>
     sortBy === 'fee'
       ? b.monthlyFee - a.monthlyFee
@@ -398,8 +412,8 @@ export function PaymentTable({
                     tooltipParts.push('Ödənişsiz (100% endirim)');
                   } else {
                     if (amt.notes) tooltipParts.push(amt.notes);
+                    tooltipParts.push(`Olmalı idi: ${formatCurrency(amt.final)}`);
                     tooltipParts.push(`Ödənildi: ${formatCurrency(amt.paid)}`);
-                    if (amt.final !== amt.paid) tooltipParts.push(`Cəmi: ${formatCurrency(amt.final)}`);
                     if (amt.remaining > 0) tooltipParts.push(`Qalıq: ${formatCurrency(amt.remaining)}`);
                     if (cbName) tooltipParts.push(`Kassa: ${cbName}`);
                   }
@@ -422,6 +436,14 @@ export function PaymentTable({
                       {amt && amt.final > 0 && (
                         <span className="text-[9px] leading-none opacity-90 font-mono">
                           {formatCurrency(amt.paid)}
+                        </span>
+                      )}
+                      {/* R1: ştab "nə qədər olmalı idi / nə qədər ödənilib" müqayisəsini
+                          cədvəldə görmək istəyir. Yalnız FƏRQLİ olduqda göstərilir ki,
+                          tam ödənilmiş aylar lüzumsuz iki sətirlə dolmasın. */}
+                      {amt && amt.final > 0 && amt.final !== amt.paid && (
+                        <span className="text-[8px] leading-none opacity-60 font-mono">
+                          /{formatCurrency(amt.final)}
                         </span>
                       )}
                     </button>
@@ -461,6 +483,62 @@ export function PaymentTable({
             </motion.tr>
           ))}
         </tbody>
+
+        {/* R1: "normalda nə qədər ödəniş olmalı idi, amma nə qədər ödəyiblər" —
+            ştabın istədiyi ümumi analiz. Sətirlər süzgəclərə tabedir. */}
+        {filteredRows.length > 0 && (
+          <tfoot className="border-t-2 border-gray-200 dark:border-gray-700">
+            <tr className="bg-gray-50/70 dark:bg-gray-800/40">
+              <td className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50/70 dark:bg-gray-800/40">
+                Olmalı idi
+              </td>
+              <td />
+              {monthTotals.map((t, mi) => (
+                <td key={mi} className="px-1 py-2 text-center text-[10px] font-mono font-semibold text-gray-700 dark:text-gray-300">
+                  {t.due > 0 ? formatCurrency(t.due) : '·'}
+                </td>
+              ))}
+              <td />
+            </tr>
+            <tr className="bg-gray-50/70 dark:bg-gray-800/40">
+              <td className="px-4 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400 sticky left-0 bg-gray-50/70 dark:bg-gray-800/40">
+                Ödənilib
+              </td>
+              <td />
+              {monthTotals.map((t, mi) => (
+                <td key={mi} className="px-1 py-2 text-center text-[10px] font-mono font-semibold text-emerald-700 dark:text-emerald-400">
+                  {t.due > 0 ? formatCurrency(t.paid) : '·'}
+                </td>
+              ))}
+              <td />
+            </tr>
+            <tr className="bg-gray-50/70 dark:bg-gray-800/40 border-t border-gray-200 dark:border-gray-700/60">
+              <td className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50/70 dark:bg-gray-800/40">
+                Fərq
+              </td>
+              <td />
+              {monthTotals.map((t, mi) => {
+                const diff = t.due - t.paid;
+                return (
+                  <td
+                    key={mi}
+                    className={cn(
+                      'px-1 py-2 text-center text-[10px] font-mono font-bold',
+                      diff > 0
+                        ? 'text-accent-rose'
+                        : diff < 0
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-gray-400'
+                    )}
+                  >
+                    {t.due > 0 ? formatCurrency(diff) : '·'}
+                  </td>
+                );
+              })}
+              <td />
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
 
