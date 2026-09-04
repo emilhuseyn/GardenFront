@@ -147,6 +147,13 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   // When admin clicks the button we remember the original + rounded value so we can
   // compute the discount and detect if the admin manually overrides the amount.
   const [roundingState, setRoundingState] = useState<{ original: number; rounded: number } | null>(null);
+  // G1: ştabın bir aylıq GÜZƏŞTİ. Sərbəst məbləğdir və YALNIZ seçilmiş ayın sətrinə düşür.
+  // Əvvəl belə bir sahə yox idi: valideyn 1000 əvəzinə 800 ödəyəndə ştabın yeganə çarəsi
+  // uşağın AYLIQ QİYMƏTİNİ 800 etmək olurdu — o isə həmin uşağın ödənilməmiş bütün keçmiş
+  // aylarını və gələcək aylarını da yenidən yazır, üstəlik "1000 olmalı idi" məlumatını
+  // silir (OriginalAmount da, FinalAmount da eyni anda dəyişir). Güzəşt isə OriginalAmount-a
+  // toxunmur, ona görə "olmalı idi / güzəşt / ödənilib" hesabatı çıxarıla bilir.
+  const [manualDiscount, setManualDiscount] = useState('');
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -422,6 +429,14 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   const remainingAfter = currentPayment ? Math.max(0, remainingBefore - plannedAmount) : null;
   const overpayAmount = currentPayment ? Math.max(0, plannedAmount - remainingBefore) : 0;
 
+  // G1: güzəşt qalıq borcdan ÇOX ola bilməz — əks halda hesab mənfiyə düşərdi.
+  const maxDiscount = currentPayment ? Math.max(0, remainingBefore - plannedAmount) : 0;
+  const parsedManualDiscount = useMemo(() => {
+    const v = Number(manualDiscount);
+    if (!Number.isFinite(v) || v <= 0) return 0;
+    return Math.min(v, maxDiscount);
+  }, [manualDiscount, maxDiscount]);
+
   useEffect(() => {
     // Re-enable submit when user switches child or period for a new payment.
     setLastRecordedPaymentId(null);
@@ -433,15 +448,19 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
   // Reset rounding state when context changes
   useEffect(() => {
     setRoundingState(null);
+    setManualDiscount('');
   }, [effectiveChildId, watchedMonth, watchedYear, mode]);
 
   // Active rounding discount: only applies as long as the form amount equals the rounded value
   const effectiveRoundingDiscount = useMemo(() => {
+    // Əl ilə yazılmış güzəşt varsa o üstündür — "Yuvarlaqlaşdır" yalnız 10 ₼-lik
+    // köməkçidir və deaktiv uşaqlar üçün nəzərdə tutulub.
+    if (parsedManualDiscount > 0) return parsedManualDiscount;
     if (!roundingState) return 0;
     if (typeof watchedAmount !== 'number' || !Number.isFinite(watchedAmount)) return 0;
     if (watchedAmount !== roundingState.rounded) return 0;
     return Math.max(0, roundingState.original - roundingState.rounded);
-  }, [roundingState, watchedAmount]);
+  }, [parsedManualDiscount, roundingState, watchedAmount]);
 
   // The rounding courtesy is only meaningful for deactivated children — their pro-rated
   // amounts (e.g. 203 ₼ for a partial month) are the ones admins typically forgive down
@@ -733,9 +752,10 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
       });
       setLastRecordedPaymentId(recorded.id);
       setRoundingState(null);
+      setManualDiscount('');
       toast.success(
         effectiveRoundingDiscount > 0
-          ? `Ödəniş qeyd edildi (yuvarlaqlaşdırma endirimi: ${formatCurrency(effectiveRoundingDiscount)})`
+          ? `Ödəniş qeyd edildi (güzəşt: ${formatCurrency(effectiveRoundingDiscount)})`
           : 'Ödəniş uğurla qeyd edildi'
       );
     } catch (err: unknown) {
@@ -1089,7 +1109,7 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
           />
         </div>
         {errors.amount && <p className="mt-1 text-xs text-accent-rose">⚠ {errors.amount.message}</p>}
-        {effectiveRoundingDiscount > 0 && (
+        {effectiveRoundingDiscount > 0 && !parsedManualDiscount && (
           <div className="mt-1.5 flex items-center justify-between rounded-md border border-amber-200 bg-amber-50/70 px-2.5 py-1.5 text-[11px] dark:bg-amber-900/15 dark:border-amber-800/40">
             <span className="text-amber-800 dark:text-amber-300">
               <b>Yuvarlaqlaşdırma endirimi:</b> {formatCurrency(effectiveRoundingDiscount)} bağışlanacaq
@@ -1101,6 +1121,47 @@ export function PaymentForm({ childId, childName, defaultAmount, defaultMonth, o
             >
               Geri qaytar
             </button>
+          </div>
+        )}
+
+        {/* G1: bir aylıq güzəşt. Uşağın aylıq qiymətinə TOXUNMUR — yalnız bu ayın hesabı azalır. */}
+        {currentPayment && (
+          <div className="mt-2.5 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2.5 dark:border-emerald-800/40 dark:bg-emerald-900/15">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                Güzəşt (₼) <span className="font-normal text-emerald-700/70 dark:text-emerald-400/70">— opsional</span>
+              </label>
+              {maxDiscount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setManualDiscount(String(maxDiscount))}
+                  className="text-[10px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                >
+                  Qalanı bağışla ({formatCurrency(maxDiscount)})
+                </button>
+              )}
+            </div>
+            <div className="relative mt-1.5">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600/70 font-medium text-sm">₼</span>
+              <input
+                type="number"
+                step="0.01"
+                min={0}
+                value={manualDiscount}
+                onChange={(e) => setManualDiscount(e.target.value)}
+                placeholder="0.00"
+                className="w-full h-9 pl-8 pr-3 text-sm border border-emerald-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:bg-[#252836] dark:border-emerald-800/50"
+              />
+            </div>
+            <p className="mt-1.5 text-[11px] leading-snug text-emerald-800/80 dark:text-emerald-300/80">
+              Yalnız <b>bu ayın</b> hesabını azaldır. Uşağın aylıq qiyməti dəyişmir.
+            </p>
+            {parsedManualDiscount > 0 && (
+              <div className="mt-1.5 rounded-md bg-emerald-100/70 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-200">
+                Ödəniş {formatCurrency(plannedAmount)} · Güzəşt {formatCurrency(parsedManualDiscount)} · Bu aydan sonra qalıq{' '}
+                {formatCurrency(Math.max(0, remainingBefore - plannedAmount - parsedManualDiscount))}
+              </div>
+            )}
           </div>
         )}
       </div>
